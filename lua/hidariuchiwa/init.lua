@@ -2,7 +2,7 @@ local hidariuchiwa = {}
 
 function hidariuchiwa.main()
   local a = {}
-  for i=1,300000 do
+  for i=1,500 do
     a[i] = '' .. i
   end
   local start = os.clock()

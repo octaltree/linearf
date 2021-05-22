@@ -5,7 +5,7 @@ use neovim_lib::{neovim::Neovim, neovim_api::NeovimApi, session::Session};
 use std::time::Instant;
 
 fn main() {
-    let server = "/tmp/nvimmOHlM1/0";
+    let server = "/tmp/nvimzXhnZe/0";
     let mut session = Session::new_unix_socket(&server).unwrap();
     session.start_event_loop();
     let mut nvim = Neovim::new(session);
@@ -15,7 +15,7 @@ fn main() {
     println!("{:?}", Instant::now() - now);
 }
 
-fn arr() -> Vec<String> { (1..=300000).map(|i| i.to_string()).collect() }
+fn arr() -> Vec<String> { (1..=500).map(|i| i.to_string()).collect() }
 
 fn write(nvim: &mut Neovim, arr: Vec<String>) -> anyhow::Result<()> {
     let buf = nvim.get_current_buf()?;
