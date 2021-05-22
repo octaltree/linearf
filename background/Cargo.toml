@@ -7,16 +7,19 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.40"
+async-trait = "0.1.50"
+futures-io = "0.3.15"
 log = "0.4.14"
 rmp = "0.8.10"
 rmp-serde = "0.15.4"
 simple-logging = "2.0.2"
 structopt = "0.3.21"
-tokio = { version = "1.6.0", features = ["macros", "rt-multi-thread"] }
 wasmer = "1.0.2"
 wasmer-compiler-llvm = "1.0.2"
 wasmer-engine-jit = "1.0.2"
 wasmer-engine-native = "1.0.2"
+neovim-lib = "0.6.1"
+tokio = { version = "1.6.0", features = ["rt-multi-thread", "macros"] }
 
 [[bin]]
 name = "foo"
@@ -25,3 +28,7 @@ path = "src/foo.rs"
 [[bin]]
 name = "bar"
 path = "src/bar.rs"
+
+[[bin]]
+name = "hoge"
+path = "src/hoge.rs"
