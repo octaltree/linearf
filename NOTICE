@@ -1,0 +1,5 @@
+linearfinder.vim
+Copyright 2021 octaltree
+
+This software contains code derived from denite.nvim (https://github.com/Shougo/denite.nvim),
+available under MIT (https://github.com/Shougo/denite.nvim/blob/fb8174a07c3a19091bfdbfc9439a15466d1649fa/LICENSE).
