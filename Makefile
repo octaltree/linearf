@@ -1,4 +1,4 @@
-.PHONY: background
+.PHONY: core
 
-background:
-	cd background && cargo build
+core:
+	cd core && cargo build --release

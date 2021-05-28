@@ -2,14 +2,11 @@ use log::LevelFilter;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "background")]
+#[structopt(name = "linearfinder")]
 struct Opt {
     /// file logging
     #[structopt(long, name = "filename")]
-    log: Option<String>,
-    /// neovim rpc server
-    #[structopt(long, name = "v:servername")]
-    nvim: String
+    log: Option<String>
 }
 
 #[tokio::main]
