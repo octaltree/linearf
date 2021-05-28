@@ -5,7 +5,7 @@
 * Respect denite.nvim
   - Value extensiblity
 * Show the first view faster
-* Return in linear time even for huge sources
+* Respond as fast as if they were in linear time even for huge sources
 
 ## Requirements
 * cargo

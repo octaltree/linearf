@@ -9,3 +9,7 @@ pub trait Source {}
 pub trait Judge {}
 
 pub trait Score: PartialEq + Clone {}
+
+pub mod background {
+    pub async fn run() -> anyhow::Result<()> { Ok(()) }
+}
