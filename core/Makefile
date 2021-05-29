@@ -1,3 +1,5 @@
+.PHONY: all dev d format lint test doc
+
 all: format lint test doc
 	cargo build --release
 
