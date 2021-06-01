@@ -50,7 +50,10 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
 }
 
 pub mod background {
-    pub async fn run() -> anyhow::Result<()> { Ok(()) }
+    pub async fn run() -> anyhow::Result<()> {
+        loop {}
+        Ok(())
+    }
 }
 
 mod tmp {

@@ -4,7 +4,7 @@ PATH := ./tools/ve/bin:$(PATH)
 dev: core lua vim
 
 .PHONY: lint
-lint: lua-lint vim-lint core
+lint: core vim-lint lua-lint
 
 .PHONY: d
 d:
@@ -25,7 +25,7 @@ lua-format:
 # https://github.com/mpeterv/luacheck
 .PHONY: lua-lint
 lua-lint:
-	find lua -name "*.lua"| xargs luacheck | sed '/accessing undefined variable .*vim/d'
+	find lua -name "*.lua"| xargs luacheck | sed '/accessing undefined variable \[0m\[1mvim/d' | sed '/unused argument \[0m\[1m_/d'
 
 .PHONY: vim
 vim: vim-lint
