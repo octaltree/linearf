@@ -8,7 +8,7 @@ local function join(parts) return table.concat(parts, sep()) end
 local function root() return vim.g['linearfinder#root_dir'] end
 
 local function background_command()
-    return join {root(), 'background', 'target', 'release', 'linearfinder'}
+    return join {root(), 'core', 'target', 'release', 'linearfinder'}
 end
 
 return {join = join, root = root, background_command = background_command}

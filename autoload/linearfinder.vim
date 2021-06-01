@@ -4,5 +4,7 @@
 " action
 
 function! linearfinder#build() abort
-  " TODO
+  " TODO: read source paths
+  let sh = 'cd ' . shellescape(linearfinder#path#core()) . ' && cargo build --release'
+  execute '! ' . sh
 endfunction

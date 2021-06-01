@@ -12,4 +12,4 @@ local function start()
     handle, pid = uv.spawn(cmd, spawn_params, onexit)
 end
 
-return {start = start, build = build}
+return {start = start}
