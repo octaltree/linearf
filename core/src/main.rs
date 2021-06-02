@@ -15,5 +15,5 @@ async fn main() -> anyhow::Result<()> {
     if let Some(name) = &opt.log {
         simple_logging::log_to_file(name, LevelFilter::Trace)?;
     }
-    linearfinder::background::run().await
+    linearfinder::rpc::run().await
 }

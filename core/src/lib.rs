@@ -1,10 +1,20 @@
 #![feature(async_stream)]
+#[macro_use]
+extern crate serde;
+
+pub mod rpc;
 
 // rpc
 // 状態管理
 // ソース rustとvim script両方
 // Match score
 // 適切な構造で持つ
+// resume
+
+// やりとり
+// 1. vim-rust ソース開始リクエスト 状態を変更する
+// 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
+// rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
 
 use async_trait::async_trait;
 use serde_json::{Map, Value};
@@ -47,13 +57,6 @@ pub trait Match: Default {
 pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     /// If true, the item will not be displayed.
     fn is_excluded(&self) -> bool;
-}
-
-pub mod background {
-    pub async fn run() -> anyhow::Result<()> {
-        loop {}
-        Ok(())
-    }
 }
 
 mod tmp {
