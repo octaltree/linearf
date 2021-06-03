@@ -29,7 +29,12 @@ lua-format:
 # https://github.com/mpeterv/luacheck
 .PHONY: lua-lint
 lua-lint:
-	find lua -name "*.lua"| xargs luacheck | sed '/accessing undefined variable \[0m\[1mvim/d' | sed '/unused argument \[0m\[1m_/d'
+	@find lua -name "*.lua"| xargs luacheck -q |\
+		sed '/accessing undefined variable \[0m\[1mvim/d' |\
+		sed '/unused argument \[0m\[1m_/d' |\
+		sed '/^$$/d' |\
+		sed 's/\[0m\[31m\[1m[0-9]\+ warnings\[0m//g'|\
+		sed '/^Total:/d'
 
 .PHONY: vim
 vim: vim-lint
@@ -37,8 +42,8 @@ vim: vim-lint
 .PHONY: vim-lint
 vim-lint:
 	vint --version
-	vint plugin
-	vint autoload
+	@vint plugin
+	@vint autoload
 
 tools/ve/bin/vint: tools
 	cd tools && python -m venv ve && ./ve/bin/pip install vim-vint
