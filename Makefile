@@ -1,5 +1,9 @@
 PATH := ./tools/ve/bin:$(PATH)
 
+.PHONY: build
+build:
+	cd core && make release
+
 .PHONY: dev
 dev: core lua vim
 

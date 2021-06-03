@@ -1,4 +1,3 @@
-local uv = vim.loop
 local path = require('linearfinder.path')
 local rpc = require('linearfinder.rpc')
 

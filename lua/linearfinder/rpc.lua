@@ -1,5 +1,5 @@
 local uv = vim.loop
-local validate = vim.validate
+local vi = require('linearfinder.vi')
 local path = require('linearfinder.path')
 
 local function json_encode(data)
@@ -12,7 +12,7 @@ local function json_encode(data)
 end
 
 local function json_decode(s)
-    validate {s = {s, 's'}}
+    vi.validate {s = {s, 's'}}
     local status, result = pcall(vim.fn.json_decode, s)
     if status then
         return result
@@ -22,7 +22,7 @@ local function json_decode(s)
 end
 
 local function start(cmd, args)
-    validate {cmd = {cmd, 's'}, args = {args, 't'}}
+    vi.validate {cmd = {cmd, 's'}, args = {args, 't'}}
     local stdin = uv.new_pipe(false)
     local stdout = uv.new_pipe(false)
     local stderr = uv.new_pipe(false)
@@ -35,7 +35,9 @@ local function start(cmd, args)
             stderr:close()
             handle:close()
         end
+        print(cmd)
         handle, pid = uv.spawn(cmd, params, on_exit)
+        print(pid)
     end
     return {handle = handle, pid = pid}
 end

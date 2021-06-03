@@ -1,7 +1,8 @@
-.PHONY: all dev d format lint test doc
+.PHONY: release dev d format lint test doc
 
-all: format lint test doc
+release:
 	cargo build --release
+	cargo doc
 
 dev: format lint test doc
 

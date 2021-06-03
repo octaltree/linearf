@@ -1,9 +1,11 @@
-*linearfinder.txt*	
+*linearfinder.txt*	Fast and extensible fuzzy finder
 
 Author: octaltree <octaltree at users.noreply.github.com>
 License: Apache-2.0
 
-lua linearfinder#start()
-lua linearfinder#build()
+call linearfinder#build()
+call linearfinder#start()
+
+TODO: env vars for additional sources
 
 vim: ft=help tw=78 et ts=2 sw=2 sts=2 norl

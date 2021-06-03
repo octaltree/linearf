@@ -8,3 +8,10 @@ function! linearfinder#build() abort
   let sh = 'cd ' . shellescape(linearfinder#path#core()) . ' && cargo build --release'
   execute '! ' . sh
 endfunction
+
+function! linearfinder#start() abort
+  lua <<EOF
+  local main = require('linearfinder')
+  main.start()
+EOF
+endfunction
