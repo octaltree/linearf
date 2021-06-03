@@ -13,15 +13,69 @@ use tokio::sync::RwLock;
 use transport::{ReadError, Reader, Writer};
 
 pub async fn run() -> anyhow::Result<()> {
-    // let mut worker = Worker::new();
-    // worker.run().await
+    let mut connection = Connection::new();
+    let state: Arc<RwLock<State>> = Arc::default();
+    loop {
+        let msg = match connection.next() {
+            Err(ReadError::Closed) => break,
+            Err(ReadError::Error(e)) => return Err(e),
+            Ok(None) => continue,
+            Ok(Some(msg)) => msg
+        };
+        match msg.body {
+            MsgDeBody::Source(req) => source(&mut connection, &state, req).await?,
+            MsgDeBody::Query(req) => {
+                tokio::spawn(async {
+                    let x = req;
+                });
+            }
+            MsgDeBody::Preload(_resp) => ()
+        }
+    }
+    Ok(())
+}
+
+async fn source(
+    connection: &mut Connection,
+    state: &Arc<RwLock<State>>,
+    req: SourceRequest
+) -> anyhow::Result<()> {
+    // let mut source = crate::import::named_source(req.name);
+    let items = vec![];
+    preload(connection, &state, req.session, &items).await?;
+    Ok(())
+}
+
+async fn preload(
+    connection: &mut Connection,
+    state: &Arc<RwLock<State>>,
+    session: SessionId,
+    items: &[Item<'_>]
+) -> anyhow::Result<()> {
+    let st = Arc::downgrade(state);
+    let indexes: Vec<usize> = items.iter().map(|item| item.idx).collect();
+    connection
+        .request(
+            MsgSerBody::Preload(PreloadRequest {
+                session,
+                items: &items
+            }),
+            move |body| {
+                if let MsgDeBody::Preload(Ok(_)) = body {
+                    let st = st;
+                    let indexes = indexes;
+                }
+            }
+        )
+        .await?;
     Ok(())
 }
 
 struct Connection {
     reader: Reader,
     writer: Writer,
-    next_id: MessageId
+    id: MessageId,
+    callbacks: HashMap<MessageId, Box<dyn FnOnce(&MsgDeBody)>>
 }
 
 impl Connection {
@@ -29,65 +83,41 @@ impl Connection {
         Self {
             reader: Reader::new(),
             writer: Writer::new(),
-            next_id: MessageId(1)
+            id: MessageId(1),
+            callbacks: HashMap::new()
         }
     }
 
-    async fn request(&mut self, body: MsgSerBody<'_>) -> anyhow::Result<()> {
-        // TODO: callback
+    async fn request(
+        &mut self,
+        body: MsgSerBody<'_>,
+        f: impl FnOnce(&MsgDeBody) + 'static
+    ) -> anyhow::Result<()> {
+        self.callbacks.insert(self.id, Box::new(f));
         let msg = MsgSer {
-            id: Some(self.next_id),
+            id: Some(self.id),
             body
         };
         self.writer.send(&msg).await?;
-        self.next_id = self.next_id.next();
+        self.id = self.id.next();
         Ok(())
     }
 
-    fn next(&mut self) -> Result<Option<MsgDe>, ReadError> { self.reader.read() }
+    fn next(&mut self) -> Result<Option<MsgDe>, ReadError> {
+        let result: Result<Option<MsgDe>, _> = self.reader.read();
+        if let Ok(Some(msg)) = &result {
+            if let Some(callback) = msg.id.as_ref().and_then(|i| self.callbacks.remove(i)) {
+                callback(&msg.body);
+            }
+        }
+        result
+    }
 }
 
 #[derive(Debug, Default)]
 struct State {
     session_history: VecDeque<SessionId>,
     sessions: HashMap<SessionId, Session>
-}
-
-struct Worker {
-    connection: Connection,
-    state: Arc<RwLock<State>>
-}
-
-impl Worker {
-    fn new() -> Self {
-        Self {
-            connection: Connection::new(),
-            state: Arc::default()
-        }
-    }
-
-    async fn run(&mut self) -> anyhow::Result<()> {
-        loop {
-            let msg = match self.connection.next() {
-                Err(ReadError::Closed) => break,
-                Err(ReadError::Error(e)) => return Err(e),
-                Ok(None) => continue,
-                Ok(Some(msg)) => msg
-            };
-            match msg.body {
-                MsgDeBody::Source(req) => {}
-                MsgDeBody::Query(req) => {
-                    tokio::spawn(async {
-                        let x = req;
-                    });
-                }
-                MsgDeBody::Preload(resp) => {
-                    tokio::spawn(async {});
-                }
-            }
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
@@ -168,16 +198,19 @@ pub enum MsgDeBody {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SourceRequest {
-    pub id: SessionId
+    pub session: SessionId,
+    pub name: String
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct SourceResponse {}
 #[derive(Debug, Clone, Serialize)]
-pub struct SourceError {}
+pub enum SourceError {
+    SourceNotFound(String)
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct QueryRequest {
-    pub id: SessionId,
+    pub session: SessionId,
     pub query: String
 }
 #[derive(Debug, Clone, Serialize)]
@@ -187,8 +220,8 @@ pub struct QueryError {}
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct PreloadRequest<'a> {
-    pub id: SessionId,
-    pub items: &'a [(usize, Item<'a>)]
+    pub session: SessionId,
+    pub items: &'a [Item<'a>]
 }
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct PreloadResponse {}
