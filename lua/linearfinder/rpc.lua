@@ -1,4 +1,4 @@
-local uv = vim.loop
+local uv = require('luv')
 local vi = require('linearfinder.vi')
 local path = require('linearfinder.path')
 

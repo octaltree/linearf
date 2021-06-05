@@ -11,19 +11,23 @@ Fast and extensible fuzzy finder
 
 ## Requirements
 * cargo
-* vim 8 or neovim 0.5
+* pip
+* vim if_lua or neovim lua
 
 ## Installation
 For dein.vim
 ```
 call dein#add('octaltree/linearfinder.vim')
-" TODO: call build
 ```
 
 For vim-plug
 ```
 call dein#add('octaltree/linearfinder.vim')
-" TODO: call build
+```
+
+After source
+```
+call linearfinder#build()
 ```
 
 ## Configuration

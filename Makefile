@@ -1,9 +1,10 @@
-PATH := ./tools/ve/bin:$(PATH)
+.PHONY: clean
+clean:
+	rm -rf tools
+	rm -rf core/targets
 
-.PHONY: build
-build:
-	cd core && make release
 
+# Development
 .PHONY: dev
 dev: core lua vim
 
@@ -14,12 +15,14 @@ lint: core vim-lint lua-lint
 d:
 	watchexec 'make lint'
 
-.PHONY: lua
-lua: lua-format lua-lint
-
 .PHONY: core
 core:
 	cd core && make dev
+
+
+## Lua {{{
+.PHONY: lua
+lua: lua-format lua-lint
 
 # https://github.com/Koihik/LuaFormatter
 .PHONY: lua-format
@@ -35,18 +38,35 @@ lua-lint:
 		sed '/^$$/d' |\
 		sed 's/\[0m\[31m\[1m[0-9]\+ warnings\[0m//g'|\
 		sed '/^Total:/d'
+# }}}
 
+
+## Vim {{{
 .PHONY: vim
 vim: vim-lint
 
 .PHONY: vim-lint
-vim-lint:
-	vint --version
-	@vint plugin
-	@vint autoload
+vim-lint: tools/py/bin/vint
+	./tools/py/bin/vint --version
+	@./tools/py/bin/vint plugin
+	@./tools/py/bin/vint autoload
+# }}}
 
-tools/ve/bin/vint: tools
-	cd tools && python -m venv ve && ./ve/bin/pip install vim-vint
+
+## Prepare tools {{{
+prepare: tools/py/bin/vint
+
+tools/py/bin/vint: tools/py/bin
+	cd tools && ./py/bin/pip install vim-vint
+
+tools/py/bin: tools
+	cd tools && python -m venv py
+
+tools/lua:
+	mkdir -p $@
 
 tools:
 	mkdir -p $@
+# }}}
+
+# vim: foldmethod=marker
