@@ -15,23 +15,26 @@ Fast and extensible fuzzy finder
 * vim if_lua or neovim lua
 
 ## Installation
-For dein.vim
-```
+For dein
+```vim
+call dein#add('octaltree/vimrocks')
 call dein#add('octaltree/linearfinder.vim')
+
+lua <<EOF
+local vimrocks = require('vimrocks')
+if not vimrocks.luarocks_installed() then
+  vimrocks.local_install_luarocks()
+end
+EOF
+let g:vimrocks#enable_at_startup = 1
 ```
 
-For vim-plug
-```
-call dein#add('octaltree/linearfinder.vim')
-```
-
-After source
+After installing vimrocks, You need build linearfinder.
 ```
 call linearfinder#build()
 ```
 
 ## Configuration
 ```
-" TODO
 ```
 For more information, see help

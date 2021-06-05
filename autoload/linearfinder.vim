@@ -3,7 +3,7 @@
 " prompt, list, preview UI
 " action
 
-function! s:_install_rocks() abort
+function! s:_ensure_install_rocks() abort
   lua <<EOF
   local vimrocks = require('vimrocks')
   vimrocks.append_path()
@@ -19,11 +19,29 @@ function! s:_install_rocks() abort
 EOF
 endfunction
 
+function! s:_install_rocks() abort
+  lua <<EOF
+  local vimrocks = require('vimrocks')
+  vimrocks.append_path()
+  local lib = vimrocks.path.lualib(vimrocks.lua_version())
+  vimrocks.luarocks('install lua-protobuf')
+  vimrocks.luarocks('install luv')
+EOF
+endfunction
+
+function! s:_build_core_shell() abort
+  " TODO: read source paths
+  return 'cd ' . shellescape(linearfinder#path#core()) . ' && cargo build --release'
+endfunction
+
 function! linearfinder#build() abort
   call s:_install_rocks()
-  " TODO: read source paths
-  let sh = 'cd ' . shellescape(linearfinder#path#core()) . ' && cargo build --release'
-  execute '! ' . sh
+  execute '! ' . s:_build_core_shell()
+endfunction
+
+function! linearfinder#ensure_build() abort
+  call s:_ensure_install_rocks()
+  execute 'silent ! ' . s:_build_core_shell()
 endfunction
 
 function! linearfinder#start() abort

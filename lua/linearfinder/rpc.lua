@@ -35,9 +35,7 @@ local function start(cmd, args)
             stderr:close()
             handle:close()
         end
-        print(cmd)
         handle, pid = uv.spawn(cmd, params, on_exit)
-        print(pid)
     end
     return {handle = handle, pid = pid}
 end
