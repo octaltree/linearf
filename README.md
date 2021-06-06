@@ -11,7 +11,7 @@ Fast and extensible fuzzy finder
 
 ## Requirements
 * cargo
-* pip
+* python >= 3.3, pip
 * vim if_lua or neovim lua
 
 ## Installation
@@ -25,8 +25,8 @@ local vimrocks = require('vimrocks')
 if not vimrocks.luarocks_installed() then
   vimrocks.local_install_luarocks()
 end
+vimrocks.append_path()
 EOF
-let g:vimrocks#enable_at_startup = 1
 ```
 
 After installing vimrocks, You need build linearfinder.
