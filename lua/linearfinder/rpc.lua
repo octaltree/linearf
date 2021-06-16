@@ -1,25 +1,7 @@
 local uv = require('luv')
 local vi = require('linearfinder.vi')
 local path = require('linearfinder.path')
-
-local function json_encode(data)
-    local status, result = pcall(vim.fn.json_encode, data)
-    if status then
-        return result
-    else
-        return nil, result
-    end
-end
-
-local function json_decode(s)
-    vi.validate {s = {s, 's'}}
-    local status, result = pcall(vim.fn.json_decode, s)
-    if status then
-        return result
-    else
-        return nil, result
-    end
-end
+local pb = require('pb')
 
 local function start(cmd, args)
     vi.validate {cmd = {cmd, 's'}, args = {args, 't'}}
