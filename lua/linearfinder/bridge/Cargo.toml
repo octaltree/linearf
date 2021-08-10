@@ -1,0 +1,18 @@
+[package]
+name = "bridge"
+version = "0.1.0"
+edition = "2018"
+description = "This will stand on lua's side and interact with `core`"
+build = "src/build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+libc = "0.2.98"
+c-marshalling = { git = "https://github.com/distil/rust_lua_ffi" }
+lua-marshalling = { git = "https://github.com/distil/rust_lua_ffi" }
+
+[build-dependencies]
+generator = { git = "https://github.com/distil/rust_lua_ffi" }

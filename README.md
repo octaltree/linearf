@@ -11,6 +11,7 @@ Fast and extensible fuzzy finder
 
 ## Requirements
 * cargo
+* if_lua for vim / luajit for neovim 0.5
 
 ## Installation
 For dein

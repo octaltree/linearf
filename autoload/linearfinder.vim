@@ -17,4 +17,5 @@ function! linearfinder#ensure_build() abort
 endfunction
 
 function! linearfinder#start() abort
+  lua require('linearfinder').start()
 endfunction

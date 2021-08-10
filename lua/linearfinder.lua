@@ -1,10 +1,6 @@
-local path = require('linearfinder.path')
-local rpc = require('linearfinder.rpc')
-
 local function start()
-    local cmd = path.background_command()
-    local args = {}
-    return rpc.start(cmd, args)
+    local bridge = require('linearfinder.bridge.luv')
+    print('start')
 end
 
 return {start = start}
