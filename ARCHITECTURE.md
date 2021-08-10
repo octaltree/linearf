@@ -13,5 +13,3 @@
 * Action
   - vim script [./autoload/linearfinder/ui/actions/](./autoload/linearfinder/ui/actions/)
   - one of the UI
-* Bridge between vim script and rust
-  - nvim's lua and vim's if_lua [./lua/linearfinder/rpc.lua](./lua/linearfinder/rpc.lua)

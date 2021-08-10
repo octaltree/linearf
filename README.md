@@ -11,26 +11,12 @@ Fast and extensible fuzzy finder
 
 ## Requirements
 * cargo
-* python >= 3.3, pip
-* vim if_lua or neovim lua
 
 ## Installation
 For dein
 ```vim
-call dein#add('octaltree/vimrocks')
-call dein#add('octaltree/linearfinder.vim')
+call dein#add('octaltree/linearfinder')
 
-lua <<EOF
-local vimrocks = require('vimrocks')
-if not vimrocks.luarocks_installed() then
-  vimrocks.local_install_luarocks()
-end
-vimrocks.append_path()
-EOF
-```
-
-After installing vimrocks, You need build linearfinder.
-```
 call linearfinder#build()
 ```
 
