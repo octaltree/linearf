@@ -5,17 +5,17 @@
 
 function! s:_build_core_shell() abort
   " TODO: read source paths
-  return 'cd ' . shellescape(linearfinder#path#core()) . ' && cargo build --release'
+  return 'cd ' . shellescape(linearf#path#core()) . ' && cargo build --release'
 endfunction
 
-function! linearfinder#build() abort
+function! linearf#build() abort
   execute '! ' . s:_build_core_shell()
 endfunction
 
-function! linearfinder#ensure_build() abort
+function! linearf#ensure_build() abort
   execute 'silent ! ' . s:_build_core_shell()
 endfunction
 
-function! linearfinder#start() abort
-  lua require('linearfinder').start()
+function! linearf#start() abort
+  lua require('linearf').start()
 endfunction

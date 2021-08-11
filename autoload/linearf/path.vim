@@ -6,6 +6,6 @@ function! s:sep() abort
   endif
 endfunction
 
-function! linearfinder#path#core() abort
-  return g:linearfinder#root_dir . s:sep() . 'core'
+function! linearf#path#core() abort
+  return g:linearf#root_dir . s:sep() . 'core'
 endfunction

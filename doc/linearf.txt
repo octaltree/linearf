@@ -1,10 +1,10 @@
-*linearfinder.txt*	Fast and extensible fuzzy finder
+*linearf.txt*	Fast and extensible fuzzy finder
 
 Author: octaltree <octaltree at users.noreply.github.com>
 License: Apache-2.0
 
-call linearfinder#build()
-call linearfinder#start()
+call linearf#build()
+call linearf#start()
 
 TODO: env vars for additional sources
 

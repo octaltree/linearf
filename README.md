@@ -1,4 +1,4 @@
-# linearfinder.vim
+# linearf.vim
 Fast and extensible fuzzy finder
 
 ## Concepts
@@ -16,9 +16,9 @@ Fast and extensible fuzzy finder
 ## Installation
 For dein
 ```vim
-call dein#add('octaltree/linearfinder')
+call dein#add('octaltree/linearf')
 
-call linearfinder#build()
+call linearf#build()
 ```
 
 ## Configuration

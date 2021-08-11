@@ -2,7 +2,7 @@ use log::LevelFilter;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "linearfinder")]
+#[structopt(name = "linearf")]
 struct Opt {
     /// file logging
     #[structopt(long, name = "filename")]
@@ -15,5 +15,5 @@ async fn main() -> anyhow::Result<()> {
     if let Some(name) = &opt.log {
         simple_logging::log_to_file(name, LevelFilter::Trace)?;
     }
-    linearfinder::rpc::run().await
+    linearf::rpc::run().await
 }
