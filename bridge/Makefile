@@ -13,16 +13,14 @@ d:
 format:
 	@cargo fmt --quiet
 
-
 .PHONY: lint
 lint:
-	@cargo clippy --all-targets --quiet
+	@cargo clippy --all-targets --features=luajit --quiet
 
 .PHONY: test
 test:
-	@cargo test --all-targets --quiet
-
+	@cargo test --all-targets --features=luajit --quiet
 
 .PHONY: doc
 doc:
-	@cargo doc --quiet
+	@cargo doc --features=luajit --quiet
