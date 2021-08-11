@@ -19,7 +19,9 @@ fn check_userdata(_: &Lua, ud: MyUserData) -> LuaResult<i32> { Ok(ud.0) }
 
 fn spawn(_: &Lua, _: ()) -> LuaResult<()> {
     let mut rt = tokio::runtime::Runtime::new()?;
+    Command::new("touch").arg("/tmp/bar").status().unwrap();
     rt.spawn(async {
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         Command::new("touch").arg("/tmp/foo").status().unwrap();
     });
     Ok(())

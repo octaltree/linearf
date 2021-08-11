@@ -1,19 +1,20 @@
-local M = {cache = {}}
+local C = {}
+local M = {cache = C}
 
 function M.has(name) return vim.fn.has(name) == 1 end
 
-function M.cache.is_nvim()
-    if cache._is_nvim == nil then cache._is_nvim = M.has('nvim') end
-    return cache.is_nvim
+function C.is_nvim()
+    if C._is_nvim == nil then C._is_nvim = M.has('nvim') end
+    return C._is_nvim
 end
 
-function M.cache.is_windows()
-    if cache._is_windows == nil then cache._is_windows = M.has('win32') end
-    return cache._is_windows
+function C.is_windows()
+    if C._is_windows == nil then C._is_windows = M.has('win32') end
+    return C._is_windows
 end
 
-function g(name)
-    if cache.is_nvim() then
+function M.g(name)
+    if C.is_nvim() then
         return vim.g[name]
     else
         return vim.eval('g:' .. name)
@@ -21,7 +22,7 @@ function g(name)
 end
 
 function M.validate(table)
-    if cache.is_nvim() then return vim.validate(table) end
+    if M.cache.is_nvim() then return vim.validate(table) end
     -- Use only as a type hint
 end
 
