@@ -1,5 +1,5 @@
-# linearf.vim
-Fast and extensible fuzzy finder
+# linearf
+A fast and extensible fuzzy finder for vimmers
 
 ## Concepts
 * fzf is not vim
@@ -7,11 +7,11 @@ Fast and extensible fuzzy finder
   - Value extensiblity
 * Show the first view faster
 * Respond as fast as if they were in linear time even for huge sources
-* Use vim as a fuzzy finder
+* Use vim as a fuzzy finder from CLI
 
 ## Requirements
 * cargo
-* if_lua for vim / luajit for neovim 0.5
+* if_lua for vim / luajit for neovim
 
 ## Installation
 For dein
