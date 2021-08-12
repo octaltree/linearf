@@ -4,6 +4,7 @@ clean:
 
 .PHONY: dev
 dev: format lint test doc
+	@cargo build --features=luajit,vendored --quiet
 
 .PHONY: d
 d:

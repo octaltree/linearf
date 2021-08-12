@@ -3,19 +3,21 @@
 " prompt, list, preview UI
 " action
 
-function! s:_build_core_shell() abort
-  " TODO: read source paths
-  return 'cd ' . shellescape(linearf#path#core()) . ' && cargo build --release'
-endfunction
-
 function! linearf#build() abort
-  execute '! ' . s:_build_core_shell()
+  execute '! ' . s:build_core_shell()
 endfunction
 
-function! linearf#ensure_build() abort
-  execute 'silent ! ' . s:_build_core_shell()
-endfunction
+let s:started = v:false
 
 function! linearf#start() abort
+  if s:started
+    return
+  endif
+  let s:started = v:true
   lua require('linearf').start()
+endfunction
+
+function! s:build_core_shell() abort
+  " TODO: read source paths
+  return 'cd ' . shellescape(linearf#path#core()) . ' && cargo build --release'
 endfunction

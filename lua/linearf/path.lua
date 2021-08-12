@@ -18,7 +18,7 @@ function M.background_command()
     return M.join {M.root(), 'core', 'target', 'release', exe}
 end
 
-function M.bridge_signature()
+function M.append_bridge()
     local name
     -- TODO: mac
     if vi.cache.is_windows() then
@@ -26,7 +26,9 @@ function M.bridge_signature()
     else
         name = 'lib?.so'
     end
-    return M.join {C.root(), 'bridge', 'target', 'release', name}
+    local release = M.join {C.root(), 'bridge', 'target', 'release', name}
+    local debug = M.join {C.root(), 'bridge', 'target', 'debug', name}
+    package.cpath = table.concat({package.cpath, release, debug}, ';')
 end
 
 return M

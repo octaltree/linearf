@@ -17,5 +17,8 @@ luajit = ["mlua/luajit"]
 vendored = ["mlua/vendored"]
 
 [dependencies]
+log = "0.4.14"
+log4rs = "1.0.0"
 mlua = { version = "0.6.2", features = ["module", "async", "send"] }
+reqwest = "0.11.4"
 tokio = { version = "1.9.0", features = ["rt-multi-thread", "time"] }

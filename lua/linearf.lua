@@ -3,9 +3,9 @@ local M = {}
 local path = require('linearf.path')
 
 function M.start()
-    package.cpath = package.cpath .. ';' .. path.bridge_signature()
+    path.append_bridge()
     local bridge = require('bridge')
-    print(bridge.spawn())
+    bridge.spawn()
 end
 
 return M
