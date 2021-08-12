@@ -5,8 +5,10 @@ use tokio::runtime::Runtime;
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
+    let rt = tokio::runtime::Runtime::new()?;
     exports.set("spawn", lua.create_function(spawn)?)?;
-    exports.set("_rt", lua.create_function(check_userdata)?)?;
+    exports.set("_rt", lua.create_userdata(Dummy(Some(rt)))?)?;
+    // let key = lua.create_registry_value(rt)?;
     Ok(exports)
 }
 
@@ -16,9 +18,6 @@ fn spawn(_: &Lua, _: ()) -> LuaResult<()> {
     log::debug!("bar");
     // TODO
     rt.spawn(async {
-        // let resp = reqwest::get("https://example.com/").await.unwrap();
-        // let body = resp.text().await.unwrap();
-        // log::debug!("{}", body);
         log::debug!("foo");
     });
     Ok(())
@@ -47,11 +46,14 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(not(debug_assertions))]
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 
-#[derive(Copy)]
 struct Dummy(Option<Runtime>);
 
-impl LuaUserData for MyUserData {}
+impl LuaUserData for Dummy {}
 
-impl Clone for Dummy {
-    fn clone(&self) -> Self { Self(None) }
+impl From<Runtime> for Dummy {
+    fn from(inner: Runtime) -> Self { Self(Some(inner)) }
 }
+
+// impl Clone for Dummy {
+//    fn clone(&self) -> Self { Self(None) }
+//}
