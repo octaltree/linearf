@@ -15,4 +15,5 @@ local debug = M.join {C.root(), 'bridge', 'target', 'debug', name}
 package.cpath = table.concat({package.cpath, release, debug}, ';')
 
 local bridge = require('bridge')
-bridge.spawn()
+--bridge.spawn()
+bridge.send({'a', 'b'})

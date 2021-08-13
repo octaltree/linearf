@@ -8,6 +8,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     let rt = tokio::runtime::Runtime::new()?;
     exports.set("spawn", lua.create_function(spawn)?)?;
+    exports.set("send", lua.create_function(send)?)?;
     lua.globals()
         .raw_set("_rt", lua.create_userdata(UserDataWrapper::new(rt))?)?;
     Ok(exports)
@@ -18,12 +19,15 @@ fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
     let rt = r.borrow_mut::<UserDataWrapper<Runtime>>()?;
     log::debug!("bar");
     rt.spawn(async {
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        for i in 0..1000 {
-            log::debug!("{}", i);
-        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         log::debug!("foo");
     });
+    Ok(())
+}
+
+fn send(lua: &Lua, xs: String) -> LuaResult<()> {
+    let xs: Vec<String> = serde_json::from_str(&xs).unwrap();
+    // log::debug!("{:?}", xs.len());
     Ok(())
 }
 

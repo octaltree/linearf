@@ -11,7 +11,7 @@ A fast and extensible fuzzy finder for vimmers
 
 ## Requirements
 * cargo
-* if_lua for vim / luajit for neovim
+* +lua/dyn for vim / luajit for neovim
 
 ## Installation
 For dein
