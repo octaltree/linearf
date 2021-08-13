@@ -1,5 +1,5 @@
 use mlua::prelude::*;
-use std::process::Command;
+use std::{cell::RefMut, process::Command};
 use tokio::runtime::Runtime;
 
 #[mlua::lua_module]
@@ -8,28 +8,21 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     let rt = tokio::runtime::Runtime::new()?;
     exports.set("spawn", lua.create_function(spawn)?)?;
-    // exports.set("_rt", lua.create_userdata(Dummy(Some(rt)))?)?;
-    // let key = lua.create_registry_value(rt)?;
     lua.globals()
-        .raw_set("_rt", lua.create_userdata(Dummy(Some(rt)))?)?;
+        .raw_set("_rt", lua.create_userdata(UserDataWrapper::new(rt))?)?;
     Ok(exports)
 }
 
 fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
-    let mut rt = tokio::runtime::Runtime::new()?;
     let r: LuaAnyUserData = lua.globals().raw_get("_rt")?;
-    let dummy = r.borrow_mut::<Dummy>()?;
-    let rt = dummy.0.as_ref().unwrap();
+    let rt = r.borrow_mut::<UserDataWrapper<Runtime>>()?;
     log::debug!("bar");
-    // rt.spawn(async {
-    //    // tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    //    for i in 0..10000000 {}
-    //    log::debug!("foo");
-    //});
-    std::thread::spawn(|| {
-        for i in 0..100000000 {
+    rt.spawn(async {
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        for i in 0..1000 {
             log::debug!("{}", i);
         }
+        log::debug!("foo");
     });
     Ok(())
 }
@@ -57,10 +50,15 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(not(debug_assertions))]
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 
-struct Dummy(Option<Runtime>);
+struct UserDataWrapper<T>(T);
 
-impl LuaUserData for Dummy {}
+impl<T> LuaUserData for UserDataWrapper<T> {}
 
-impl From<Runtime> for Dummy {
-    fn from(inner: Runtime) -> Self { Self(Some(inner)) }
+impl<T> std::ops::Deref for UserDataWrapper<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl<T> UserDataWrapper<T> {
+    fn new(inner: T) -> Self { Self(inner) }
 }
