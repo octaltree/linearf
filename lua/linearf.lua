@@ -22,6 +22,7 @@ local function is_array(t)
 end
 
 function M.send(xs)
+  print(vim.inspect(xs))
   --print(xs[1])
   --print(xs)
   --print(foo)
@@ -30,7 +31,7 @@ function M.send(xs)
   --for i=1,200000 do
   --  table.insert(ret, i)
   --end
-  bridge.send(xs)
+  --bridge.send(xs)
   --return ret
 end
 

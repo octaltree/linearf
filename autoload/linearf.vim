@@ -23,13 +23,17 @@ function! s:build_core_shell() abort
 endfunction
 
 function! linearf#tmp() abort
-  let sh = "find /home/octaltree/workspace| sed '/linearf/d'"
+  let sh = "find /home/octaltree/workspace"
   let out = system(sh)
   let xs = split(out, '\n')
+  "let json = json_encode(out)
   let start = reltime()
-  let json = json_encode(out)
   "let x =  json_decode(json)
-  call luaeval("require('linearf').send(_A)", json)
+  let bytes = []
+  for x in xs
+    call add(bytes, libcall(g:linearf#root_dir .. '/autoload/linearf/base64/target/release/libbase64.so', 'base64_encode', x))
+  endfor
+  call luaeval("require('linearf').send(_A)", bytes)
   "call pyeval("(lambda x: [])(_A)", xs)
 
   "lua linearf = require('linearf')
