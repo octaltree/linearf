@@ -25,9 +25,9 @@ fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
     Ok(())
 }
 
-fn send(lua: &Lua, xs: String) -> LuaResult<()> {
-    let xs: Vec<String> = serde_json::from_str(&xs).unwrap();
-    // log::debug!("{:?}", xs.len());
+fn send(lua: &Lua, xs: LuaString) -> LuaResult<()> {
+    // let xs: Vec<String> = serde_json::from_str(&xs).unwrap();
+    log::debug!("{:?}", xs.as_bytes());
     Ok(())
 }
 
