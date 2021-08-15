@@ -25,11 +25,7 @@ fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
     Ok(())
 }
 
-fn send(lua: &Lua, xs: LuaString) -> LuaResult<()> {
-    // let xs: Vec<String> = serde_json::from_str(&xs).unwrap();
-    log::debug!("{:?}", xs.as_bytes());
-    Ok(())
-}
+fn send(lua: &Lua, xs: LuaString) -> LuaResult<()> { Ok(()) }
 
 #[cfg(debug_assertions)]
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {

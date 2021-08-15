@@ -22,17 +22,6 @@ local function is_array(t)
 end
 
 function M.send(xs)
-  --print(vim.inspect(xs))
-  --print(xs[1])
-  --print(xs)
-  --print(foo)
-  --print(is_array(xs))
-  --local ret = {}
-  --for i=1,200000 do
-  --  table.insert(ret, i)
-  --end
-  --bridge.send(xs)
-  --return ret
 end
 
 local builder = {}
