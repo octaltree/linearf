@@ -23,5 +23,6 @@ call linearf#build()
 
 ## Configuration
 ```
+call lienarf#init()
 ```
 For more information, see help

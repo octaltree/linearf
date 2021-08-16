@@ -21,9 +21,4 @@ function M.g(name)
     end
 end
 
-function M.validate(table)
-    if M.cache.is_nvim() then return vim.validate(table) end
-    -- Use only as a type hint
-end
-
 return M

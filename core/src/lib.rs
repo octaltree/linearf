@@ -61,6 +61,12 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
+pub struct Flow {}
+
+pub struct Session {
+    id: i32
+}
+
 pub async fn start() {
     tokio::spawn(async {
         log::debug!("foo");

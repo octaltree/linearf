@@ -1,35 +1,43 @@
+mod rpc;
+
 use mlua::prelude::*;
-use std::{cell::RefMut, process::Command};
+use std::{cell::RefMut, process::Command, rc::Rc};
 use tokio::runtime::Runtime;
+
+const RT: &'static str = "_rt";
 
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = tokio::runtime::Runtime::new()?;
     lua.globals()
-        .raw_set("_rt", lua.create_userdata(UserDataWrapper::new(rt))?)?;
+        .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     let exports = lua.create_table()?;
     exports.set("spawn", lua.create_function(spawn)?)?;
-    exports.set("linearf", lua.create_function(entry)?)?;
+    exports.set("start_session", lua.create_function(start_session)?)?;
     Ok(exports)
 }
 
 fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
-    let r: LuaAnyUserData = lua.globals().raw_get("_rt")?;
-    let rt = r.borrow_mut::<UserDataWrapper<Runtime>>()?;
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     rt.spawn(async {
         linearf::start().await;
     });
     Ok(())
 }
 
-fn entry(lua: &Lua, source: LuaString) -> LuaResult<()> {
-    log::debug!("{:?}", source.as_bytes());
-    Ok(())
+fn start_session(lua: &Lua, source: LuaString) -> LuaResult<i32> {
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let sid = rt.block_on(async { 0 });
+    Ok(sid)
 }
 
-#[cfg(debug_assertions)]
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
+    if !cfg!(debug_assertions) {
+        return Ok(());
+    }
     use log::LevelFilter;
     use log4rs::{
         append::file::FileAppender,
@@ -48,18 +56,15 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(not(debug_assertions))]
-fn initialize_log() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+struct Wrapper<T>(T);
 
-struct UserDataWrapper<T>(T);
+impl<T> LuaUserData for Wrapper<T> {}
 
-impl<T> LuaUserData for UserDataWrapper<T> {}
-
-impl<T> std::ops::Deref for UserDataWrapper<T> {
+impl<T> std::ops::Deref for Wrapper<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-impl<T> UserDataWrapper<T> {
+impl<T> Wrapper<T> {
     fn new(inner: T) -> Self { Self(inner) }
 }
