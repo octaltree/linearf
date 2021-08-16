@@ -2,12 +2,14 @@
 " rpc lua
 " prompt, list, preview UI
 " action
+let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
+let s:started = v:false
 
 function! linearf#build() abort
-  execute '! ' . s:build_core_shell()
+  let dir = linearf#path#bridge()
+  let sh = printf('cd %$s && cargo build --release', shellescape(dir))
+  execute '! ' . sh
 endfunction
-
-let s:started = v:false
 
 function! linearf#start() abort
   if s:started
@@ -17,7 +19,6 @@ function! linearf#start() abort
   lua require('linearf').start()
 endfunction
 
-function! s:build_core_shell() abort
-  " TODO: read source paths
-  return 'cd ' . shellescape(linearf#path#core()) . ' && cargo build --release'
+function! linearf#linearf(source) abort
+  call luaeval('require("linearf").linearf(_A)', a:source)
 endfunction

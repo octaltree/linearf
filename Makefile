@@ -11,8 +11,8 @@ clean:
 .PHONY: dev
 dev: vim-lint
 	@cd lua && make dev
-	@cd core && make dev
 	@cd bridge && make dev
+	@cd core && make dev
 
 .PHONY: d
 d:
@@ -21,7 +21,6 @@ d:
 
 .PHONY: vim-lint
 vim-lint: tools/py/bin/vint
-	@./tools/py/bin/vint plugin
 	@./tools/py/bin/vint autoload
 
 

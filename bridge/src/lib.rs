@@ -5,27 +5,28 @@ use tokio::runtime::Runtime;
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
-    let exports = lua.create_table()?;
     let rt = tokio::runtime::Runtime::new()?;
-    exports.set("spawn", lua.create_function(spawn)?)?;
-    exports.set("send", lua.create_function(send)?)?;
     lua.globals()
         .raw_set("_rt", lua.create_userdata(UserDataWrapper::new(rt))?)?;
+    let exports = lua.create_table()?;
+    exports.set("spawn", lua.create_function(spawn)?)?;
+    exports.set("linearf", lua.create_function(entry)?)?;
     Ok(exports)
 }
 
 fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
     let r: LuaAnyUserData = lua.globals().raw_get("_rt")?;
     let rt = r.borrow_mut::<UserDataWrapper<Runtime>>()?;
-    log::debug!("bar");
     rt.spawn(async {
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        log::debug!("foo");
+        linearf::start().await;
     });
     Ok(())
 }
 
-fn send(lua: &Lua, xs: LuaString) -> LuaResult<()> { Ok(()) }
+fn entry(lua: &Lua, source: LuaString) -> LuaResult<()> {
+    log::debug!("{:?}", source.as_bytes());
+    Ok(())
+}
 
 #[cfg(debug_assertions)]
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {

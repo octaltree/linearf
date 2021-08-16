@@ -23,3 +23,4 @@ mlua = { version = "0.6.2", features = ["module", "async", "send"] }
 serde = "1.0.127"
 serde_json = "1.0.66"
 tokio = { version = "1.9.0", features = ["rt-multi-thread", "time"] }
+linearf = { path = "../core" }

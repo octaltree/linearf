@@ -61,6 +61,12 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
+pub async fn start() {
+    tokio::spawn(async {
+        log::debug!("foo");
+    });
+}
+
 mod tmp {
     use super::*;
     use std::cmp::Ordering;
