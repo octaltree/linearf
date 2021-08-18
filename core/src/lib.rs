@@ -4,7 +4,7 @@ extern crate serde;
 
 pub mod imp;
 pub(crate) mod import;
-pub mod rpc;
+// pub mod rpc;
 
 // rpc
 // 状態管理
@@ -20,28 +20,40 @@ pub mod rpc;
 
 use async_trait::async_trait;
 use serde_json::{Map, Value};
-use std::stream::Stream;
+use std::{
+    collections::{HashMap, VecDeque},
+    stream::Stream,
+    sync::Arc
+};
+use tokio::sync::RwLock;
 
 /// NOTE: Source and Match have the potential to have cache, so make them live longer.
 
 #[async_trait]
 pub trait Source: Default {
-    type Item: Item;
     fn name() -> &'static str;
     async fn start(&mut self, option: Map<String, Value>);
     async fn item_stream<S>(&mut self) -> S
     where
-        S: Stream<Item = Self::Item>;
+        S: Stream<Item = Item>;
 }
 
-pub trait Item {
-    fn idx(&self) -> usize;
-    fn value(&self) -> &str;
-    fn value_type(&self) -> &'static str;
-    /// A single line of text to be displayed in the candidate list
-    fn view(&self) -> &str;
-    /// This is used for matching. It should be substring of view.
-    fn view_for_matcing(&self) -> &str { self.view() }
+pub struct Item {
+    idx: usize,
+    value: String,
+    r#type: &'static str,
+    view: Option<String>,
+    view_for_matcing: Option<String>
+}
+
+impl Item {
+    fn view(&self) -> &str { self.view.as_deref().unwrap_or(&self.value) }
+
+    fn view_for_matcing(&self) -> &str {
+        self.view_for_matcing
+            .as_deref()
+            .unwrap_or_else(|| self.view())
+    }
 }
 
 #[async_trait]
@@ -49,9 +61,7 @@ pub trait Match: Default {
     type Score;
     fn name() -> &'static str;
     async fn start(&mut self, query: &str, option: Map<String, Value>);
-    async fn score<I>(&mut self, item: &I) -> Self::Score
-    where
-        I: Item;
+    async fn score(&mut self, item: &Item) -> Self::Score;
 }
 
 /// Items will be displayed in descending order of its score.
@@ -61,16 +71,48 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
+#[derive(Debug)]
 pub struct Flow {}
 
+#[derive(Debug)]
 pub struct Session {
-    id: i32
+    id: i32,
+    flow: Flow
 }
 
-pub async fn start() {
-    tokio::spawn(async {
-        log::debug!("foo");
-    });
+pub async fn start() {}
+
+#[derive(Debug, Default)]
+pub struct State {
+    shutdown: bool,
+    id: i32,
+    sessions: VecDeque<RwLock<Session>>,
+    flow: HashMap<String, Flow>
+}
+
+impl State {
+    pub fn new() -> Arc<RwLock<Self>> {
+        let this = Self::default();
+        Arc::new(RwLock::new(this))
+    }
+}
+
+struct Linearf;
+
+impl Linearf {
+    fn new() -> Linearf { todo!() }
+
+    async fn start(flow: Flow) -> i32 { todo!() }
+
+    async fn start_by_name<S: AsRef<str>>(flow: S) -> i32 { todo!() }
+
+    async fn shutdown() { todo!() }
+}
+
+impl Session {
+    async fn count(&self) -> usize { todo!() }
+
+    async fn items(&self, start: usize, stop: usize) -> &[Item] { todo!() }
 }
 
 mod tmp {

@@ -3,21 +3,21 @@
 " prompt, list, preview UI
 " action
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
-let s:started = v:false
+let s:initialized = v:false
 let s:session = v:null
 
 function! linearf#build() abort
   let dir = linearf#path#bridge()
-  let sh = printf('cd %$s && cargo build --release', shellescape(dir))
+  let sh = printf('cd %s && cargo build --release', shellescape(dir))
   execute '! ' . sh
 endfunction
 
 function! linearf#init() abort
-  if s:started
+  if s:initialized
     return
   endif
-  let s:started = v:true
   lua require('linearf').init()
+  let s:initialized = v:true
 endfunction
 
 function! linearf#start(flow) abort

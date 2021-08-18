@@ -5,6 +5,7 @@ use std::{cell::RefMut, process::Command, rc::Rc};
 use tokio::runtime::Runtime;
 
 const RT: &'static str = "_rt";
+const ST: &'static str = "_state";
 
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
@@ -26,6 +27,8 @@ fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
     });
     Ok(())
 }
+
+fn shutdown(lua: &Lua, _: ()) -> LuaResult<()> { Ok(()) }
 
 fn start_session(lua: &Lua, source: LuaString) -> LuaResult<i32> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
