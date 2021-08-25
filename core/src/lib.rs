@@ -23,9 +23,9 @@ use serde_json::{Map, Value};
 use std::{
     collections::{HashMap, VecDeque},
     stream::Stream,
-    sync::Arc
+    sync::{atomic::AtomicBool, Arc}
 };
-use tokio::sync::RwLock;
+use tokio::{runtime::Runtime, sync::RwLock};
 
 /// NOTE: Source and Match have the potential to have cache, so make them live longer.
 
@@ -71,48 +71,69 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
-#[derive(Debug)]
+/// Setting sources and matches
+/// Cache may be used when equal
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Flow {}
 
+/// State being calculated based on flow
 #[derive(Debug)]
 pub struct Session {
-    id: i32,
     flow: Flow
 }
 
-pub async fn start() {}
+#[derive(Debug)]
+pub struct Linearf(RwLock<State>);
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct State {
+    rt: Runtime,
     shutdown: bool,
-    id: i32,
-    sessions: VecDeque<RwLock<Session>>,
-    flow: HashMap<String, Flow>
+    sessions: VecDeque<(i32, RwLock<Session>)>
 }
 
 impl State {
-    pub fn new() -> Arc<RwLock<Self>> {
-        let this = Self::default();
+    pub fn new_shared(rt: Runtime) -> Arc<RwLock<Self>> {
+        let this = Self {
+            rt,
+            shutdown: false,
+            sessions: VecDeque::new()
+        };
         Arc::new(RwLock::new(this))
+    }
+
+    fn next_session_id(&self) -> i32 {
+        if self.sessions.is_empty() {
+            1
+        } else {
+            let last = self.sessions[self.sessions.len() - 1].0;
+            last + 1
+        }
+    }
+
+    pub async fn start_session<'a>(&'a mut self, flow: Flow) -> (i32, &RwLock<Session>) {
+        let id = self.next_session_id();
+        let sess = RwLock::new(Session::start(flow).await);
+        self.sessions.push_back((id, sess));
+        (id, &self.sessions[self.sessions.len() - 1].1)
+    }
+
+    async fn session(&self, id: i32) -> Option<&RwLock<Session>> {
+        let mut rev = self.sessions.iter().rev();
+        rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 }
 
-struct Linearf;
-
-impl Linearf {
-    fn new() -> Linearf { todo!() }
-
-    async fn start(flow: Flow) -> i32 { todo!() }
-
-    async fn start_by_name<S: AsRef<str>>(flow: S) -> i32 { todo!() }
-
-    async fn shutdown() { todo!() }
-}
-
 impl Session {
+    async fn start(flow: Flow) -> Self { todo!() }
+
     async fn count(&self) -> usize { todo!() }
 
     async fn items(&self, start: usize, stop: usize) -> &[Item] { todo!() }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) { todo!() }
 }
 
 mod tmp {
