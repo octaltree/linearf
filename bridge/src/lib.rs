@@ -3,7 +3,10 @@ mod rpc;
 use linearf::{Flow, State};
 use mlua::prelude::*;
 use std::{cell::RefMut, process::Command, rc::Rc, sync::Arc};
-use tokio::{runtime::Runtime, sync::RwLock};
+use tokio::{
+    runtime::{Handle, Runtime},
+    sync::RwLock
+};
 
 const RT: &'static str = "_rt";
 const ST: &'static str = "_state";
@@ -12,7 +15,10 @@ const ST: &'static str = "_state";
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = Runtime::new()?;
+    let handle = rt.handle().clone();
     let st = State::new_shared(rt);
+    lua.globals()
+        .raw_set(RT, lua.create_userdata(Wrapper::new(handle))?)?;
     lua.globals()
         .raw_set(ST, lua.create_userdata(Wrapper::new(st))?)?;
     let exports = lua.create_table()?;
@@ -34,17 +40,18 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
 
 fn shutdown(lua: &Lua, _: ()) -> LuaResult<()> { Ok(()) }
 
-fn start_session(lua: &Lua, flow: Flow) -> LuaResult<i32> {
+fn start_session(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let rt: RefMut<Wrapper<Handle>> = any.borrow_mut()?;
     let st = {
         let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
         let st: RefMut<Wrapper<Arc<RwLock<State>>>> = any.borrow_mut()?;
         Arc::clone(&**st)
     };
+    let name = flow.to_string_lossy();
     rt.block_on(async {
         let st = &mut st.write().await;
-        let (id, _) = st.start_session(flow).await;
+        let id = st.start_session(&name).await.map(|(id, _)| id);
         Ok(id)
     })
 }

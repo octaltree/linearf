@@ -73,7 +73,7 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
 
 /// Setting sources and matches
 /// Cache may be used when equal
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Flow {}
 
 /// State being calculated based on flow
@@ -89,7 +89,8 @@ pub struct Linearf(RwLock<State>);
 pub struct State {
     rt: Runtime,
     shutdown: bool,
-    sessions: VecDeque<(i32, RwLock<Session>)>
+    sessions: VecDeque<(i32, RwLock<Session>)>,
+    flows: HashMap<String, Flow>
 }
 
 impl State {
@@ -97,7 +98,8 @@ impl State {
         let this = Self {
             rt,
             shutdown: false,
-            sessions: VecDeque::new()
+            sessions: VecDeque::new(),
+            flows: HashMap::new()
         };
         Arc::new(RwLock::new(this))
     }
@@ -111,11 +113,11 @@ impl State {
         }
     }
 
-    pub async fn start_session<'a>(&'a mut self, flow: Flow) -> (i32, &RwLock<Session>) {
+    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &RwLock<Session>)> {
         let id = self.next_session_id();
-        let sess = RwLock::new(Session::start(flow).await);
-        self.sessions.push_back((id, sess));
-        (id, &self.sessions[self.sessions.len() - 1].1)
+        let sess = Session::start(self.flows.get(flow)?).await;
+        self.sessions.push_back((id, RwLock::new(sess)));
+        Some((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
     async fn session(&self, id: i32) -> Option<&RwLock<Session>> {
@@ -125,7 +127,7 @@ impl State {
 }
 
 impl Session {
-    async fn start(flow: Flow) -> Self { todo!() }
+    async fn start(flow: &Flow) -> Self { todo!() }
 
     async fn count(&self) -> usize { todo!() }
 

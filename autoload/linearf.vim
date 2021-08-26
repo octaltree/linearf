@@ -24,6 +24,12 @@ function! linearf#start(flow) abort
   let s:session = luaeval('require("linearf").start(_A)', a:flow)
 endfunction
 
+function! linearf#_echo_error(e) abort
+  let s = type(a:e) ==# v:t_string ? a:e : string(a:e)
+  let msg = printf('[linearf] %s', s)
+  echohl Error | echomsg msg | echohl None
+endfunction
+
 function! s:resume(session) abort
 endfunction
 
