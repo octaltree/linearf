@@ -22,38 +22,10 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     lua.globals()
         .raw_set(ST, lua.create_userdata(Wrapper::new(st))?)?;
     let exports = lua.create_table()?;
-    exports.set("start_session", lua.create_function(start_session)?)?;
+    exports.set("start", lua.create_function(start)?)?;
+    exports.set("terminate", lua.create_function(terminate)?)?;
+    exports.set("count", lua.create_function(count)?)?;
     Ok(exports)
-}
-
-// fn spawn(lua: &Lua, _: ()) -> LuaResult<()> {
-//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-//    let st = {
-//        let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-//        let st: RefMut<Wrapper<Arc<RwLock<State>>>> = any.borrow_mut()?;
-//        Arc::clone(&**st)
-//    };
-//    rt.spawn(async {});
-//    Ok(())
-//}
-
-fn shutdown(lua: &Lua, _: ()) -> LuaResult<()> { Ok(()) }
-
-fn start_session(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
-    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-    let rt: RefMut<Wrapper<Handle>> = any.borrow_mut()?;
-    let st = {
-        let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-        let st: RefMut<Wrapper<Arc<RwLock<State>>>> = any.borrow_mut()?;
-        Arc::clone(&**st)
-    };
-    let name = flow.to_string_lossy();
-    rt.block_on(async {
-        let st = &mut st.write().await;
-        let id = st.start_session(&name).await.map(|(id, _)| id);
-        Ok(id)
-    })
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
@@ -76,6 +48,43 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
     log4rs::init_config(config)?;
     log::info!("initialize");
     Ok(())
+}
+
+fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Handle>> = any.borrow_mut()?;
+    let st = {
+        let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
+        let st: RefMut<Wrapper<Arc<RwLock<State>>>> = any.borrow_mut()?;
+        Arc::clone(&**st)
+    };
+    let name = flow.to_string_lossy();
+    rt.block_on(async {
+        let st = &mut st.write().await;
+        let id = st.start_session(&name).await.map(|(id, _)| id);
+        Ok(id)
+    })
+}
+
+fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
+
+fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Handle>> = any.borrow_mut()?;
+    let st = {
+        let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
+        let st: RefMut<Wrapper<Arc<RwLock<State>>>> = any.borrow_mut()?;
+        Arc::clone(&**st)
+    };
+    rt.block_on(async {
+        let st = st.read().await;
+        if let Some(s) = st.session(session).await {
+            let s = s.read().await;
+            Ok(Some(s.count()))
+        } else {
+            Ok(None)
+        }
+    })
 }
 
 struct Wrapper<T>(T);

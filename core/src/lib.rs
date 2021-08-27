@@ -38,6 +38,7 @@ pub trait Source: Default {
         S: Stream<Item = Item>;
 }
 
+#[derive(Debug)]
 pub struct Item {
     idx: usize,
     value: String,
@@ -73,13 +74,14 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
 
 /// Setting sources and matches
 /// Cache may be used when equal
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default)]
 pub struct Flow {}
 
 /// State being calculated based on flow
 #[derive(Debug)]
 pub struct Session {
-    flow: Flow
+    flow: Flow,
+    items: Vec<Item>
 }
 
 #[derive(Debug)]
@@ -120,18 +122,30 @@ impl State {
         Some((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
-    async fn session(&self, id: i32) -> Option<&RwLock<Session>> {
+    pub async fn session(&self, id: i32) -> Option<&RwLock<Session>> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 }
 
 impl Session {
-    async fn start(flow: &Flow) -> Self { todo!() }
+    async fn start(flow: &Flow) -> Self {
+        Self {
+            flow: flow.clone(),
+            items: Vec::new()
+        }
+    }
 
-    async fn count(&self) -> usize { todo!() }
+    pub fn count(&self) -> usize { self.items.len() }
 
-    async fn items(&self, start: usize, stop: usize) -> &[Item] { todo!() }
+    pub fn items(&self, start: usize, stop: usize) -> Option<&[Item]> {
+        let l = self.items.len();
+        if start <= l && stop <= l {
+            Some(&self.items[start..stop])
+        } else {
+            None
+        }
+    }
 }
 
 impl Drop for Session {

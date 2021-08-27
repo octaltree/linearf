@@ -21,4 +21,6 @@ function M.g(name)
     end
 end
 
+function M.call(f, ...) return vim.call(f, ...) end
+
 return M
