@@ -25,7 +25,7 @@ use std::{
     stream::Stream,
     sync::{atomic::AtomicBool, Arc}
 };
-use tokio::{runtime::Runtime, sync::RwLock};
+use tokio::{runtime::Handle, sync::RwLock};
 
 /// NOTE: Source and Match have the potential to have cache, so make them live longer.
 
@@ -89,14 +89,14 @@ pub struct Linearf(RwLock<State>);
 
 #[derive(Debug)]
 pub struct State {
-    rt: Runtime,
+    rt: Handle,
     shutdown: bool,
-    sessions: VecDeque<(i32, RwLock<Session>)>,
+    sessions: VecDeque<(i32, Session)>,
     flows: HashMap<String, Flow>
 }
 
 impl State {
-    pub fn new_shared(rt: Runtime) -> Arc<RwLock<Self>> {
+    pub fn new_shared(rt: Handle) -> Arc<RwLock<Self>> {
         let this = Self {
             rt,
             shutdown: false,
@@ -115,14 +115,14 @@ impl State {
         }
     }
 
-    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &RwLock<Session>)> {
+    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &Session)> {
         let id = self.next_session_id();
         let sess = Session::start(self.flows.get(flow)?).await;
-        self.sessions.push_back((id, RwLock::new(sess)));
+        self.sessions.push_back((id, sess));
         Some((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
-    pub async fn session(&self, id: i32) -> Option<&RwLock<Session>> {
+    pub async fn session(&self, id: i32) -> Option<&Session> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
