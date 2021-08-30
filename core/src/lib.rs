@@ -47,7 +47,9 @@ pub struct Item {
     value: String,
     r#type: &'static str,
     view: Option<String>,
-    view_for_matcing: Option<String>
+    view_for_matcing: Option<String>,
+    /// To check mathcing query for dynamic source
+    query: Option<Arc<String>>
 }
 
 impl Item {
@@ -79,7 +81,7 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
 pub struct State {
     rt: Handle,
     sessions: VecDeque<(i32, Session)>,
-    flows: HashMap<String, Flow>
+    flows: HashMap<String, Arc<Flow>>
 }
 
 impl State {
@@ -93,8 +95,9 @@ impl State {
     }
 
     pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &Session)> {
+        // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
-        let sess = Session::start(self.flows.get(flow)?).await;
+        let sess = Session::start(Arc::clone(self.flows.get(flow)?)).await;
         self.sessions.push_back((id, sess));
         Some((id, &self.sessions[self.sessions.len() - 1].1))
     }

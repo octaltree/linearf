@@ -8,7 +8,8 @@ use std::sync::{
 #[derive(Debug)]
 pub struct Session {
     should_stop: Arc<AtomicBool>,
-    flow: Flow,
+    flow: Arc<Flow>,
+    query: Option<String>,
     items: Vec<Item>
 }
 
@@ -18,10 +19,11 @@ pub struct Session {
 pub struct Flow {}
 
 impl Session {
-    pub(super) async fn start(flow: &Flow) -> Self {
+    pub async fn start(flow: Arc<Flow>) -> Self {
         Self {
             should_stop: Arc::new(false.into()),
-            flow: flow.clone(),
+            flow,
+            query: None,
             items: Vec::new()
         }
     }
@@ -37,7 +39,10 @@ impl Session {
         }
     }
 
-    pub fn query<S: Into<String>>(&mut self, s: S) { todo!() }
+    pub fn query<S: Into<String>>(&mut self, s: S) {
+        self.query = Some(s.into());
+        todo!()
+    }
 }
 
 impl Drop for Session {
