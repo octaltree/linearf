@@ -77,28 +77,24 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct State {
-    rt: Handle,
-    sessions: VecDeque<(i32, Session)>,
+    sessions: VecDeque<(i32, Arc<RwLock<Session>>)>,
     flows: HashMap<String, Arc<Flow>>
 }
 
 impl State {
-    pub fn new_shared(rt: Handle) -> Arc<RwLock<Self>> {
-        let this = Self {
-            rt,
-            sessions: VecDeque::new(),
-            flows: HashMap::new()
-        };
-        Arc::new(RwLock::new(this))
-    }
+    pub fn new() -> Self { Self::default() }
 
-    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &Session)> {
+    pub async fn start_session<'a>(
+        &'a mut self,
+        rt: Handle,
+        flow: &str
+    ) -> Option<(i32, &Arc<RwLock<Session>>)> {
         // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
         let sess = Session::start(Arc::clone(self.flows.get(flow)?)).await;
-        self.sessions.push_back((id, sess));
+        self.sessions.push_back((id, Arc::new(RwLock::new(sess))));
         Some((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
@@ -111,7 +107,7 @@ impl State {
         }
     }
 
-    pub async fn session(&self, id: i32) -> Option<&Session> {
+    pub async fn session(&self, id: i32) -> Option<&Arc<RwLock<Session>>> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }

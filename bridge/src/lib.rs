@@ -13,7 +13,7 @@ const ST: &'static str = "_linearf_state";
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = Runtime::new()?;
-    let st = State::new_shared(rt.handle().clone());
+    let st = RwLock::new(State::new());
     lua.globals()
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.globals()
@@ -26,14 +26,15 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
 }
 
 fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
+    let name = flow.to_string_lossy();
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st: &Arc<RwLock<State>> = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
-    let name = flow.to_string_lossy();
+    let st: &RwLock<State> = &**any.borrow_mut::<Wrapper<RwLock<State>>>()?;
     rt.block_on(async {
+        let handle = rt.handle().clone();
         let st = &mut st.write().await;
-        let id = st.start_session(&name).await.map(|(id, _)| id);
+        let id = st.start_session(handle, &name).await.map(|(id, _)| id);
         Ok(id)
     })
 }
@@ -44,10 +45,10 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st: &Arc<RwLock<State>> = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
+    let st = &**any.borrow_mut::<Wrapper<State>>()?;
     rt.block_on(async {
-        let st = st.read().await;
-        if let Some(s) = st.session(session).await {
+        if let Some(l) = st.session(session).await {
+            let s = l.read().await;
             Ok(Some(s.count()))
         } else {
             Ok(None)
