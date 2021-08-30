@@ -4,6 +4,8 @@ extern crate serde;
 
 pub mod imp;
 pub(crate) mod import;
+pub mod session;
+mod tmp;
 // pub mod rpc;
 
 // rpc
@@ -18,12 +20,13 @@ pub(crate) mod import;
 // 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
 // rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
 
+pub use crate::session::{Flow, Session};
 use async_trait::async_trait;
 use serde_json::{Map, Value};
 use std::{
     collections::{HashMap, VecDeque},
     stream::Stream,
-    sync::{atomic::AtomicBool, Arc}
+    sync::Arc
 };
 use tokio::{runtime::Handle, sync::RwLock};
 
@@ -72,25 +75,9 @@ pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
     fn is_excluded(&self) -> bool;
 }
 
-/// Setting sources and matches
-/// Cache may be used when equal
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default)]
-pub struct Flow {}
-
-/// State being calculated based on flow
-#[derive(Debug)]
-pub struct Session {
-    flow: Flow,
-    items: Vec<Item>
-}
-
-#[derive(Debug)]
-pub struct Linearf(RwLock<State>);
-
 #[derive(Debug)]
 pub struct State {
     rt: Handle,
-    shutdown: bool,
     sessions: VecDeque<(i32, Session)>,
     flows: HashMap<String, Flow>
 }
@@ -99,11 +86,17 @@ impl State {
     pub fn new_shared(rt: Handle) -> Arc<RwLock<Self>> {
         let this = Self {
             rt,
-            shutdown: false,
             sessions: VecDeque::new(),
             flows: HashMap::new()
         };
         Arc::new(RwLock::new(this))
+    }
+
+    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &Session)> {
+        let id = self.next_session_id();
+        let sess = Session::start(self.flows.get(flow)?).await;
+        self.sessions.push_back((id, sess));
+        Some((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
     fn next_session_id(&self) -> i32 {
@@ -115,116 +108,8 @@ impl State {
         }
     }
 
-    pub async fn start_session<'a>(&'a mut self, flow: &str) -> Option<(i32, &Session)> {
-        let id = self.next_session_id();
-        let sess = Session::start(self.flows.get(flow)?).await;
-        self.sessions.push_back((id, sess));
-        Some((id, &self.sessions[self.sessions.len() - 1].1))
-    }
-
     pub async fn session(&self, id: i32) -> Option<&Session> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
-    }
-}
-
-impl Session {
-    async fn start(flow: &Flow) -> Self {
-        Self {
-            flow: flow.clone(),
-            items: Vec::new()
-        }
-    }
-
-    pub fn count(&self) -> usize { self.items.len() }
-
-    pub fn items(&self, start: usize, stop: usize) -> Option<&[Item]> {
-        let l = self.items.len();
-        if start <= l && stop <= l {
-            Some(&self.items[start..stop])
-        } else {
-            None
-        }
-    }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) { todo!() }
-}
-
-mod tmp {
-    use super::*;
-    use std::cmp::Ordering;
-
-    /// Bigger f64 is higher priority. If the order is not determined, bigger idx is lower priority.
-    /// If f64 is NaN, it will be excluded.
-    #[derive(Clone, Copy)]
-    struct F64Ord {
-        x: f64,
-        idx: usize
-    }
-
-    impl Score for F64Ord {
-        fn is_excluded(&self) -> bool { self.x.is_nan() }
-    }
-
-    impl PartialEq for F64Ord {
-        fn eq(&self, other: &Self) -> bool { self.x.eq(&other.x) && self.idx.eq(&other.idx) }
-    }
-
-    impl Eq for F64Ord {}
-
-    impl PartialOrd for F64Ord {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
-    }
-
-    impl Ord for F64Ord {
-        fn cmp(&self, other: &Self) -> Ordering {
-            match (self.x <= other.x, self.x >= other.x) {
-                (true, false) => Ordering::Less,
-                (false, true) => Ordering::Greater,
-                _ => match self.idx.cmp(&other.idx) {
-                    Ordering::Less => Ordering::Greater,
-                    Ordering::Equal => Ordering::Equal,
-                    Ordering::Greater => Ordering::Less
-                }
-            }
-        }
-    }
-
-    /// Bigger u16 is higher priority. If the order is not determined, bigger idx is lower priority.
-    /// If u16 is 0, it will be excluded.
-    #[derive(Clone, Copy)]
-    struct U16Ord {
-        x: u16,
-        idx: usize
-    }
-
-    impl Score for U16Ord {
-        fn is_excluded(&self) -> bool { self.x == 0 }
-    }
-
-    impl PartialEq for U16Ord {
-        fn eq(&self, other: &Self) -> bool { self.x.eq(&other.x) && self.idx.eq(&other.idx) }
-    }
-
-    impl Eq for U16Ord {}
-
-    impl PartialOrd for U16Ord {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
-    }
-
-    impl Ord for U16Ord {
-        fn cmp(&self, other: &Self) -> Ordering {
-            match (self.x <= other.x, self.x >= other.x) {
-                (true, false) => Ordering::Less,
-                (false, true) => Ordering::Greater,
-                _ => match self.idx.cmp(&other.idx) {
-                    Ordering::Less => Ordering::Greater,
-                    Ordering::Equal => Ordering::Equal,
-                    Ordering::Greater => Ordering::Less
-                }
-            }
-        }
     }
 }
