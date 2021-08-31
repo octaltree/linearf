@@ -22,6 +22,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("start", lua.create_function(start)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
+    exports.set("change_query", lua.create_function(change_query)?)?;
     Ok(exports)
 }
 
@@ -53,6 +54,21 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
         } else {
             Ok(None)
         }
+    })
+}
+
+fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
+    let q = query.to_string_lossy();
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
+    let st = &**any.borrow_mut::<Wrapper<State>>()?;
+    rt.block_on(async move {
+        if let Some(l) = st.session(session).await {
+            let s = &mut l.write().await;
+            s.change_query(q);
+        }
+        Ok(())
     })
 }
 

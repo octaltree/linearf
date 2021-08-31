@@ -9,7 +9,7 @@ use std::sync::{
 pub struct Session {
     should_stop: Arc<AtomicBool>,
     flow: Arc<Flow>,
-    query: Option<String>,
+    query: Option<Arc<String>>,
     items: Vec<Item>
 }
 
@@ -39,8 +39,9 @@ impl Session {
         }
     }
 
-    pub fn query<S: Into<String>>(&mut self, s: S) {
-        self.query = Some(s.into());
+    pub fn change_query<S: Into<String>>(&mut self, s: S) {
+        let arc = Arc::new(s.into());
+        self.query = Some(arc);
         todo!()
     }
 }
