@@ -1,13 +1,14 @@
 use crate::Item;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Weak};
+use tokio::{
+    runtime::Handle,
+    sync::{mpsc, RwLock}
 };
 
 /// State being calculated based on flow
 #[derive(Debug)]
 pub struct Session {
-    should_stop: Arc<AtomicBool>,
     flow: Arc<Flow>,
     query: Option<Arc<String>>,
     items: Vec<Item>
@@ -19,13 +20,38 @@ pub struct Session {
 pub struct Flow {}
 
 impl Session {
-    pub async fn start(flow: Arc<Flow>) -> Self {
-        Self {
-            should_stop: Arc::new(false.into()),
+    pub async fn start(rt: Handle, flow: Arc<Flow>) -> Arc<RwLock<Self>> {
+        let this = Self {
             flow,
             query: None,
             items: Vec::new()
-        }
+        };
+        let shared = Arc::new(RwLock::new(this));
+        Session::main(rt, Arc::downgrade(&shared));
+        shared
+    }
+
+    fn main(rt: Handle, this: Weak<RwLock<Session>>) {
+        // let (tx1, rx1) = mpsc::unbounded_channel();
+        // rt.spawn(Session::source(tx, this));
+        // let (tx2, rx2) = mpsc::unbounded_channel();
+        // loop {
+        //    this.upgrade()?;
+        //}
+    }
+
+    async fn source(
+        tx: mpsc::UnboundedSender<Arc<Item>>,
+        this: Weak<RwLock<Session>>
+    ) -> Option<()> {
+        None
+    }
+
+    async fn convert(
+        tx: mpsc::UnboundedSender<Arc<Item>>,
+        this: Weak<RwLock<Session>>
+    ) -> Option<()> {
+        None
     }
 
     pub fn count(&self) -> usize { self.items.len() }
@@ -44,8 +70,4 @@ impl Session {
         self.query = Some(arc);
         todo!()
     }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) { self.should_stop.store(true, Ordering::Relaxed); }
 }
