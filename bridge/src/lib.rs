@@ -13,7 +13,7 @@ const ST: &'static str = "_linearf_state";
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = Runtime::new()?;
-    let st = RwLock::new(State::new());
+    let st = State::new_shared();
     lua.globals()
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.globals()
@@ -31,7 +31,7 @@ fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st: &RwLock<State> = &**any.borrow_mut::<Wrapper<RwLock<State>>>()?;
+    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
@@ -46,9 +46,9 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<State>>()?;
+    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
     rt.block_on(async {
-        if let Some(l) = st.session(session).await {
+        if let Some(l) = st.read().await.session(session).await {
             let s = l.read().await;
             Ok(Some(s.count()))
         } else {
@@ -62,9 +62,9 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<State>>()?;
+    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
     rt.block_on(async move {
-        if let Some(l) = st.session(session).await {
+        if let Some(l) = st.read().await.session(session).await {
             let s = &mut l.write().await;
             s.change_query(q);
         }

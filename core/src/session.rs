@@ -1,5 +1,4 @@
-use crate::Item;
-use serde::{Deserialize, Serialize};
+use crate::{Item, State};
 use std::sync::{Arc, Weak};
 use tokio::{
     runtime::Handle,
@@ -70,4 +69,25 @@ impl Session {
         self.query = Some(arc);
         todo!()
     }
+}
+
+#[derive(Debug)]
+struct Source {
+    state: Weak<RwLock<State>>
+}
+
+impl Source {
+    fn new(state: Weak<RwLock<State>>) -> Self { Self { state } }
+}
+
+#[async_trait]
+impl crate::Source for Source {
+    fn new() -> Self
+    where
+        Self: Sized
+    {
+        unimplemented!()
+    }
+
+    async fn start(&mut self) {}
 }
