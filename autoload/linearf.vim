@@ -3,6 +3,7 @@
 " prompt, list, preview UI
 " action
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
+let g:linearf#command = 'Linearf'
 let s:initialized = v:false
 let s:session = v:null
 
@@ -16,7 +17,11 @@ function! linearf#init() abort
   if s:initialized
     return
   endif
-  lua require('linearf').init()
+  let success = luaeval("require('linearf').init()")
+  if !success
+    return
+  endif
+  call linearf#ui#init()
   let s:initialized = v:true
 endfunction
 

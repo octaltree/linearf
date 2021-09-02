@@ -14,6 +14,10 @@ dev: vim-lint
 	@cd bridge && make dev
 	@cd core && make dev
 
+.PHONY: vl
+vl: vim-lint
+	@cd lua && make dev
+
 .PHONY: d
 d:
 	@watchexec -c 'make dev'
