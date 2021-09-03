@@ -27,6 +27,7 @@ pub use crate::{
 };
 use serde_json::{Map, Value};
 use std::{
+    borrow::Cow,
     collections::{HashMap, VecDeque},
     sync::Arc
 };
@@ -74,11 +75,17 @@ impl State {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum StringBytes {
+    String(String),
+    Bytes(Vec<u8>)
+}
+
 // TODO: userdata
 #[derive(Debug)]
 pub struct Item {
     idx: usize,
-    value: String,
+    value: StringBytes,
     r#type: &'static str,
     view: Option<String>,
     view_for_matcing: Option<String>,
@@ -87,12 +94,20 @@ pub struct Item {
 }
 
 impl Item {
-    fn view(&self) -> &str { self.view.as_deref().unwrap_or(&self.value) }
+    fn view(&self) -> Cow<'_, str> {
+        let opt = self.view.as_deref().map(Cow::Borrowed);
+        opt.unwrap_or_else(|| match &self.value {
+            StringBytes::String(s) => Cow::Borrowed(s),
+            StringBytes::Bytes(b) => match String::from_utf8_lossy(b) {
+                Cow::Owned(s) => Cow::Owned(s),
+                Cow::Borrowed(s) => Cow::Borrowed(s)
+            }
+        })
+    }
 
-    fn view_for_matcing(&self) -> &str {
-        self.view_for_matcing
-            .as_deref()
-            .unwrap_or_else(|| self.view())
+    fn view_for_matcing(&self) -> Cow<'_, str> {
+        let opt = self.view_for_matcing.as_deref().map(Cow::Borrowed);
+        opt.unwrap_or_else(|| self.view())
     }
 }
 

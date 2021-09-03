@@ -26,11 +26,11 @@ function! linearf#init() abort
 endfunction
 
 function! linearf#run(args) abort
-  let tmp = @@
-  silent normal gvy
-  let selected = @@
-  let @@ = tmp
-  echomsg selected
+  "let tmp = @@
+  "silent normal gvy
+  "let selected = @@
+  "let @@ = tmp
+  "echomsg selected
 endfunction
 
 function! Linearf(...) abort
