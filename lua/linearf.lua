@@ -2,6 +2,7 @@ local M = {}
 
 local path = require('linearf.path')
 local vi = require('linearf.vi')
+M.value = require('linearf.value')
 local bridge
 
 function M.init()
@@ -12,6 +13,8 @@ function M.init()
 end
 
 local function echo_error(e) vi.call('linearf#_echo_error', e) end
+
+function M.run() local v = M.value.finish() end
 
 function M.start(flow)
     local result = bridge.start(flow)

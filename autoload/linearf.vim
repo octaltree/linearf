@@ -3,7 +3,6 @@
 " action
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
 let g:linearf#command = exists('g:linearf#command') ? g:linearf#command : 'Linearf'
-"let g:linearf#command_flow = exists('g:linearf#command_flow') ? g:linearf#command_flow : 'Lflow'
 let s:initialized = v:false
 let s:session = v:null
 
@@ -26,25 +25,36 @@ function! linearf#init() abort
 endfunction
 
 function! linearf#run(args) abort
-  "let tmp = @@
-  "silent normal gvy
-  "let selected = @@
-  "let @@ = tmp
-  "echomsg selected
+  let selected = linearf#ui#_get_visual()
+  lua linearf = require('linearf')
+  call luaeval('linearf.value.new()')
+  call luaeval('linearf.value.push(_A)', selected)
+  call luaeval('linearf.value.push(_A)', a:args)
+  call luaeval('linearf.value.array_finish(2)')
+  let s:session = luaeval('linearf.run()')
 endfunction
 
-function! Linearf(...) abort
+function! linearf#patch_flow(...) abort
 endfunction
 
+function! linearf#put_flow() abort
+endfunction
 
-function! linearf#start(flow) abort
-  let s:session = luaeval('require("linearf").start(_A)', a:flow)
+function! linearf#get_flows(...) abort
+endfunction
+
+function! linearf#get_flow(name) abort
 endfunction
 
 function! linearf#_echo_error(e) abort
   let s = type(a:e) ==# v:t_string ? a:e : string(a:e)
   let msg = printf('[linearf] %s', s)
   echohl Error | echomsg msg | echohl None
+endfunction
+
+
+function! linearf#start(flow) abort
+  let s:session = luaeval('require("linearf").start(_A)', a:flow)
 endfunction
 
 function! s:resume(session) abort
