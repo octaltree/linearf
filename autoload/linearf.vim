@@ -1,9 +1,9 @@
 " build
-" rpc lua
 " prompt, list, preview UI
 " action
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
-let g:linearf#command = 'Linearf'
+let g:linearf#command = exists('g:linearf#command') ? g:linearf#command : 'Linearf'
+"let g:linearf#command_flow = exists('g:linearf#command_flow') ? g:linearf#command_flow : 'Lflow'
 let s:initialized = v:false
 let s:session = v:null
 
@@ -24,6 +24,18 @@ function! linearf#init() abort
   call linearf#ui#init()
   let s:initialized = v:true
 endfunction
+
+function! linearf#run(args) abort
+  let tmp = @@
+  silent normal gvy
+  let selected = @@
+  let @@ = tmp
+  echomsg selected
+endfunction
+
+function! Linearf(...) abort
+endfunction
+
 
 function! linearf#start(flow) abort
   let s:session = luaeval('require("linearf").start(_A)', a:flow)
