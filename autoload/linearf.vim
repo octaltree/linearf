@@ -27,11 +27,10 @@ endfunction
 function! linearf#run(args) abort
   let selected = linearf#ui#_get_visual()
   lua linearf = require('linearf')
-  call luaeval('linearf.value.new()')
-  call luaeval('linearf.value.push(_A)', selected)
-  call luaeval('linearf.value.push(_A)', a:args)
-  call luaeval('linearf.value.array_finish(2)')
-  let s:session = luaeval('linearf.run()')
+  call luaeval('linearf.new()')
+  call luaeval('linearf.value:push(_A)', selected)
+  call luaeval('linearf.value:push(_A)', a:args)
+  let s:session = luaeval('linearf.call("run")')
 endfunction
 
 function! linearf#_echo_error(e) abort

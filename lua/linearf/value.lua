@@ -1,49 +1,41 @@
 local M = {}
-local Stack = {}
+local Buf = {}
 
-local stack
-
-function Stack.new()
+function Buf.new()
     local obj = {}
     obj.buf = {}
-    setmetatable(obj, {__index = Stack})
+    setmetatable(obj, {__index = Buf})
     return obj
 end
 
-function Stack.push(self, x)
+function Buf.push(self, x)
     table.insert(self.buf, x)
     return self
 end
 
-function Stack.pop(self) return table.remove(self.buf) end
+function Buf.pop(self) return table.remove(self.buf) end
 
-function Stack.back(self) return self.buf[#self.buf] end
+function Buf.back(self) return self.buf[#self.buf] end
 
-function Stack.slice_back(self, n)
+function Buf.slice_back(self, n)
     local ret = {unpack(self.buf, #self.buf - n + 1, #self.buf)}
     for _ = 1, n do table.remove(self.buf) end
     return ret
 end
 
-function M.new() stack = Stack.new() end
+function M.new() return Buf.new() end
 
-function M.push(x) stack:push(x) end
+function M.push(self, x) self:push(x) end
 
-function M.dict() stack:push({}) end
+function M.dict(self) self:push({}) end
 
-function M.entry()
-    local value = stack:pop()
-    local key = stack:pop()
-    local dict = stack:back()
+function M.entry(self)
+    local value = self:pop()
+    local key = self:pop()
+    local dict = self:back()
     dict[key] = value
 end
 
-function M.array_finish(n) stack:push(stack:slice_back(n)) end
-
-function M.finish()
-    local ret = stack:pop()
-    stack = Stack.new()
-    return ret
-end
+function M.array_finish(self, n) self:push(self:slice_back(n)) end
 
 return M

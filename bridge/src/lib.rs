@@ -19,15 +19,15 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     lua.globals()
         .raw_set(ST, lua.create_userdata(Wrapper::new(st))?)?;
     let exports = lua.create_table()?;
-    exports.set("start", lua.create_function(start)?)?;
+    // exports.set("start", lua.create_function(start)?)?;
+    exports.set("run", lua.create_function(run)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
     exports.set("change_query", lua.create_function(change_query)?)?;
     Ok(exports)
 }
 
-fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
-    let name = flow.to_string_lossy();
+fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<i32>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
@@ -35,10 +35,24 @@ fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
-        let id = st.start_session(handle, &name).await.map(|(id, _)| id);
-        Ok(id)
+        // let id = st.start_session(handle, &name).await.map(|(id, _)| id);
+        Ok(None)
     })
 }
+
+// fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
+//    let name = flow.to_string_lossy();
+//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+//    let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
+//    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
+//    rt.block_on(async {
+//        let handle = rt.handle().clone();
+//        let st = &mut st.write().await;
+//        let id = st.start_session(handle, &name).await.map(|(id, _)| id);
+//        Ok(id)
+//    })
+//}
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
 
@@ -71,8 +85,6 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
         Ok(())
     })
 }
-
-fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<i32>> { Ok(None) }
 
 struct Wrapper<T>(T);
 
