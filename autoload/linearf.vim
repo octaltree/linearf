@@ -34,18 +34,6 @@ function! linearf#run(args) abort
   let s:session = luaeval('linearf.run()')
 endfunction
 
-function! linearf#patch_flow(...) abort
-endfunction
-
-function! linearf#put_flow() abort
-endfunction
-
-function! linearf#get_flows(...) abort
-endfunction
-
-function! linearf#get_flow(name) abort
-endfunction
-
 function! linearf#_echo_error(e) abort
   let s = type(a:e) ==# v:t_string ? a:e : string(a:e)
   let msg = printf('[linearf] %s', s)

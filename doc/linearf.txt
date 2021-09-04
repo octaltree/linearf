@@ -1,12 +1,32 @@
-*linearf.md*	Fast and extensible fuzzy finder
+*linearf.txt*	Fast and extensible fuzzy finder
 
 Author: octaltree <octaltree at users.noreply.github.com>
 
 ## Contents
+* Installation	|linearf-install|
+* Configuration	|linearf-config|
+* Usage
+* API Reference	|linearf-reference|
 
-## API
+## Installation	*linearf-install*
+
+## Configuration	*linearf-config*
+
+## API Reference	*linearf-reference*
+:Linearf	*:Linearf*
+
+g:linearf#command	*g:linearf#command*
+  Name of the main command. The first char must be upper case.
+  default: 'Linearf'
+  example: let g:linearf#command = 'Lnf'
+
 linearf#init()	*linearf#init()*
+  loads libraries and defines the main command.
 
-<!--
-vim: ft=markdown
--->
+linearf#flow#patch({name}, {value})	*linearf#flow#patch()*
+linearf#flow#put({name}, {value})	*linearf#flow#put()*
+linearf#flow#get_default()	*linearf#flow#get_default*
+linearf#flow#get_base()	*linearf#flow#get_base()*
+linearf#flow#get_all_names()	*linearf#flow#get_all_names()*
+
+vim: ft=help tw=78 ts=1

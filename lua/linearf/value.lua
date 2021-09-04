@@ -35,7 +35,7 @@ function M.entry()
     local value = stack:pop()
     local key = stack:pop()
     local dict = stack:back()
-    dict[key] = x
+    dict[key] = value
 end
 
 function M.array_finish(n) stack:push(stack:slice_back(n)) end

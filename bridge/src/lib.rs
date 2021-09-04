@@ -72,6 +72,8 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
     })
 }
 
+fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<i32>> { Ok(None) }
+
 struct Wrapper<T>(T);
 
 impl<T> LuaUserData for Wrapper<T> {}
