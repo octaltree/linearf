@@ -4,6 +4,7 @@ extern crate serde;
 #[macro_use]
 extern crate async_trait;
 
+pub mod flow;
 pub mod imp;
 pub(crate) mod import;
 pub mod session;
@@ -21,10 +22,7 @@ mod tmp;
 // 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
 // rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
 
-pub use crate::{
-    session::{Flow, Session},
-    source::Source
-};
+pub use crate::{flow::Flow, session::Session, source::Source};
 use serde_json::{Map, Value};
 use std::{
     borrow::Cow,
@@ -37,6 +35,7 @@ use tokio::{runtime::Handle, sync::RwLock};
 pub struct State {
     sessions: VecDeque<(i32, Arc<RwLock<Session>>)>,
     flows: HashMap<String, Arc<Flow>>,
+    base_flow: Flow,
     sources: HashMap<String, Arc<dyn Source>>
 }
 
@@ -45,19 +44,24 @@ impl State {
         let this = Self::default();
         let a = Arc::new(RwLock::new(this));
         // let x = a.write().await;
-        a
+        unsafe {
+            // leak
+            let ptr = Arc::into_raw(a);
+            Arc::increment_strong_count(ptr);
+            Arc::from_raw(ptr)
+        }
     }
 
     pub async fn start_session<'a>(
         &'a mut self,
         rt: Handle,
-        flow: &str
-    ) -> Option<(i32, &Arc<RwLock<Session>>)> {
+        flow: Arc<Flow>
+    ) -> (i32, &Arc<RwLock<Session>>) {
         // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
-        let sess = Session::start(rt, Arc::clone(self.flows.get(flow)?)).await;
+        let sess = Session::start(rt, flow).await;
         self.sessions.push_back((id, sess));
-        Some((id, &self.sessions[self.sessions.len() - 1].1))
+        (id, &self.sessions[self.sessions.len() - 1].1)
     }
 
     fn next_session_id(&self) -> i32 {

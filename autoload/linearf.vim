@@ -40,10 +40,6 @@ function! linearf#_echo_error(e) abort
 endfunction
 
 
-function! linearf#start(flow) abort
-  let s:session = luaeval('require("linearf").start(_A)', a:flow)
-endfunction
-
 function! s:resume(session) abort
 endfunction
 

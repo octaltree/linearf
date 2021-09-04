@@ -6,8 +6,8 @@ use tokio::{
     sync::RwLock
 };
 
-const RT: &'static str = "_lienarf_rt";
-const ST: &'static str = "_linearf_state";
+const RT: &str = "_lienarf_rt";
+const ST: &str = "_linearf_state";
 
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
@@ -19,7 +19,6 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     lua.globals()
         .raw_set(ST, lua.create_userdata(Wrapper::new(st))?)?;
     let exports = lua.create_table()?;
-    // exports.set("start", lua.create_function(start)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
@@ -28,31 +27,37 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
 }
 
 fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<i32>> {
+    log::trace!("run");
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
+    log::trace!("a");
+    let any: LuaAnyUserData = lua.globals().raw_get(ST).map_err(|e| {
+        log::error!("{:?}", &e);
+        e
+    })?;
+    log::trace!("b");
+    let st = &**any
+        // XXX
+        .borrow_mut::<Wrapper<Arc<RwLock<State>>>>()
+        .map_err(|e| {
+            log::error!("{:?}", &e);
+            e
+        })?;
+    log::trace!("c");
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
-        // let id = st.start_session(handle, &name).await.map(|(id, _)| id);
+        // let flow = build_flow(st, args, selected)?;
+        // let (id, _) = st.start_session(handle, flow).await;
+        // Ok(Some(id))
         Ok(None)
     })
 }
 
-// fn start(lua: &Lua, flow: LuaString) -> LuaResult<Option<i32>> {
-//    let name = flow.to_string_lossy();
-//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-//    let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-//    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
-//    rt.block_on(async {
-//        let handle = rt.handle().clone();
-//        let st = &mut st.write().await;
-//        let id = st.start_session(handle, &name).await.map(|(id, _)| id);
-//        Ok(id)
-//    })
-//}
+fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
+    // TODO
+    Some(Arc::new(Flow {}))
+}
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
 
@@ -114,7 +119,7 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
         .build(
             Root::builder()
                 .appender("logfile")
-                .build(LevelFilter::Debug)
+                .build(LevelFilter::Trace)
         )?;
     log4rs::init_config(config)?;
     log::info!("initialize");

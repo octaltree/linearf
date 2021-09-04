@@ -20,7 +20,7 @@ vendored = ["mlua/vendored"]
 log = "0.4.14"
 log4rs = "1.0.0"
 mlua = { version = "0.6.2", features = ["module", "async", "send"] }
-serde = "1.0.127"
-serde_json = "1.0.66"
-tokio = { version = "1.9.0", features = ["rt-multi-thread", "time", "sync"] }
+serde = "1.0.130"
+serde_json = "1.0.67"
+tokio = { version = "1.11.0", features = ["rt-multi-thread", "time", "sync"] }
 linearf = { path = "../core" }

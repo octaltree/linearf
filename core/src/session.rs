@@ -1,4 +1,4 @@
-use crate::{Item, State};
+use crate::{Flow, Item, State};
 use std::sync::{Arc, Weak};
 use tokio::{
     runtime::Handle,
@@ -8,15 +8,11 @@ use tokio::{
 /// State being calculated based on flow
 #[derive(Debug)]
 pub struct Session {
+    // TODO: items for each query
     flow: Arc<Flow>,
     query: Option<Arc<String>>,
     items: Vec<Item>
 }
-
-/// Setting sources and matches
-/// Cache may be used when equal
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default)]
-pub struct Flow {}
 
 impl Session {
     pub async fn start(rt: Handle, flow: Arc<Flow>) -> Arc<RwLock<Self>> {

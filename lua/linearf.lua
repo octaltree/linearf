@@ -1,4 +1,5 @@
 local M = {}
+local vi = require('linearf.vi')
 local path = require('linearf.path')
 local Value = require('linearf.value')
 local unpack = table.unpack or unpack
@@ -16,6 +17,8 @@ end
 
 function M.new() M.value = Value.new() end
 
-function M.call(key) return function() return bridge[key](unpack(M.value)) end end
+local function echo_error(e) vi.call('linearf#_echo_error', e) end
+
+function M.call(key) return bridge[key](unpack(M.value:finish())) end
 
 return M
