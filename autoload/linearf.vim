@@ -26,6 +26,7 @@ function! linearf#run(args) abort
   call luaeval('linearf.value:push(_A)', selected)
   call luaeval('linearf.value:push(_A)', a:args)
   let s:session = luaeval('linearf.call("run")')
+  call linearf#ui#start()
   return s:session
 endfunction
 

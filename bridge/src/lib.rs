@@ -1,10 +1,7 @@
 use linearf::{Flow, State};
 use mlua::prelude::*;
-use std::{cell::RefMut, process::Command, rc::Rc, sync::Arc};
-use tokio::{
-    runtime::{Handle, Runtime},
-    sync::RwLock
-};
+use std::{cell::RefMut, sync::Arc};
+use tokio::{runtime::Runtime, sync::RwLock};
 
 const RT: &str = "_lienarf_rt";
 const ST: &str = "_linearf_state";
@@ -13,7 +10,7 @@ const ST: &str = "_linearf_state";
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = Runtime::new()?;
-    let st = State::new_shared();
+    let st = rt.block_on(async { State::new_shared().await });
     lua.globals()
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.set_named_registry_value(ST, Wrapper::new(st))?;

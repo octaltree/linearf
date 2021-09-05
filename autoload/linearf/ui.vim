@@ -12,3 +12,6 @@ function! linearf#ui#_get_visual() abort
   let @@ = tmp
   return selected
 endfunction
+
+function! linearf#ui#start() abort
+endfunction

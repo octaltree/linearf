@@ -4,7 +4,6 @@ extern crate serde;
 extern crate async_trait;
 
 pub mod flow;
-pub mod imp;
 pub(crate) mod import;
 pub mod session;
 pub mod source;
@@ -35,10 +34,18 @@ pub struct State {
 }
 
 impl State {
-    pub fn new_shared() -> Arc<RwLock<Self>> {
+    pub async fn new_shared() -> Arc<RwLock<Self>> {
         let this = Self::default();
         let a = Arc::new(RwLock::new(this));
-        // let x = a.write().await;
+        {
+            let source = source::builtin::Source::new(a.clone());
+            let session = source::builtin::Session::new(a.clone());
+            let flow = source::builtin::Flow::new(a.clone());
+            let x = &mut a.write().await;
+            x.sources.insert("source".into(), Arc::new(source));
+            x.sources.insert("session".into(), Arc::new(session));
+            x.sources.insert("flow".into(), Arc::new(flow));
+        }
         a
     }
 
