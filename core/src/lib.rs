@@ -1,4 +1,3 @@
-#![feature(async_stream)]
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -40,16 +39,11 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new_shared() -> Arc<RwLock<Self>> {
+    pub fn new_shared() -> Arc<RwLock<Self>> {
         let this = Self::default();
         let a = Arc::new(RwLock::new(this));
         // let x = a.write().await;
-        unsafe {
-            // leak
-            let ptr = Arc::into_raw(a);
-            Arc::increment_strong_count(ptr);
-            Arc::from_raw(ptr)
-        }
+        a
     }
 
     pub async fn start_session<'a>(

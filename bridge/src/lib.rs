@@ -16,8 +16,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let st = State::new_shared();
     lua.globals()
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
-    lua.globals()
-        .raw_set(ST, lua.create_userdata(Wrapper::new(st))?)?;
+    lua.set_named_registry_value(ST, Wrapper::new(st))?;
     let exports = lua.create_table()?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
@@ -30,20 +29,7 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<
     log::trace!("run");
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    log::trace!("a");
-    let any: LuaAnyUserData = lua.globals().raw_get(ST).map_err(|e| {
-        log::error!("{:?}", &e);
-        e
-    })?;
-    log::trace!("b");
-    let st = &**any
-        // XXX
-        .borrow_mut::<Wrapper<Arc<RwLock<State>>>>()
-        .map_err(|e| {
-            log::error!("{:?}", &e);
-            e
-        })?;
-    log::trace!("c");
+    let st = lua.named_registry_value::<_, Wrapper<Arc<RwLock<State>>>>(ST)?;
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
@@ -91,6 +77,7 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
     })
 }
 
+#[derive(Clone)]
 struct Wrapper<T>(T);
 
 impl<T> LuaUserData for Wrapper<T> {}

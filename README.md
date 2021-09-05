@@ -2,15 +2,14 @@
 A fast and extensible fuzzy finder for vimmers
 
 ## Concepts
-* fzf is not vim
-* Respect denite.nvim
-  - Value extensiblity
 * Show the first view faster
 * Respond as fast as if they were in linear time even for huge sources
+* Respect denite.nvim
+* fzf is not vim
 * Use vim as a fuzzy finder from CLI
 
 ## Requirements
-* cargo
+* [cargo](https://doc.rust-lang.org/book/ch01-01-installation.html)
 * +lua/dyn for vim / luajit for neovim
 
 ## Installation
