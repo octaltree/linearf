@@ -14,6 +14,7 @@ dev:
 	@cd bridge && make dev
 	@cd lua && make dev
 	@cd tests && make dev
+	@cd bridge && make dev
 
 .PHONY: vl
 vl:

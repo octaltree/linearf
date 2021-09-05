@@ -20,6 +20,8 @@ g:linearf#command	*g:linearf#command*
   default: 'Linearf'
   example: let g:linearf#command = 'Lnf'
 
+linearf#build()	*linearf#build()*
+
 linearf#init()	*linearf#init()*
   loads libraries and defines the main command.
 

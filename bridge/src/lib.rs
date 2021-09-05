@@ -18,6 +18,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.set_named_registry_value(ST, Wrapper::new(st))?;
     let exports = lua.create_table()?;
+    exports.set("error", lua.create_function(error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
@@ -25,7 +26,12 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     Ok(exports)
 }
 
-fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<i32>> {
+fn error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
+    log::error!("[{}] {:?}", name.to_string_lossy(), e);
+    Ok(format!("{:?}", e))
+}
+
+fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
     log::trace!("run");
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
@@ -33,16 +39,17 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<Option<
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
-        // let flow = build_flow(st, args, selected)?;
-        // let (id, _) = st.start_session(handle, flow).await;
-        // Ok(Some(id))
-        Ok(None)
+        let flow = build_flow(st, args, selected).ok_or(LuaError::external("not found"))?;
+        let (id, _) = st.start_session(handle, flow).await;
+        Ok(id)
+        // Ok(None)
     })
 }
 
 fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
     // TODO
-    Some(Arc::new(Flow {}))
+    // Some(Arc::new(Flow {}))
+    None
 }
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
