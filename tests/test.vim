@@ -7,6 +7,7 @@ let g:linearf#command = 'Lnf'
 function! s:suite.run() abort
   call linearf#build()
   call linearf#init()
-  call linearf#run('')
+  let session = linearf#run('')
+  call s:assert.true(session > 0)
   Lnf a
 endfunction
