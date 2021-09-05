@@ -17,6 +17,7 @@ clean:
 	rm -rf ../tools
 
 ../tools/py/bin/vint: ../tools/py/bin
+	@cd ../tools && ./py/bin/pip install vim-vint
 
 ../tools/py/bin: ../tools
 	@cd ../tools && python -m venv py
