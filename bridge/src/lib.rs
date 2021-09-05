@@ -32,7 +32,6 @@ fn error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
 }
 
 fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
-    log::trace!("run");
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let st = lua.named_registry_value::<_, Wrapper<Arc<RwLock<State>>>>(ST)?;
@@ -42,7 +41,6 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
         let flow = build_flow(st, args, selected).ok_or(LuaError::external("not found"))?;
         let (id, _) = st.start_session(handle, flow).await;
         Ok(id)
-        // Ok(None)
     })
 }
 

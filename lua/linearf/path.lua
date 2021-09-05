@@ -26,9 +26,10 @@ function M.append_bridge()
     else
         name = 'lib?.so'
     end
+    local lua = M.join {C.root(), 'bridge', 'target', vi._lua(), name}
     local release = M.join {C.root(), 'bridge', 'target', 'release', name}
     local debug = M.join {C.root(), 'bridge', 'target', 'debug', name}
-    package.cpath = table.concat({package.cpath, release, debug}, ';')
+    package.cpath = table.concat({package.cpath, lua, release, debug}, ';')
 end
 
 return M

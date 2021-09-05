@@ -4,21 +4,7 @@ let s:initialized = v:false
 let s:session = v:null
 
 function! linearf#build() abort
-  let dir = linearf#path#bridge()
-  let features = s:mlua_version()
-  let t = 'cd %s && cargo build --features=%s --release'
-  let sh = printf(t, shellescape(dir), features)
-  execute '! ' . sh
-endfunction
-
-function! s:mlua_version() abort
-  if luaeval('jit and jit.version ~= nil')
-    return 'mlua/luajit'
-  else
-    let v = split(luaeval('_VERSION'))[1]
-    let label = join(split(v, '\.'), '')
-    return 'mlua/lua' . label
-  endif
+  return linearf#path#build()
 endfunction
 
 function! linearf#init() abort
