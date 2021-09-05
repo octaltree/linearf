@@ -10,12 +10,8 @@ pub mod session;
 pub mod source;
 mod tmp;
 
-// 状態管理
-// ソース rustとvim script両方
-// Match score
 // 適切な構造で持つ
 // resume
-
 // やりとり
 // 1. vim-rust ソース開始リクエスト 状態を変更する
 // 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する

@@ -8,14 +8,6 @@ description = "This will stand on lua's side and interact with `core`"
 [lib]
 crate-type = ["cdylib"]
 
-[features]
-lua54 = ["mlua/lua54"]
-lua53 = ["mlua/lua53"]
-lua52 = ["mlua/lua52"]
-lua51 = ["mlua/lua51"]
-luajit = ["mlua/luajit"]
-vendored = ["mlua/vendored"]
-
 [dependencies]
 log = "0.4.14"
 log4rs = "1.0.0"

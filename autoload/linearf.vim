@@ -1,6 +1,3 @@
-" build
-" prompt, list, preview UI
-" action
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
 let g:linearf#command = exists('g:linearf#command') ? g:linearf#command : 'Linearf'
 let s:initialized = v:false
@@ -8,8 +5,20 @@ let s:session = v:null
 
 function! linearf#build() abort
   let dir = linearf#path#bridge()
-  let sh = printf('cd %s && cargo build --release', shellescape(dir))
+  let features = s:mlua_version()
+  let t = 'cd %s && cargo build --features=%s --release'
+  let sh = printf(t, shellescape(dir), features)
   execute '! ' . sh
+endfunction
+
+function! s:mlua_version() abort
+  if luaeval('jit and jit.version ~= nil')
+    return 'mlua/luajit'
+  else
+    let v = split(luaeval('_VERSION'))[1]
+    let label = join(split(v, '\.'), '')
+    return 'mlua/lua' . label
+  endif
 endfunction
 
 function! linearf#init() abort

@@ -4,7 +4,7 @@ clean:
 
 .PHONY: dev
 dev: format lint test doc
-	@cargo build --features=luajit,vendored --quiet
+	@cargo build --features=mlua/luajit --quiet
 
 .PHONY: d
 d:
@@ -16,12 +16,12 @@ format:
 
 .PHONY: lint
 lint:
-	@cargo clippy --all-targets --features=luajit --quiet
+	@cargo clippy --all-targets --features=mlua/luajit --quiet
 
 .PHONY: test
 test:
-	@cargo test --all-targets --features=luajit --quiet
+	@cargo test --all-targets --features=mlua/luajit --quiet
 
 .PHONY: doc
 doc:
-	@cargo doc --features=luajit --quiet
+	@cargo doc --features=mlua/luajit --quiet
