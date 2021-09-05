@@ -40,5 +40,5 @@ function! s:replace(bridge) abort
   let name = linearf#path#bridge_name()
   let target = join([a:bridge, 'target', 'release', name], s:sep())
   call mkdir(dest, 'p')
-  call rename(target, dest)
+  call rename(target, dest . s:sep() . name)
 endfunction

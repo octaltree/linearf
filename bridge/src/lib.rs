@@ -46,8 +46,7 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
 
 fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
     // TODO
-    // Some(Arc::new(Flow {}))
-    None
+    Some(Arc::new(Flow {}))
 }
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
