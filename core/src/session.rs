@@ -1,9 +1,11 @@
-use crate::{Flow, Item, State};
+use crate::{Flow, Item, Shared};
 use std::sync::{Arc, Weak};
 use tokio::{
     runtime::Handle,
     sync::{mpsc, RwLock}
 };
+
+pub type Sender<T> = mpsc::UnboundedSender<T>;
 
 /// State being calculated based on flow
 #[derive(Debug)]
@@ -15,20 +17,31 @@ pub struct Session {
 }
 
 impl Session {
-    pub async fn start(rt: Handle, flow: Arc<Flow>) -> Arc<RwLock<Self>> {
+    pub(crate) fn flow(&self) -> &Arc<Flow> { &self.flow }
+}
+
+impl Session {
+    pub async fn start(rt: Handle, flow: Arc<Flow>) -> Shared<Self> {
         let this = Self {
             flow,
             query: None,
             items: Vec::new()
         };
         let shared = Arc::new(RwLock::new(this));
-        Session::main(rt, Arc::downgrade(&shared));
+        Session::main(rt, shared.clone()).await;
         shared
     }
 
-    fn main(rt: Handle, this: Weak<RwLock<Session>>) {
+    async fn main(rt: Handle, this: Arc<RwLock<Session>>) {
+        // source
+        // score
+        // sort
+
         // let (tx1, rx1) = mpsc::unbounded_channel();
-        // rt.spawn(Session::source(tx, this));
+        // TODO: reusable
+        // let stream = Source::start(this.flow()).await;
+        // rt.spawn(Source::start(this.flow()))
+        // rt.spawn(Session::start(tx, this));
         // let (tx2, rx2) = mpsc::unbounded_channel();
         // loop {
         //    this.upgrade()?;
@@ -65,25 +78,4 @@ impl Session {
         self.query = Some(arc);
         todo!()
     }
-}
-
-#[derive(Debug)]
-struct Source {
-    state: Weak<RwLock<State>>
-}
-
-impl Source {
-    fn new(state: Weak<RwLock<State>>) -> Self { Self { state } }
-}
-
-#[async_trait]
-impl crate::Source for Source {
-    fn new() -> Self
-    where
-        Self: Sized
-    {
-        unimplemented!()
-    }
-
-    async fn start(&mut self) {}
 }

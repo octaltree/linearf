@@ -1,12 +1,14 @@
+#![feature(async_stream)]
 #[macro_use]
 extern crate serde;
 #[macro_use]
 extern crate async_trait;
 
 pub mod flow;
-pub(crate) mod import;
 pub mod session;
 pub mod source;
+
+pub(crate) mod import;
 mod tmp;
 
 // 適切な構造で持つ
@@ -16,7 +18,8 @@ mod tmp;
 // 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
 // rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
 
-pub use crate::{flow::Flow, session::Session, source::Source};
+use crate::source::Src;
+pub use crate::{flow::Flow, session::Session};
 use serde_json::{Map, Value};
 use std::{
     borrow::Cow,
@@ -25,27 +28,29 @@ use std::{
 };
 use tokio::{runtime::Handle, sync::RwLock};
 
+pub type Shared<T> = Arc<RwLock<T>>;
+
 #[derive(Debug, Default)]
 pub struct State {
-    sessions: VecDeque<(i32, Arc<RwLock<Session>>)>,
+    sessions: VecDeque<(i32, Shared<Session>)>,
     flows: HashMap<String, Arc<Flow>>,
     base_flow: Flow,
-    sources: HashMap<String, Arc<dyn Source>>
+    sources: HashMap<String, Src>
 }
 
 impl State {
-    pub async fn new_shared() -> Arc<RwLock<Self>> {
+    pub async fn new_shared() -> Shared<Self> {
         let this = Self::default();
         let a = Arc::new(RwLock::new(this));
-        {
-            let source = source::builtin::Source::new(a.clone());
-            let session = source::builtin::Session::new(a.clone());
-            let flow = source::builtin::Flow::new(a.clone());
-            let x = &mut a.write().await;
-            x.sources.insert("source".into(), Arc::new(source));
-            x.sources.insert("session".into(), Arc::new(session));
-            x.sources.insert("flow".into(), Arc::new(flow));
-        }
+        //{
+        //    let source = source::builtin::StateSource::new(a.clone());
+        //    let session = source::builtin::StateSession::new(a.clone());
+        //    let flow = source::builtin::StateFlow::new(a.clone());
+        //    let x = &mut a.write().await;
+        //    x.sources.insert("source".into(), Arc::new(source));
+        //    x.sources.insert("session".into(), Arc::new(session));
+        //    x.sources.insert("flow".into(), Arc::new(flow));
+        //}
         a
     }
 
@@ -53,7 +58,7 @@ impl State {
         &'a mut self,
         rt: Handle,
         flow: Arc<Flow>
-    ) -> (i32, &Arc<RwLock<Session>>) {
+    ) -> (i32, &Shared<Session>) {
         // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
         let sess = Session::start(rt, flow).await;
@@ -62,6 +67,8 @@ impl State {
     }
 
     fn next_session_id(&self) -> i32 {
+        // WARNING: 0 is indistinguishable from null in vim.
+        // Keep at least on session
         if self.sessions.is_empty() {
             1
         } else {
@@ -70,9 +77,19 @@ impl State {
         }
     }
 
-    pub async fn session(&self, id: i32) -> Option<&Arc<RwLock<Session>>> {
+    pub fn session(&self, id: i32) -> Option<&Shared<Session>> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
+    }
+
+    pub fn sessions(&self) -> &VecDeque<(i32, Shared<Session>)> { &self.sessions }
+
+    pub fn flows(&self) -> &HashMap<String, Arc<Flow>> { &self.flows }
+
+    pub fn base_flow(&self) -> &Flow { &self.base_flow }
+
+    pub fn source_names(&self) -> Vec<&str> {
+        self.sources.iter().map(|(k, _)| -> &str { k }).collect()
     }
 }
 
@@ -113,7 +130,7 @@ impl Item {
 }
 
 #[async_trait]
-pub trait Match: Default {
+pub trait Matcher {
     type Score;
     fn name() -> &'static str;
     async fn start(&mut self, query: &str, option: Map<String, Value>);

@@ -1,4 +1,4 @@
-use linearf::{Flow, State};
+use linearf::{Flow, Shared, State};
 use mlua::prelude::*;
 use std::{cell::RefMut, sync::Arc};
 use tokio::{runtime::Runtime, sync::RwLock};
@@ -31,7 +31,7 @@ fn error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
 fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let st = lua.named_registry_value::<_, Wrapper<Arc<RwLock<State>>>>(ST)?;
+    let st = lua.named_registry_value::<_, Wrapper<Shared<State>>>(ST)?;
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
@@ -52,9 +52,9 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
+    let st = &**any.borrow_mut::<Wrapper<Shared<State>>>()?;
     rt.block_on(async {
-        if let Some(l) = st.read().await.session(session).await {
+        if let Some(l) = st.read().await.session(session) {
             let s = l.read().await;
             Ok(Some(s.count()))
         } else {
@@ -68,9 +68,9 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<Arc<RwLock<State>>>>()?;
+    let st = &**any.borrow_mut::<Wrapper<Shared<State>>>()?;
     rt.block_on(async move {
-        if let Some(l) = st.read().await.session(session).await {
+        if let Some(l) = st.read().await.session(session) {
             let s = &mut l.write().await;
             s.change_query(q);
         }
