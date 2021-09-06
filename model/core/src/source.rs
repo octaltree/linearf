@@ -32,6 +32,14 @@ pub(crate) enum Src {
     Dynamic(Arc<dyn DynamicSource>)
 }
 
+impl From<Arc<dyn Source>> for Src {
+    fn from(inner: Arc<dyn Source>) -> Self { Self::Static(inner) }
+}
+
+impl From<Arc<dyn DynamicSource>> for Src {
+    fn from(inner: Arc<dyn DynamicSource>) -> Self { Self::Dynamic(inner) }
+}
+
 // pub mod builtin {
 //    use crate::{Flow, Item, Session, State};
 //    use std::{stream::Stream, sync::Arc};
