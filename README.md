@@ -3,7 +3,8 @@ A fast and extensible fuzzy finder for vimmers
 
 ## Concepts
 * Show the first view faster
-* Respond as fast as if they were in linear time even for huge sources
+* Find as fast as if they were in linear time
+* modulality and extensibility
 * fzf is not vim
 * Use vim as a fuzzy finder from CLI
 
