@@ -10,7 +10,11 @@ const ST: &str = "_linearf_state";
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
     let rt = Runtime::new()?;
-    let st = rt.block_on(async { State::new_shared().await });
+    let st = rt.block_on(async {
+        let st = State::new_shared().await;
+        registrar::register(st.clone()).await;
+        st
+    });
     lua.globals()
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.set_named_registry_value(ST, Wrapper::new(st))?;

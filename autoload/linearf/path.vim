@@ -25,7 +25,10 @@ endfunction
 function! linearf#path#build() abort
   let dir = linearf#path#bridge()
   let features = 'mlua/' . linearf#vi#_lua()
-  let t = 'cd %s && cargo build --features=%s --release'
+  let t = 'cd %s;' .
+        \ 'cargo run --bin=registrar-preprocessor &&' .
+        \ 'cargo build --features=%s --release &&' .
+        \ 'git checkout registrar'
   let sh = printf(t, shellescape(dir), features)
   execute '! ' . sh
   call s:replace(dir)
