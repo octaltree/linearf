@@ -2,16 +2,14 @@ MAKEFLAGS += --no-print-directory
 
 .PHONY: clean
 clean:
-	cd core && make clean
-	cd bridge && make clean
+	cd model && make clean
 	cd tests && make clean
 
 
 # Development
 .PHONY: dev
 dev:
-	@cd core && make dev
-	@cd bridge && make dev
+	@cd model && make dev
 	@cd lua && make dev
 	@cd tests && make dev
 
