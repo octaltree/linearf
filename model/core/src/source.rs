@@ -2,21 +2,26 @@ use crate::{session::Sender, Flow, Item, Session, Shared, State};
 use std::{stream::Stream, sync::Arc};
 use tokio::runtime::Handle;
 
+/// Source that are not affected by query
 /// NOTE: Source have the potential to have itw own cache, so make them live longer.
 #[async_trait]
-pub trait Source: std::fmt::Debug + Send + Sync {
+pub trait Generator: std::fmt::Debug + Send + Sync {
     fn new(_state: &Shared<State>, _rt: Handle) -> Self
     where
         Self: Sized;
 
-    async fn gather(&mut self, tx: Sender<Item>, flow: &Arc<Flow>) -> Box<dyn Stream<Item = Item>>;
+    async fn generate(
+        &mut self,
+        tx: Sender<Item>,
+        flow: &Arc<Flow>
+    ) -> Box<dyn Stream<Item = Item>>;
 
     async fn reusable(&self, _prev: &Session, _flow: &Arc<Flow>) -> bool;
 }
 
 /// Results change dependening on the query
 #[async_trait]
-pub trait DynamicSource: std::fmt::Debug + Send + Sync {
+pub trait DynamicGenerator: std::fmt::Debug + Send + Sync {
     fn new(_state: &Shared<State>, _rt: Handle) -> Self
     where
         Self: Sized;
@@ -26,18 +31,21 @@ pub trait DynamicSource: std::fmt::Debug + Send + Sync {
     fn query(&mut self, q: &str) -> Box<dyn Stream<Item = Item>>;
 }
 
+pub fn new_source_static<G: 'static + Generator>(state: &Shared<State>, rt: Handle) -> Source {
+    Source::Static(Arc::new(G::new(&state, rt)))
+}
+
+pub fn new_source_dynamic<G: 'static + DynamicGenerator>(
+    state: &Shared<State>,
+    rt: Handle
+) -> Source {
+    Source::Dynamic(Arc::new(G::new(&state, rt)))
+}
+
 #[derive(Debug)]
-pub(crate) enum Src {
-    Static(Arc<dyn Source>),
-    Dynamic(Arc<dyn DynamicSource>)
-}
-
-impl From<Arc<dyn Source>> for Src {
-    fn from(inner: Arc<dyn Source>) -> Self { Self::Static(inner) }
-}
-
-impl From<Arc<dyn DynamicSource>> for Src {
-    fn from(inner: Arc<dyn DynamicSource>) -> Self { Self::Dynamic(inner) }
+pub enum Source {
+    Static(Arc<dyn Generator>),
+    Dynamic(Arc<dyn DynamicGenerator>)
 }
 
 // pub mod builtin {

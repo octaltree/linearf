@@ -18,7 +18,7 @@ mod tmp;
 // 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
 // rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
 
-use crate::source::Src;
+use crate::source::Source;
 pub use crate::{flow::Flow, session::Session};
 use serde_json::{Map, Value};
 use std::{
@@ -35,7 +35,7 @@ pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
     flows: HashMap<String, Arc<Flow>>,
     base_flow: Flow,
-    sources: HashMap<String, Src>
+    sources: HashMap<String, Source>
 }
 
 impl State {
@@ -52,6 +52,11 @@ impl State {
         //    x.sources.insert("flow".into(), Arc::new(flow));
         //}
         a
+    }
+
+    pub async fn register_source<N: Into<String>>(state: Shared<State>, name: N, source: Source) {
+        let x = &mut state.write().await;
+        x.sources.insert(name.into(), source);
     }
 
     pub async fn start_session<'a>(
