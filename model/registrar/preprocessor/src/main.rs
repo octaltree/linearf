@@ -72,9 +72,12 @@ fn format_lib(crates: &[Crate]) -> String {
     for c in crates {
         for g in &c.generators {
             let name = &g.name;
-            let path = &g.path;
+            let p = g.path.split("::").map(|p| quote::format_ident!("{}", p));
+            let path = quote::quote! {
+                #(#p)::*
+            };
             registrations.push(quote::quote! {
-                let g = <#path>::new();
+                let g = #path::new();
                 let s = linearf::source::Source::from(g);
                 State::register_source(state, #name, s);
             });
