@@ -13,8 +13,8 @@ fn main() -> StdResult<()> {
     let env_reg = env::var("LINEARF_REG");
     let env_dir = env!("CARGO_MANIFEST_DIR");
     let crates = input(env_reg)?;
-    let (cargo_toml, main) = dest(env_dir);
-    fs::write(main, format_main(&crates))?;
+    let (cargo_toml, lib) = dest(env_dir);
+    fs::write(lib, format_lib(&crates))?;
     fs::write(cargo_toml, format_cargo_toml(&crates)?)?;
     Ok(())
 }
@@ -31,8 +31,8 @@ fn dest(env_dir: &str) -> (PathBuf, PathBuf) {
     let here = Path::new(env_dir);
     let registrar = here.parent().unwrap().join("registrar");
     let cargo_toml = registrar.join("Cargo.toml");
-    let main = registrar.join("src").join("main.rs");
-    (cargo_toml, main)
+    let lib = registrar.join("src").join("lib.rs");
+    (cargo_toml, lib)
 }
 
 fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
@@ -67,13 +67,26 @@ fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
     Ok(toml::to_string(&manifest)?)
 }
 
-fn format_main(crates: &[Crate]) -> String {
+fn format_lib(crates: &[Crate]) -> String {
+    let mut registrations = Vec::new();
+    for c in crates {
+        for g in &c.generators {
+            let name = &g.name;
+            let path = &g.path;
+            registrations.push(quote::quote! {
+                let g = <#path>::new();
+                let s = linearf::source::Source::from(g);
+                State::register_source(state, #name, s);
+            });
+        }
+    }
     let t = quote::quote! {
         use linearf::{AsyncRt, Shared, State};
-
-        pub async fn register(state: &Shared<State>, handle: &AsyncRt) {}
+        pub async fn register(state: &Shared<State>, handle: &AsyncRt) {
+            #(#registrations)*
+        }
     };
-    todo!()
+    t.to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,5 +98,6 @@ struct Crate {
 
 #[derive(Debug, Deserialize)]
 struct GeneratorDescriptor {
+    name: String,
     path: String
 }

@@ -30,21 +30,18 @@ pub trait DynamicGenerator: std::fmt::Debug + Send + Sync {
     fn query(&mut self, q: &str) -> Box<dyn Stream<Item = Item>>;
 }
 
-pub fn new_source_static<G: 'static + Generator>(state: &Shared<State>, rt: &AsyncRt) -> Source {
-    Source::Static(Arc::new(G::new(&state, &rt)))
-}
-
-pub fn new_source_dynamic<G: 'static + DynamicGenerator>(
-    state: &Shared<State>,
-    rt: &AsyncRt
-) -> Source {
-    Source::Dynamic(Arc::new(G::new(&state, &rt)))
-}
-
 #[derive(Debug)]
 pub enum Source {
     Static(Arc<dyn Generator>),
     Dynamic(Arc<dyn DynamicGenerator>)
+}
+
+impl From<Arc<dyn Generator>> for Source {
+    fn from(g: Arc<dyn Generator>) -> Self { Self::Static(g) }
+}
+
+impl From<Arc<dyn DynamicGenerator>> for Source {
+    fn from(g: Arc<dyn DynamicGenerator>) -> Self { Self::Dynamic(g) }
 }
 
 // pub mod builtin {
