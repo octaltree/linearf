@@ -42,20 +42,10 @@ pub struct State {
 impl State {
     pub async fn new_shared() -> Shared<Self> {
         let this = Self::default();
-        let a = Arc::new(RwLock::new(this));
-        //{
-        //    let source = source::builtin::StateSource::new(a.clone());
-        //    let session = source::builtin::StateSession::new(a.clone());
-        //    let flow = source::builtin::StateFlow::new(a.clone());
-        //    let x = &mut a.write().await;
-        //    x.sources.insert("source".into(), Arc::new(source));
-        //    x.sources.insert("session".into(), Arc::new(session));
-        //    x.sources.insert("flow".into(), Arc::new(flow));
-        //}
-        a
+        Arc::new(RwLock::new(this))
     }
 
-    pub async fn register_source<N: Into<String>>(state: Shared<State>, name: N, source: Source) {
+    pub async fn register_source<N: Into<String>>(state: &Shared<State>, name: N, source: Source) {
         let x = &mut state.write().await;
         x.sources.insert(name.into(), source);
     }
