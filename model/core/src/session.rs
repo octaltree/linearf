@@ -1,4 +1,4 @@
-use crate::{Flow, Item, Shared};
+use crate::{source::Source, Flow, Item, Shared};
 use std::sync::{Arc, Weak};
 use tokio::{
     runtime::Handle,
@@ -8,10 +8,10 @@ use tokio::{
 pub type Sender<T> = mpsc::UnboundedSender<T>;
 
 /// State being calculated based on flow
-#[derive(Debug)]
 pub struct Session {
     // TODO: items for each query
     flow: Arc<Flow>,
+    source: Source,
     query: Option<Arc<String>>,
     items: Vec<Item>
 }
@@ -21,9 +21,10 @@ impl Session {
 }
 
 impl Session {
-    pub async fn start(rt: Handle, flow: Arc<Flow>) -> Shared<Self> {
+    pub async fn start(rt: Handle, flow: Arc<Flow>, source: Source) -> Shared<Self> {
         let this = Self {
             flow,
+            source,
             query: None,
             items: Vec::new()
         };

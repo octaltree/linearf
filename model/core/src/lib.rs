@@ -31,6 +31,9 @@ use tokio::{runtime::Handle, sync::RwLock};
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
 
+#[derive(Debug, thiserror::Error)]
+enum Error {}
+
 #[derive(Default)]
 pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
@@ -54,12 +57,19 @@ impl State {
         &'a mut self,
         rt: Handle,
         flow: Arc<Flow>
-    ) -> (i32, &Shared<Session>) {
+    ) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
         // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
-        let sess = Session::start(rt, flow).await;
+        let source = self
+            .sources
+            .get(&flow.source)
+            .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+                format!("source {} not found", &flow.source).into()
+            })?
+            .clone();
+        let sess = Session::start(rt, flow, source).await;
         self.sessions.push_back((id, sess));
-        (id, &self.sessions[self.sessions.len() - 1].1)
+        Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
     fn next_session_id(&self) -> i32 {

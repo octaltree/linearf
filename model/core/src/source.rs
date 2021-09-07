@@ -26,6 +26,7 @@ pub trait DynamicGenerator: New + Send + Sync {
     fn query(&mut self, tx: Sender<Item>, q: &str);
 }
 
+#[derive(Clone)]
 pub enum Source {
     Static(Arc<dyn Generator>),
     Dynamic(Arc<dyn DynamicGenerator>)

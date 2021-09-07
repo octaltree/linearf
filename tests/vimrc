@@ -1,6 +1,6 @@
 set rtp+=..
 
-"let g:linearf#recipe = {
-"      \ 'crates': [{'name': 'rustdoc', 'dep': {'path' :'../../../../linearf-my-sources/rustdoc'}}],
-"      \ 'sources': [{'name': 'rustdoc', 'path': 'rustdoc::Rustdoc', 'type': 'Static'}]
-"      \ }
+let g:linearf#recipe = {
+      \ 'crates': [{'name': 'rustdoc', 'dep': {'path' :'../../../../linearf-my-sources/rustdoc'}}],
+      \ 'sources': [{'name': 'rustdoc', 'path': 'rustdoc::Rustdoc', 'type': 'Static'}]
+      \ }

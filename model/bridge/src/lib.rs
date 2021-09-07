@@ -40,14 +40,19 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
         let flow = build_flow(st, args, selected).ok_or(LuaError::external("not found"))?;
-        let (id, _) = st.start_session(handle, flow).await;
+        let (id, _) = st
+            .start_session(handle, flow)
+            .await
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id)
     })
 }
 
 fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
     // TODO
-    Some(Arc::new(Flow {}))
+    Some(Arc::new(Flow {
+        source: "rustdoc".into()
+    }))
 }
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
