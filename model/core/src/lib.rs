@@ -31,7 +31,7 @@ use tokio::{runtime::Handle, sync::RwLock};
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
     flows: HashMap<String, Arc<Flow>>,
@@ -89,8 +89,14 @@ impl State {
     }
 }
 
+pub trait New {
+    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+    where
+        Self: Sized;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum StringBytes {
+pub enum StringBytes {
     String(String),
     Bytes(Vec<u8>)
 }
@@ -98,17 +104,18 @@ enum StringBytes {
 // TODO: userdata
 #[derive(Debug)]
 pub struct Item {
-    idx: usize,
-    value: StringBytes,
-    r#type: &'static str,
-    view: Option<String>,
-    view_for_matcing: Option<String>,
+    pub idx: usize,
+    pub value: StringBytes,
+    pub r#type: &'static str,
+    pub view: Option<String>,
+    pub view_for_matcing: Option<String>,
     /// To check mathcing query for dynamic source
-    query: Option<Arc<String>>
+    // TODO
+    pub query: Option<Arc<String>>
 }
 
 impl Item {
-    fn view(&self) -> Cow<'_, str> {
+    pub fn view(&self) -> Cow<'_, str> {
         let opt = self.view.as_deref().map(Cow::Borrowed);
         opt.unwrap_or_else(|| match &self.value {
             StringBytes::String(s) => Cow::Borrowed(s),
@@ -119,7 +126,7 @@ impl Item {
         })
     }
 
-    fn view_for_matcing(&self) -> Cow<'_, str> {
+    pub fn view_for_matcing(&self) -> Cow<'_, str> {
         let opt = self.view_for_matcing.as_deref().map(Cow::Borrowed);
         opt.unwrap_or_else(|| self.view())
     }

@@ -25,9 +25,13 @@ endfunction
 function! linearf#path#build() abort
   let dir = linearf#path#bridge()
   let features = 'mlua/' . linearf#vi#_lua()
+  if type(g:linearf#recipe) == v:t_dict
+    let $LINEARF_RECIPE = json_encode(g:linearf#recipe)
+  endif
   let t = 'cd %s;' .
-        \ 'cargo run --bin=registrar-preprocessor &&' .
-        \ 'cargo build --features=%s --release &&' .
+        \ 'git checkout registrar/registrar &&' .
+        \ 'rustup run nightly cargo run --bin=registrar-preprocessor &&' .
+        \ 'rustup run nightly cargo build --features=%s --release &&' .
         \ 'git checkout registrar/registrar'
   let sh = printf(t, shellescape(dir), features)
   execute '! ' . sh

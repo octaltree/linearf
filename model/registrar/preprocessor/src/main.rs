@@ -10,19 +10,19 @@ use std::{
 type StdResult<T> = Result<T, Box<dyn StdError>>;
 
 fn main() -> StdResult<()> {
-    let env_reg = env::var("LINEARF_REG");
+    let env_recipe = env::var("LINEARF_RECIPE");
     let env_dir = env!("CARGO_MANIFEST_DIR");
-    let crates = input(env_reg)?;
+    let recipe = input(env_recipe)?;
     let (cargo_toml, lib) = dest(env_dir);
-    fs::write(lib, format_lib(&crates))?;
-    fs::write(cargo_toml, format_cargo_toml(&crates)?)?;
+    fs::write(lib, format_lib(&recipe))?;
+    fs::write(cargo_toml, format_cargo_toml(&recipe)?)?;
     Ok(())
 }
 
-fn input(env_reg: Result<String, env::VarError>) -> StdResult<Vec<Crate>> {
+fn input(env_reg: Result<String, env::VarError>) -> StdResult<Recipe> {
     match env_reg {
         Ok(s) => Ok(serde_json::from_str(&s)?),
-        Err(env::VarError::NotPresent) => Ok(Vec::new()),
+        Err(env::VarError::NotPresent) => Ok(Recipe::default()),
         Err(e) => Err(e.into())
     }
 }
@@ -35,7 +35,7 @@ fn dest(env_dir: &str) -> (PathBuf, PathBuf) {
     (cargo_toml, lib)
 }
 
-fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
+fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
     #[derive(Serialize)]
     struct Manifest {
         package: CargoPackage,
@@ -53,7 +53,7 @@ fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
         m.insert("path".into(), "../../core".into());
         serde_json::Value::from(m)
     });
-    for c in crates {
+    for c in &recipe.crates {
         dependencies.insert(c.name.clone(), c.dep.clone());
     }
     let manifest = Manifest {
@@ -67,24 +67,21 @@ fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
     Ok(toml::to_string(&manifest)?)
 }
 
-fn format_lib(crates: &[Crate]) -> String {
-    let mut registrations = Vec::new();
-    for c in crates {
-        for g in &c.sources {
-            let name = &g.name;
-            let p = g.path.split("::").map(|p| quote::format_ident!("{}", p));
-            let path = quote::quote! {
-                #(#p)::*
-            };
-            registrations.push(quote::quote! {
-                let g = #path::new();
-                let s = linearf::source::Source::from(g);
-                State::register_source(state, #name, s);
-            });
+fn format_lib(recipe: &Recipe) -> String {
+    let registrations = recipe.sources.iter().map(|s| {
+        let name = &s.name;
+        let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
+        let path = quote::quote! {
+            #(#p)::*
+        };
+        quote::quote! {
+            let g = #path::new();
+            let s = linearf::source::Source::from(g);
+            State::register_source(state, #name, s);
         }
-    }
+    });
     let t = quote::quote! {
-        use linearf::{AsyncRt, Shared, State};
+        use linearf::{AsyncRt, Shared, State, New};
         pub async fn register(state: &Shared<State>, handle: &AsyncRt) {
             #(#registrations)*
         }
@@ -92,11 +89,16 @@ fn format_lib(crates: &[Crate]) -> String {
     t.to_string()
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct Recipe {
+    crates: Vec<Crate>,
+    sources: Vec<SourceDescriptor>
+}
+
 #[derive(Debug, Deserialize)]
 struct Crate {
     name: String,
-    dep: serde_json::Value,
-    sources: Vec<SourceDescriptor>
+    dep: serde_json::Value
 }
 
 #[derive(Debug, Deserialize)]

@@ -20,6 +20,11 @@ g:linearf#command	*g:linearf#command*
   default: 'Linearf'
   example: let g:linearf#command = 'Lnf'
 
+g:linearf#recipe	*g:linearf#recipe*
+  Recipe for building your own fuzzy finder.
+  default: v:null
+  example: TODO code block
+
 linearf#build()	*linearf#build()*
 
 linearf#init()	*linearf#init()*

@@ -1,37 +1,31 @@
-use crate::{session::Sender, AsyncRt, Flow, Item, Session, Shared, State};
+pub use crate::session::Sender;
+use crate::{AsyncRt, Flow, Item, New, Session, Shared, State};
 use std::{stream::Stream, sync::Arc};
+use tokio::sync::mpsc;
 
 /// Source that are not affected by query
 /// NOTE: Source have the potential to have itw own cache, so make them live longer.
 #[async_trait]
-pub trait Generator: std::fmt::Debug + Send + Sync {
-    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
-    where
-        Self: Sized;
-
+pub trait Generator: New + Send + Sync {
     // TODO: error notification
     async fn generate(
         &mut self,
         tx: Sender<Item>,
         flow: &Arc<Flow>
-    ) -> Box<dyn Stream<Item = Item>>;
+    ) -> Result<(), Box<dyn std::error::Error>>;
 
     async fn reusable(&self, _prev: &Session, _flow: &Arc<Flow>) -> bool;
 }
 
 /// Results change dependening on the query
 #[async_trait]
-pub trait DynamicGenerator: std::fmt::Debug + Send + Sync {
-    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
-    where
-        Self: Sized;
-
+pub trait DynamicGenerator: New + Send + Sync {
     async fn start(&mut self, flow: &Arc<Flow>);
 
-    fn query(&mut self, q: &str) -> Box<dyn Stream<Item = Item>>;
+    /// tx is different for every call
+    fn query(&mut self, tx: Sender<Item>, q: &str);
 }
 
-#[derive(Debug)]
 pub enum Source {
     Static(Arc<dyn Generator>),
     Dynamic(Arc<dyn DynamicGenerator>)
@@ -43,6 +37,29 @@ impl From<Arc<dyn Generator>> for Source {
 
 impl From<Arc<dyn DynamicGenerator>> for Source {
     fn from(g: Arc<dyn DynamicGenerator>) -> Self { Self::Dynamic(g) }
+}
+
+struct UnboundedStream<T> {
+    rx: mpsc::UnboundedReceiver<T>
+}
+
+impl<T> UnboundedStream<T> {
+    fn new() -> (mpsc::UnboundedSender<T>, Self) {
+        let (tx, rx) = mpsc::unbounded_channel::<T>();
+        (tx, UnboundedStream { rx })
+    }
+}
+
+impl<T> Stream for UnboundedStream<T> {
+    type Item = T;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        this.rx.poll_recv(cx)
+    }
 }
 
 // pub mod builtin {

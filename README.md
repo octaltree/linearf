@@ -8,7 +8,7 @@ A fast and extensible fuzzy finder for vimmers
 * Use vim as a fuzzy finder from CLI
 
 ## Requirements
-* [cargo](https://doc.rust-lang.org/book/ch01-01-installation.html)
+* [cargo](https://doc.rust-lang.org/book/ch01-01-installation.html) nightly
 * +lua/dyn for vim / luajit for neovim
 
 ## Installation

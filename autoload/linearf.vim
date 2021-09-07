@@ -1,5 +1,6 @@
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
 let g:linearf#command = exists('g:linearf#command') ? g:linearf#command : 'Linearf'
+let g:linearf#recipe = exists('g:linearf#recipe') ? g:linearf#recipe : v:null
 let s:initialized = v:false
 let s:session = v:null
 
