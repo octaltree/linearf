@@ -74,14 +74,22 @@ fn format_lib(recipe: &Recipe) -> String {
         let path = quote::quote! {
             #(#p)::*
         };
+        let t = quote::format_ident!(
+            "{}",
+            match &s.r#type {
+                GeneratorType::Static => "Static",
+                GeneratorType::Dynamic => "Dynamic"
+            }
+        );
         quote::quote! {
-            let g = #path::new();
-            let s = linearf::source::Source::from(g);
+            let g = Arc::new(#path::new(state, handle));
+            let s = Source::#t(g);
             State::register_source(state, #name, s);
         }
     });
     let t = quote::quote! {
-        use linearf::{AsyncRt, Shared, State, New};
+        use linearf::{AsyncRt, Shared, State, New, source::Source};
+        use std::sync::Arc;
         pub async fn register(state: &Shared<State>, handle: &AsyncRt) {
             #(#registrations)*
         }
@@ -104,5 +112,12 @@ struct Crate {
 #[derive(Debug, Deserialize)]
 struct SourceDescriptor {
     name: String,
-    path: String
+    path: String,
+    r#type: GeneratorType
+}
+
+#[derive(Debug, Deserialize)]
+enum GeneratorType {
+    Static,
+    Dynamic
 }

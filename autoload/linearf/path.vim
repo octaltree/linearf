@@ -28,6 +28,7 @@ function! linearf#path#build() abort
   if type(g:linearf#recipe) == v:t_dict
     let $LINEARF_RECIPE = json_encode(g:linearf#recipe)
   endif
+  let $RUSTFLAGS = '-Awarnings'
   let t = 'cd %s;' .
         \ 'git checkout registrar/registrar &&' .
         \ 'rustup run nightly cargo run --bin=registrar-preprocessor &&' .
