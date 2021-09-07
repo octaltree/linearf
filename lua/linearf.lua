@@ -24,7 +24,7 @@ local function call(name, ...)
     if ok then
         return result
     else
-        local e = bridge.error(name, result)
+        local e = bridge.format_error(name, result)
         local msg = string.format("[bridge.%s] %s", name, e)
         echo_error(msg)
         return nil

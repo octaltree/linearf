@@ -19,7 +19,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
         .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
     lua.set_named_registry_value(ST, Wrapper::new(st))?;
     let exports = lua.create_table()?;
-    exports.set("error", lua.create_function(error)?)?;
+    exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
@@ -27,7 +27,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     Ok(exports)
 }
 
-fn error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
+fn format_error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
     log::error!("[{}] {:?}", name.to_string_lossy(), e);
     Ok(format!("{:?}", e))
 }

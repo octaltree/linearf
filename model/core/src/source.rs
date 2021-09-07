@@ -9,6 +9,7 @@ pub trait Generator: std::fmt::Debug + Send + Sync {
     where
         Self: Sized;
 
+    // TODO: error notification
     async fn generate(
         &mut self,
         tx: Sender<Item>,
