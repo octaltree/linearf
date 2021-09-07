@@ -70,7 +70,7 @@ fn format_cargo_toml(crates: &[Crate]) -> StdResult<String> {
 fn format_lib(crates: &[Crate]) -> String {
     let mut registrations = Vec::new();
     for c in crates {
-        for g in &c.generators {
+        for g in &c.sources {
             let name = &g.name;
             let p = g.path.split("::").map(|p| quote::format_ident!("{}", p));
             let path = quote::quote! {
@@ -96,11 +96,11 @@ fn format_lib(crates: &[Crate]) -> String {
 struct Crate {
     name: String,
     dep: serde_json::Value,
-    generators: Vec<GeneratorDescriptor>
+    sources: Vec<SourceDescriptor>
 }
 
 #[derive(Debug, Deserialize)]
-struct GeneratorDescriptor {
+struct SourceDescriptor {
     name: String,
     path: String
 }
