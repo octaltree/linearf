@@ -84,7 +84,7 @@ fn format_lib(recipe: &Recipe) -> String {
         quote::quote! {
             let g = Arc::new(#path::new(state, handle));
             let s = Source::#t(g);
-            State::register_source(state, #name, s);
+            State::register_source(state, #name, s).await;
         }
     });
     let t = quote::quote! {
