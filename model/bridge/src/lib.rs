@@ -12,7 +12,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let rt = Runtime::new()?;
     let st = rt.block_on(async {
         let st = State::new_shared().await;
-        registrar::register(st.clone()).await;
+        registrar::register(&st, rt.handle()).await;
         st
     });
     lua.globals()

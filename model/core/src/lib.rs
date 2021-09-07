@@ -28,6 +28,7 @@ use std::{
 };
 use tokio::{runtime::Handle, sync::RwLock};
 
+pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
 
 #[derive(Debug, Default)]

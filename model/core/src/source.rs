@@ -1,12 +1,11 @@
-use crate::{session::Sender, Flow, Item, Session, Shared, State};
+use crate::{session::Sender, AsyncRt, Flow, Item, Session, Shared, State};
 use std::{stream::Stream, sync::Arc};
-use tokio::runtime::Handle;
 
 /// Source that are not affected by query
 /// NOTE: Source have the potential to have itw own cache, so make them live longer.
 #[async_trait]
 pub trait Generator: std::fmt::Debug + Send + Sync {
-    fn new(_state: &Shared<State>, _rt: Handle) -> Self
+    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
     where
         Self: Sized;
 
@@ -22,7 +21,7 @@ pub trait Generator: std::fmt::Debug + Send + Sync {
 /// Results change dependening on the query
 #[async_trait]
 pub trait DynamicGenerator: std::fmt::Debug + Send + Sync {
-    fn new(_state: &Shared<State>, _rt: Handle) -> Self
+    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
     where
         Self: Sized;
 
@@ -31,15 +30,15 @@ pub trait DynamicGenerator: std::fmt::Debug + Send + Sync {
     fn query(&mut self, q: &str) -> Box<dyn Stream<Item = Item>>;
 }
 
-pub fn new_source_static<G: 'static + Generator>(state: &Shared<State>, rt: Handle) -> Source {
-    Source::Static(Arc::new(G::new(&state, rt)))
+pub fn new_source_static<G: 'static + Generator>(state: &Shared<State>, rt: &AsyncRt) -> Source {
+    Source::Static(Arc::new(G::new(&state, &rt)))
 }
 
 pub fn new_source_dynamic<G: 'static + DynamicGenerator>(
     state: &Shared<State>,
-    rt: Handle
+    rt: &AsyncRt
 ) -> Source {
-    Source::Dynamic(Arc::new(G::new(&state, rt)))
+    Source::Dynamic(Arc::new(G::new(&state, &rt)))
 }
 
 #[derive(Debug)]

@@ -28,7 +28,7 @@ function! linearf#path#build() abort
   let t = 'cd %s;' .
         \ 'cargo run --bin=registrar-preprocessor &&' .
         \ 'cargo build --features=%s --release &&' .
-        \ 'git checkout registrar'
+        \ 'git checkout registrar/registrar'
   let sh = printf(t, shellescape(dir), features)
   execute '! ' . sh
   call s:replace(dir)
