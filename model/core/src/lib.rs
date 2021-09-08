@@ -126,6 +126,7 @@ pub struct Item {
 }
 
 impl Item {
+    #[inline]
     pub fn view(&self) -> Cow<'_, str> {
         let opt = self.view.as_deref().map(Cow::Borrowed);
         opt.unwrap_or_else(|| match &self.value {
@@ -137,6 +138,7 @@ impl Item {
         })
     }
 
+    #[inline]
     pub fn view_for_matcing(&self) -> Cow<'_, str> {
         let opt = self.view_for_matcing.as_deref().map(Cow::Borrowed);
         opt.unwrap_or_else(|| self.view())
