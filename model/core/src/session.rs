@@ -34,6 +34,7 @@ impl Session {
         shared
     }
 
+    // TODO: stop sessions
     async fn main(rt: Handle, this: Arc<RwLock<Session>>) {
         // source
         // score
@@ -74,7 +75,7 @@ impl Session {
 fn source(
     rt: &Handle,
     this: Arc<RwLock<Session>>,
-    tx: Sender<Arc<Item>>
+    tx: Sender<Item>
 ) -> JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>> {
     rt.spawn(async move {
         let sess = &mut this.write().await;
@@ -98,8 +99,8 @@ struct Score;
 fn matcher(
     rt: &Handle,
     this: Arc<RwLock<Session>>,
-    mut rx: mpsc::UnboundedReceiver<Arc<Item>>,
-    tx: Sender<(Arc<Item>, Score)>
+    mut rx: mpsc::UnboundedReceiver<Item>,
+    tx: Sender<(Item, Score)>
 ) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = std::time::Instant::now();

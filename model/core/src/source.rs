@@ -10,7 +10,7 @@ pub trait Generator: New + Send + Sync {
     // TODO: error notification
     async fn generate(
         &mut self,
-        tx: Sender<Arc<Item>>,
+        tx: Sender<Item>,
         flow: &Arc<Flow>
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -23,7 +23,7 @@ pub trait DynamicGenerator: New + Send + Sync {
     async fn start(&mut self, flow: &Arc<Flow>);
 
     /// tx is different for every call
-    fn query(&mut self, tx: Sender<Arc<Item>>, q: &str);
+    fn query(&mut self, tx: Sender<Item>, q: &str);
 }
 
 #[derive(Clone)]
