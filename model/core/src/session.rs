@@ -111,7 +111,9 @@ fn matcher(
 ) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = std::time::Instant::now();
-        while let Some(item) = rx.recv().await {}
+        while let Some(chunk) = rx.recv().await {
+            for item in chunk {}
+        }
         let elapsed = std::time::Instant::now() - start;
         log::debug!("{:?}", elapsed);
     })

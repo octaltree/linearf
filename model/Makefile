@@ -8,7 +8,7 @@ dev: format lint test doc
 
 .PHONY: d
 d:
-	@cargo watch -e -c -s 'make dev'
+	@watchexec -c 'make dev'
 
 .PHONY: format
 format:

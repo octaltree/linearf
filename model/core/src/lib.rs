@@ -67,6 +67,19 @@ impl State {
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
+    pub fn close_session(&mut self, session: i32) {
+        if let Some(idx) = self
+            .sessions
+            .iter()
+            .enumerate()
+            .map(|(idx, (id, _))| (idx, id))
+            .find(|(_, &id)| id == session)
+            .map(|(idx, _)| idx)
+        {
+            self.sessions.remove(idx);
+        }
+    }
+
     fn next_session_id(&self) -> i32 {
         // WARNING: 0 is indistinguishable from null in vim.
         // Keep at least on session

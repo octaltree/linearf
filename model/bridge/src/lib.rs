@@ -1,7 +1,7 @@
 use linearf::{Flow, Shared, State};
 use mlua::prelude::*;
 use std::{cell::RefMut, sync::Arc};
-use tokio::{runtime::Runtime, sync::RwLock};
+use tokio::runtime::Runtime;
 
 const RT: &str = "_lienarf_rt";
 const ST: &str = "_linearf_state";
@@ -27,7 +27,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     Ok(exports)
 }
 
-fn format_error(lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
+fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
     log::error!("[{}] {:?}", name.to_string_lossy(), e);
     Ok(format!("{:?}", e))
 }
@@ -56,7 +56,16 @@ fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Fl
     }))
 }
 
-fn terminate(lua: &Lua, session: i32) -> LuaResult<()> { Ok(()) }
+fn terminate(lua: &Lua, session: i32) -> LuaResult<()> {
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let st = lua.named_registry_value::<_, Wrapper<Shared<State>>>(ST)?;
+    rt.block_on(async {
+        let st = &mut st.write().await;
+        st.close_session(session);
+    });
+    Ok(())
+}
 
 fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;

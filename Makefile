@@ -20,7 +20,7 @@ vl:
 
 .PHONY: d
 d:
-	@watchexec -c 'make dev'
+	@watchexec -i model/registrar/registrar -c 'make dev'
 
 
 # vim: foldmethod=marker

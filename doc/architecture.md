@@ -1,6 +1,9 @@
 # Architecture
 ## Introduction
 TODO
+* denite resume preview
+* fzf is fast but it's not vim
+* vim script is slow
 
 
 * UI
