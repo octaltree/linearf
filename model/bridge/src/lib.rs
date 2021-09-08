@@ -21,9 +21,9 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
+    exports.set("query", lua.create_function(query)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
     exports.set("count", lua.create_function(count)?)?;
-    exports.set("change_query", lua.create_function(change_query)?)?;
     Ok(exports)
 }
 
@@ -73,7 +73,7 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
     })
 }
 
-fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
+fn query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
     let q = query.to_string_lossy();
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
@@ -82,7 +82,7 @@ fn change_query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> 
     rt.block_on(async move {
         if let Some(l) = st.read().await.session(session) {
             let s = &mut l.write().await;
-            s.change_query(q);
+            s.query(q);
         }
         Ok(())
     })
@@ -103,7 +103,7 @@ impl<T> Wrapper<T> {
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
-    if !cfg!(debug_assertions) {
+    if !(cfg!(unix) || cfg!(debug_assertions)) {
         return Ok(());
     }
     use log::LevelFilter;
@@ -111,7 +111,8 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error>> {
         append::file::FileAppender,
         config::{Appender, Config, Root}
     };
-    let logfile = FileAppender::builder().build("/tmp/bridge.log")?;
+    let p = std::env::temp_dir().join("vim_linearf.log");
+    let logfile = FileAppender::builder().build(p)?;
     let config = Config::builder()
         .appender(Appender::builder().build("logfile", Box::new(logfile)))
         .build(

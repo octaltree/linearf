@@ -2,7 +2,7 @@ use crate::{
     source::{Source, Transmitter},
     Flow, Item, Shared
 };
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::Arc;
 use tokio::{
     runtime::Handle,
     sync::{mpsc, RwLock},
@@ -16,7 +16,7 @@ pub struct Session {
     // TODO: items for each query
     flow: Arc<Flow>,
     source: Source,
-    query: Option<Arc<String>>,
+    // TODO: query's items for dynamic
     items: Vec<Item>
 }
 
@@ -30,7 +30,6 @@ impl Session {
         let this = Self {
             flow,
             source,
-            query: None,
             items: Vec::new()
         };
         let shared = Arc::new(RwLock::new(this));
@@ -56,6 +55,11 @@ impl Session {
         //}
     }
 
+    pub fn query<S: Into<String>>(&mut self, s: S) {
+        let arc = Arc::new(s.into());
+        todo!()
+    }
+
     #[inline]
     pub fn count(&self) -> usize { self.items.len() }
 
@@ -66,12 +70,6 @@ impl Session {
         } else {
             None
         }
-    }
-
-    pub fn change_query<S: Into<String>>(&mut self, s: S) {
-        let arc = Arc::new(s.into());
-        self.query = Some(arc);
-        todo!()
     }
 }
 
