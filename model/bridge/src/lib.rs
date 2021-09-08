@@ -39,6 +39,7 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
     rt.block_on(async {
         let handle = rt.handle().clone();
         let st = &mut st.write().await;
+        // TODO: error
         let flow = build_flow(st, args, selected).ok_or(LuaError::external("not found"))?;
         let (id, _) = st
             .start_session(handle, flow)

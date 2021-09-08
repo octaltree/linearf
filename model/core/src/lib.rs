@@ -5,29 +5,23 @@ extern crate serde;
 extern crate async_trait;
 
 pub mod flow;
+pub mod matcher;
 pub mod session;
 pub mod source;
 
 pub(crate) mod import;
-mod tmp;
 
-// 適切な構造で持つ
-// resume
-// やりとり
-// 1. vim-rust ソース開始リクエスト 状態を変更する
-// 2. vim-rust クエリとともに範囲取得 vim側で一定時間ごとにカーソルから近い範囲と件数を取得する
-// rust-vim アイテムを先に送る 文字列を先に送っておけばインデックスでやりとりできて速いかもしれない要検証
+pub use crate::{flow::Flow, matcher::Score, session::Session};
+pub use tokio::sync::RwLock;
 
 use crate::source::Source;
-pub use crate::{flow::Flow, session::Session};
-use serde_json::{Map, Value};
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
+    ffi::OsString,
     sync::Arc
 };
 use tokio::runtime::Handle;
-pub use tokio::sync::RwLock;
 
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
@@ -106,23 +100,35 @@ pub trait New {
         Self: Sized;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StringBytes {
-    String(String),
-    Bytes(Vec<u8>)
-}
-
 // TODO: userdata
 #[derive(Debug)]
 pub struct Item {
-    pub idx: usize,
-    pub value: StringBytes,
+    /// id must not be 0
+    pub id: u32,
     pub r#type: &'static str,
+    pub value: MaybeUtf8,
     pub view: Option<String>,
-    pub view_for_matcing: Option<String>,
-    /// To check mathcing query for dynamic source
-    // TODO
-    pub query: Option<Arc<String>>
+    pub view_for_matcing: Option<String>
+}
+
+impl Item {
+    pub fn new(id: u32, r#type: &'static str, value: MaybeUtf8) -> Self {
+        Self {
+            id,
+            r#type,
+            value,
+            view: None,
+            view_for_matcing: None
+        }
+    }
+}
+
+// TODO: into CStr
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MaybeUtf8 {
+    Utf8(String),
+    Os(OsString),
+    Bytes(Vec<u8>)
 }
 
 impl Item {
@@ -130,8 +136,12 @@ impl Item {
     pub fn view(&self) -> Cow<'_, str> {
         let opt = self.view.as_deref().map(Cow::Borrowed);
         opt.unwrap_or_else(|| match &self.value {
-            StringBytes::String(s) => Cow::Borrowed(s),
-            StringBytes::Bytes(b) => match String::from_utf8_lossy(b) {
+            MaybeUtf8::Utf8(s) => Cow::Borrowed(s),
+            MaybeUtf8::Os(s) => match s.to_string_lossy() {
+                Cow::Owned(s) => Cow::Owned(s),
+                Cow::Borrowed(s) => Cow::Borrowed(s)
+            },
+            MaybeUtf8::Bytes(b) => match String::from_utf8_lossy(b) {
                 Cow::Owned(s) => Cow::Owned(s),
                 Cow::Borrowed(s) => Cow::Borrowed(s)
             }
@@ -144,21 +154,3 @@ impl Item {
         opt.unwrap_or_else(|| self.view())
     }
 }
-
-#[async_trait]
-pub trait Matcher {
-    type Score;
-    fn name() -> &'static str;
-    async fn start(&mut self, query: &str, option: Map<String, Value>);
-    async fn score(&mut self, item: &Item) -> Self::Score;
-}
-
-/// Items will be displayed in descending order of its score.
-/// No guarantee of order when it is equal. You should use idx to make it less equal.
-pub trait Score: PartialEq + PartialOrd + Clone {
-    /// If true, the item will not be displayed.
-    fn is_excluded(&self) -> bool;
-}
-
-#[async_trait]
-pub trait Converter {}

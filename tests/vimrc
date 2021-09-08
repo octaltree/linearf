@@ -1,3 +1,4 @@
+set nocompatible
 set rtp+=..
 
 let g:linearf#recipe = {

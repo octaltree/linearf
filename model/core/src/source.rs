@@ -43,7 +43,7 @@ pub trait DynamicGenerator: New + Send + Sync {
     async fn start(&mut self, flow: &Arc<Flow>);
 
     // chest is different for every call
-    fn query(&mut self, tx: Transmitter, q: &str);
+    fn query(&mut self, tx: Transmitter, query: &str);
 }
 
 #[derive(Clone)]

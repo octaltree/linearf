@@ -2,7 +2,7 @@ use crate::{
     source::{Source, Transmitter},
     Flow, Item, Shared
 };
-use std::sync::Arc;
+use std::sync::{atomic::AtomicBool, Arc};
 use tokio::{
     runtime::Handle,
     sync::{mpsc, RwLock},
@@ -38,16 +38,13 @@ impl Session {
         shared
     }
 
-    // TODO: stop sessions
+    // TODO: stop threads
     async fn main(rt: Handle, this: Arc<RwLock<Session>>) {
-        // source
-        // score
-        // sort
-
-        let (tx1, rx1) = mpsc::unbounded_channel();
         // TODO: multiple sources, matchers
-        // TODO: reusable
-        // let stream = Source::start(this.flow()).await;
+        if use_cache(this.clone()).await {
+            return;
+        }
+        let (tx1, rx1) = mpsc::unbounded_channel();
         let source_handle = source(&rt, this.clone(), tx1);
         let (tx2, rx2) = mpsc::unbounded_channel();
         let matcher_handle = matcher(&rt, this.clone(), rx1, tx2);
@@ -76,6 +73,11 @@ impl Session {
         self.query = Some(arc);
         todo!()
     }
+}
+
+async fn use_cache(this: Arc<RwLock<Session>>) -> bool {
+    // TODO: reusable
+    false
 }
 
 fn source(
@@ -111,13 +113,7 @@ fn matcher(
 ) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = std::time::Instant::now();
-        while let Some(item) = rx.recv().await {
-            for _ in 0..2 {
-                // for c in item.view_for_matcing().chars() {
-                //    c
-                //}
-            }
-        }
+        while let Some(item) = rx.recv().await {}
         let elapsed = std::time::Instant::now() - start;
         log::debug!("{:?}", elapsed);
     })

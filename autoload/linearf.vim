@@ -48,7 +48,7 @@ function! s:select() abort
 endfunction
 
 function! s:fetch(range) abort
-  " "idx,view\n"
+  " "id,view\n"
 endfunction
 
 function! s:fetch_num() abort
