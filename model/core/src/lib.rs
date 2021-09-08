@@ -26,7 +26,8 @@ use std::{
     collections::{HashMap, VecDeque},
     sync::Arc
 };
-use tokio::{runtime::Handle, sync::RwLock};
+use tokio::runtime::Handle;
+pub use tokio::sync::RwLock;
 
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
@@ -152,7 +153,7 @@ pub trait Matcher {
 
 /// Items will be displayed in descending order of its score.
 /// No guarantee of order when it is equal. You should use idx to make it less equal.
-pub trait Score: PartialEq + Eq + PartialOrd + Ord + Clone {
+pub trait Score: PartialEq + PartialOrd + Clone {
     /// If true, the item will not be displayed.
     fn is_excluded(&self) -> bool;
 }

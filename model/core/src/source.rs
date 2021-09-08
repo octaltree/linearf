@@ -1,5 +1,5 @@
 pub use crate::session::Sender;
-use crate::{Flow, Item, New, Session};
+use crate::{Flow, Item, New, Session, Shared};
 use std::{stream::Stream, sync::Arc};
 use tokio::sync::mpsc;
 
@@ -10,9 +10,9 @@ pub trait Generator: New + Send + Sync {
     // TODO: error notification
     async fn generate(
         &mut self,
-        tx: Sender<Item>,
+        tx: Sender<Arc<Item>>,
         flow: &Arc<Flow>
-    ) -> Result<(), Box<dyn std::error::Error>>;
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
     async fn reusable(&self, _prev: &Session, _flow: &Arc<Flow>) -> bool;
 }
@@ -23,21 +23,13 @@ pub trait DynamicGenerator: New + Send + Sync {
     async fn start(&mut self, flow: &Arc<Flow>);
 
     /// tx is different for every call
-    fn query(&mut self, tx: Sender<Item>, q: &str);
+    fn query(&mut self, tx: Sender<Arc<Item>>, q: &str);
 }
 
 #[derive(Clone)]
 pub enum Source {
-    Static(Arc<dyn Generator>),
-    Dynamic(Arc<dyn DynamicGenerator>)
-}
-
-impl From<Arc<dyn Generator>> for Source {
-    fn from(g: Arc<dyn Generator>) -> Self { Self::Static(g) }
-}
-
-impl From<Arc<dyn DynamicGenerator>> for Source {
-    fn from(g: Arc<dyn DynamicGenerator>) -> Self { Self::Dynamic(g) }
+    Static(Shared<dyn Generator>),
+    Dynamic(Shared<dyn DynamicGenerator>)
 }
 
 struct UnboundedStream<T> {

@@ -2,7 +2,8 @@ use crate::{source::Source, Flow, Item, Shared};
 use std::sync::{Arc, Weak};
 use tokio::{
     runtime::Handle,
-    sync::{mpsc, RwLock}
+    sync::{mpsc, RwLock},
+    task::JoinHandle
 };
 
 pub type Sender<T> = mpsc::UnboundedSender<T>;
@@ -38,29 +39,18 @@ impl Session {
         // score
         // sort
 
-        // let (tx1, rx1) = mpsc::unbounded_channel();
+        let (tx1, rx1) = mpsc::unbounded_channel();
         // TODO: reusable
         // let stream = Source::start(this.flow()).await;
-        // rt.spawn(Source::start(this.flow()))
+        let source_handle = source(&rt, this.clone(), tx1);
+        let (tx2, rx2) = mpsc::unbounded_channel();
+        let matcher_handle = matcher(&rt, this.clone(), rx1, tx2);
+        // Source::start(this.flow()))
         // rt.spawn(Session::start(tx, this));
         // let (tx2, rx2) = mpsc::unbounded_channel();
         // loop {
         //    this.upgrade()?;
         //}
-    }
-
-    async fn source(
-        tx: mpsc::UnboundedSender<Arc<Item>>,
-        this: Weak<RwLock<Session>>
-    ) -> Option<()> {
-        None
-    }
-
-    async fn convert(
-        tx: mpsc::UnboundedSender<Arc<Item>>,
-        this: Weak<RwLock<Session>>
-    ) -> Option<()> {
-        None
     }
 
     pub fn count(&self) -> usize { self.items.len() }
@@ -79,4 +69,42 @@ impl Session {
         self.query = Some(arc);
         todo!()
     }
+}
+
+fn source(
+    rt: &Handle,
+    this: Arc<RwLock<Session>>,
+    tx: Sender<Arc<Item>>
+) -> JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    rt.spawn(async move {
+        let sess = &mut this.write().await;
+        match &sess.source {
+            Source::Static(s) => {
+                let s = &mut s.write().await;
+                s.generate(tx, &sess.flow).await
+            }
+            Source::Dynamic(s) => {
+                let s = &mut s.write().await;
+                s.start(&sess.flow).await;
+                Ok(())
+            }
+        }
+    })
+}
+
+// TODO
+struct Score;
+
+fn matcher(
+    rt: &Handle,
+    this: Arc<RwLock<Session>>,
+    mut rx: mpsc::UnboundedReceiver<Arc<Item>>,
+    tx: Sender<(Arc<Item>, Score)>
+) -> JoinHandle<()> {
+    rt.spawn(async move {
+        let start = std::time::Instant::now();
+        while let Some(item) = rx.recv().await {}
+        let elapsed = std::time::Instant::now() - start;
+        log::debug!("{:?}", elapsed);
+    })
 }

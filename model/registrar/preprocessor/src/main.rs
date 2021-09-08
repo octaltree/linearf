@@ -82,13 +82,13 @@ fn format_lib(recipe: &Recipe) -> String {
             }
         );
         quote::quote! {
-            let g = Arc::new(#path::new(state, handle));
+            let g = Arc::new(RwLock::new(#path::new(state, handle)));
             let s = Source::#t(g);
             State::register_source(state, #name, s).await;
         }
     });
     let t = quote::quote! {
-        use linearf::{AsyncRt, Shared, State, New, source::Source};
+        use linearf::{AsyncRt, Shared, State, New, source::Source, RwLock};
         use std::sync::Arc;
         pub async fn register(state: &Shared<State>, handle: &AsyncRt) {
             #(#registrations)*
