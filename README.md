@@ -4,7 +4,7 @@ A fast and extensible fuzzy finder for vimmers
 ## Concepts
 * Show the first view faster
 * Find as fast as if they were in linear time
-* modulality and extensibility
+* modularity and extensibility
 * Use vim as a fuzzy finder from CLI
 
 ## Requirements
