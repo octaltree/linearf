@@ -1,12 +1,15 @@
-use crate::{source::Source, Flow, Item, Shared};
-use std::sync::{Arc, Weak};
+use crate::{
+    source::{Source, Transmitter},
+    Flow, Item, Shared
+};
+use std::sync::Arc;
 use tokio::{
     runtime::Handle,
     sync::{mpsc, RwLock},
     task::JoinHandle
 };
 
-pub type Sender<T> = mpsc::UnboundedSender<T>;
+pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
 
 /// State being calculated based on flow
 pub struct Session {
@@ -18,6 +21,7 @@ pub struct Session {
 }
 
 impl Session {
+    #[inline]
     pub(crate) fn flow(&self) -> &Arc<Flow> { &self.flow }
 }
 
@@ -41,6 +45,7 @@ impl Session {
         // sort
 
         let (tx1, rx1) = mpsc::unbounded_channel();
+        // TODO: multiple sources, matchers
         // TODO: reusable
         // let stream = Source::start(this.flow()).await;
         let source_handle = source(&rt, this.clone(), tx1);
@@ -54,6 +59,7 @@ impl Session {
         //}
     }
 
+    #[inline]
     pub fn count(&self) -> usize { self.items.len() }
 
     pub fn items(&self, start: usize, stop: usize) -> Option<&[Item]> {
@@ -75,14 +81,14 @@ impl Session {
 fn source(
     rt: &Handle,
     this: Arc<RwLock<Session>>,
-    tx: Sender<Item>
+    tx: Sender<Vec<Item>>
 ) -> JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>> {
     rt.spawn(async move {
         let sess = &mut this.write().await;
         match &sess.source {
             Source::Static(s) => {
                 let s = &mut s.write().await;
-                s.generate(tx, &sess.flow).await
+                s.generate(Transmitter::new(tx), &sess.flow).await
             }
             Source::Dynamic(s) => {
                 let s = &mut s.write().await;
@@ -99,12 +105,19 @@ struct Score;
 fn matcher(
     rt: &Handle,
     this: Arc<RwLock<Session>>,
-    mut rx: mpsc::UnboundedReceiver<Item>,
+    mut rx: mpsc::UnboundedReceiver<Vec<Item>>,
+    // TODO: bench chunk
     tx: Sender<(Item, Score)>
 ) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = std::time::Instant::now();
-        while let Some(item) = rx.recv().await {}
+        while let Some(item) = rx.recv().await {
+            for _ in 0..2 {
+                // for c in item.view_for_matcing().chars() {
+                //    c
+                //}
+            }
+        }
         let elapsed = std::time::Instant::now() - start;
         log::debug!("{:?}", elapsed);
     })

@@ -1,7 +1,27 @@
-pub use crate::session::Sender;
-use crate::{Flow, Item, New, Session, Shared};
+use crate::{session::Sender, Flow, Item, New, Session, Shared};
 use std::{stream::Stream, sync::Arc};
 use tokio::sync::mpsc;
+
+pub struct Transmitter {
+    tx: Sender<Vec<Item>>
+}
+
+impl Transmitter {
+    pub fn new(tx: Sender<Vec<Item>>) -> Self { Self { tx } }
+
+    #[inline]
+    pub fn item(&self, i: Item) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Ok(self.tx.send(vec![i])?)
+    }
+
+    #[inline]
+    pub fn chunk<A: Into<Vec<Item>>>(
+        &self,
+        xs: A
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Ok(self.tx.send(xs.into())?)
+    }
+}
 
 /// Source that are not affected by query
 /// NOTE: Source have the potential to have itw own cache, so make them live longer.
@@ -10,7 +30,7 @@ pub trait Generator: New + Send + Sync {
     // TODO: error notification
     async fn generate(
         &mut self,
-        tx: Sender<Item>,
+        tx: Transmitter,
         flow: &Arc<Flow>
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -22,8 +42,8 @@ pub trait Generator: New + Send + Sync {
 pub trait DynamicGenerator: New + Send + Sync {
     async fn start(&mut self, flow: &Arc<Flow>);
 
-    /// tx is different for every call
-    fn query(&mut self, tx: Sender<Item>, q: &str);
+    // chest is different for every call
+    fn query(&mut self, tx: Transmitter, q: &str);
 }
 
 #[derive(Clone)]
