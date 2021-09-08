@@ -29,10 +29,10 @@ function! linearf#path#build() abort
     let $LINEARF_RECIPE = json_encode(g:linearf#recipe)
   endif
   let $RUSTFLAGS = '-Awarnings'
-  let t = 'cd %s;' .
-        \ 'git checkout registrar/registrar &&' .
-        \ 'rustup run nightly cargo run --bin=registrar-preprocessor &&' .
-        \ 'rustup run nightly cargo build --features=%s --release &&' .
+  let t = 'cd %s; ' .
+        \ 'git checkout registrar/registrar && ' .
+        \ 'rustup run nightly cargo run --bin=registrar-preprocessor && ' .
+        \ 'rustup run nightly cargo build --features=%s --release && ' .
         \ 'git checkout registrar/registrar'
   let sh = printf(t, shellescape(dir), features)
   execute '! ' . sh
