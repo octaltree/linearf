@@ -21,8 +21,8 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
-    exports.set("query", lua.create_function(query)?)?;
     exports.set("terminate", lua.create_function(terminate)?)?;
+    exports.set("query", lua.create_function(query)?)?;
     exports.set("count", lua.create_function(count)?)?;
     Ok(exports)
 }
@@ -35,15 +35,14 @@ fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<Strin
 fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let st = lua.named_registry_value::<_, Wrapper<Shared<State>>>(ST)?;
+    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
     rt.block_on(async {
         let handle = rt.handle().clone();
-        let st = &mut st.write().await;
         // TODO: error
-        let flow = build_flow(st, args, selected).ok_or(LuaError::external("not found"))?;
-        let (id, _) = st
+        let state = &mut st.write().await;
+        let flow = build_flow(state, args, selected).ok_or(LuaError::external("not found"))?;
+        let (id, _) = state
             .start_session(handle, flow)
-            .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id)
     })
@@ -59,12 +58,27 @@ fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Fl
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> {
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let st = lua.named_registry_value::<_, Wrapper<Shared<State>>>(ST)?;
+    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
     rt.block_on(async {
-        let st = &mut st.write().await;
-        st.close_session(session);
+        let state = &mut st.write().await;
+        state.remove_session(session);
     });
     Ok(())
+}
+
+fn query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
+    let q = query.to_string_lossy();
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
+    rt.block_on(async move {
+        let state = st.read().await;
+        if let Some(s) = state.session(session) {
+            let sess = &mut s.write().await;
+            sess.query(q);
+        }
+        Ok(())
+    })
 }
 
 fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
@@ -79,21 +93,6 @@ fn count(lua: &Lua, session: i32) -> LuaResult<Option<usize>> {
         } else {
             Ok(None)
         }
-    })
-}
-
-fn query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
-    let q = query.to_string_lossy();
-    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let any: LuaAnyUserData = lua.globals().raw_get(ST)?;
-    let st = &**any.borrow_mut::<Wrapper<Shared<State>>>()?;
-    rt.block_on(async move {
-        if let Some(l) = st.read().await.session(session) {
-            let s = &mut l.write().await;
-            s.query(q);
-        }
-        Ok(())
     })
 }
 

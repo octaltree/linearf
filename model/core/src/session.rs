@@ -13,6 +13,7 @@ pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
 
 /// State being calculated based on flow
 pub struct Session {
+    rt: Handle,
     // TODO: items for each query
     flow: Arc<Flow>,
     source: Source,
@@ -26,23 +27,20 @@ impl Session {
 }
 
 impl Session {
-    pub async fn start(rt: Handle, flow: Arc<Flow>, source: Source) -> Shared<Self> {
+    pub fn start(rt: Handle, flow: Arc<Flow>, source: Source) -> Shared<Self> {
         let this = Self {
+            rt: rt.clone(),
             flow,
             source,
             items: Vec::new()
         };
         let shared = Arc::new(RwLock::new(this));
-        Session::main(rt, shared.clone()).await;
+        Session::main(rt, shared.clone());
         shared
     }
 
     // TODO: stop threads
-    async fn main(rt: Handle, this: Arc<RwLock<Session>>) {
-        // TODO: multiple sources, matchers
-        if use_cache(this.clone()).await {
-            return;
-        }
+    fn main(rt: Handle, this: Arc<RwLock<Session>>) {
         let (tx1, rx1) = mpsc::unbounded_channel();
         let source_handle = source(&rt, this.clone(), tx1);
         let (tx2, rx2) = mpsc::unbounded_channel();
@@ -71,11 +69,6 @@ impl Session {
             None
         }
     }
-}
-
-async fn use_cache(this: Arc<RwLock<Session>>) -> bool {
-    // TODO: reusable
-    false
 }
 
 fn source(

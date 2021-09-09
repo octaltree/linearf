@@ -48,26 +48,35 @@ impl State {
         x.sources.insert(name.into(), source);
     }
 
-    pub async fn start_session<'a>(
-        &'a mut self,
+    pub fn start_session(
+        &mut self,
         rt: Handle,
         flow: Arc<Flow>
     ) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
-        // TODO: re-cycle session if a flow of older session is same
         let id = self.next_session_id();
-        let source = self
-            .sources
-            .get(&flow.source)
-            .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-                format!("source {} not found", &flow.source).into()
-            })?
-            .clone();
-        let sess = Session::start(rt, flow, source).await;
+        let source = self.source(&flow.source)?.clone();
+        let sess = match self.reuse(&source) {
+            Some((_, s)) => s,
+            None => Session::start(rt, flow, source)
+        };
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
-    pub fn close_session(&mut self, session: i32) {
+    fn source(&self, name: &str) -> Result<&Source, Box<dyn std::error::Error + Send + Sync>> {
+        self.sources
+            .get(name)
+            .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+                format!("source {} not found", name).into()
+            })
+    }
+
+    fn reuse(&mut self, source: &Source) -> Option<(i32, Shared<Session>)> {
+        // TODO: reusable
+        None
+    }
+
+    pub fn remove_session(&mut self, session: i32) {
         if let Some(idx) = self
             .sessions
             .iter()
