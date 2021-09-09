@@ -3,18 +3,11 @@ use std::sync::Arc;
 
 #[async_trait]
 pub trait Matcher: New {
-    async fn query(&mut self, query: &str, flow: &Arc<Flow>);
-
-    async fn score(&mut self, item: &Item) -> Score;
+    async fn score(&mut self, flow: &Arc<Flow>, query: &str, item: &Item) -> Score;
 }
 
-/// Items will be displayed in descending order of its score.
+/// Items will be displayed in descending order
 /// No guarantee of order when it is equal. You should use idx to make it less equal.
-// pub trait Score: PartialEq + PartialOrd + Clone {
-//    /// If true, the item will not be displayed.
-//    fn is_excluded(&self) -> bool;
-//}
-
 pub struct Score {
     pub id: u32,
     pub v: Vec<i16>
@@ -23,6 +16,7 @@ pub struct Score {
 impl Score {
     pub fn new(id: u32, v: Vec<i16>) -> Self { Self { id, v } }
 
+    /// If true, the item will not be displayed.
     pub fn should_be_excluded(&self) -> bool { self.v.is_empty() }
 }
 

@@ -105,10 +105,13 @@ impl State {
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 
+    #[inline]
     pub fn sessions(&self) -> &VecDeque<(i32, Shared<Session>)> { &self.sessions }
 
+    #[inline]
     pub fn flows(&self) -> &HashMap<String, Arc<Flow>> { &self.flows }
 
+    #[inline]
     pub fn base_flow(&self) -> &Flow { &self.base_flow }
 
     pub fn source_names(&self) -> Vec<&str> {

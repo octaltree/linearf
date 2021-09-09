@@ -34,16 +34,20 @@ pub trait Generator: New + Send + Sync {
         flow: &Arc<Flow>
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    async fn reusable(&self, _prev: &Session, _flow: &Arc<Flow>) -> bool;
+    async fn reusable(&self, prev: &Session, flow: &Arc<Flow>) -> bool;
 }
 
 /// Results change dependening on the query
 #[async_trait]
 pub trait DynamicGenerator: New + Send + Sync {
-    async fn start(&mut self, flow: &Arc<Flow>);
+    async fn generate(
+        &mut self,
+        tx: Transmitter,
+        flow: &Arc<Flow>,
+        query: &str
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    // chest is different for every call
-    fn query(&mut self, tx: Transmitter, query: &str);
+    async fn reusable(&self, prev: &Session, flow: &Arc<Flow>, query: &str) -> bool;
 }
 
 #[derive(Clone)]

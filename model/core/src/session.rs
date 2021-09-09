@@ -28,6 +28,7 @@ impl Session {
 
 impl Session {
     pub fn start(rt: Handle, flow: Arc<Flow>, source: Source) -> Shared<Self> {
+        // TODO: query at start
         let this = Self {
             rt: rt.clone(),
             flow,
@@ -84,8 +85,7 @@ fn source(
                 s.generate(Transmitter::new(tx), &sess.flow).await
             }
             Source::Dynamic(s) => {
-                let s = &mut s.write().await;
-                s.start(&sess.flow).await;
+                // TODO
                 Ok(())
             }
         }
