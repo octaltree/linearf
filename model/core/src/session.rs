@@ -1,7 +1,7 @@
 use crate::{
-    matcher::Matcher,
+    matcher::{Matcher, Score},
     source::{Source, Transmitter},
-    Flow, Item, Shared
+    Flow, Item, Query, Shared
 };
 use std::sync::Arc;
 use tokio::{
@@ -15,10 +15,10 @@ pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
 /// State being calculated based on flow
 pub struct Session {
     rt: Handle,
-    // TODO: items for each query
     flow: Arc<Flow>,
     source: Source,
     matcher: Shared<dyn Matcher>,
+    // TODO: items for each query
     // TODO: query's items for dynamic
     items: Vec<Item>
 }
@@ -33,7 +33,8 @@ impl Session {
         rt: Handle,
         flow: Arc<Flow>,
         source: Source,
-        matcher: Shared<dyn Matcher>
+        matcher: Shared<dyn Matcher>,
+        query: Query
     ) -> Shared<Self> {
         // TODO: query at start
         let this = Self {
@@ -44,16 +45,16 @@ impl Session {
             items: Vec::new()
         };
         let shared = Arc::new(RwLock::new(this));
-        Session::main(rt, shared.clone());
+        Session::main(rt, shared.clone(), query);
         shared
     }
 
     // TODO: stop threads
-    fn main(rt: Handle, this: Arc<RwLock<Session>>) {
+    fn main(rt: Handle, this: Arc<RwLock<Session>>, query: Query) {
         let (tx1, rx1) = mpsc::unbounded_channel();
-        let source_handle = source(&rt, this.clone(), tx1);
+        let source_handle = source(&rt, this.clone(), &Query, tx1);
         let (tx2, rx2) = mpsc::unbounded_channel();
-        let matcher_handle = matcher(&rt, this.clone(), rx1, tx2);
+        let matcher_handle = matcher(&rt, this.clone(), &Query, rx1, tx2);
         // Source::start(this.flow()))
         // rt.spawn(Session::start(tx, this));
         // let (tx2, rx2) = mpsc::unbounded_channel();
@@ -62,10 +63,7 @@ impl Session {
         //}
     }
 
-    pub fn query<S: Into<String>>(&mut self, s: S) {
-        let arc = Arc::new(s.into());
-        todo!()
-    }
+    pub fn query(&mut self, query: Query) { todo!() }
 
     #[inline]
     pub fn count(&self) -> usize { self.items.len() }
@@ -99,9 +97,6 @@ fn source(
         }
     })
 }
-
-// TODO
-struct Score;
 
 fn matcher(
     rt: &Handle,

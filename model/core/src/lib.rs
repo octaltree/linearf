@@ -8,7 +8,11 @@ pub mod matcher;
 pub mod session;
 pub mod source;
 
-pub use crate::{flow::Flow, matcher::Score, session::Session};
+pub use crate::{
+    flow::{Flow, Query},
+    matcher::Score,
+    session::Session
+};
 pub use tokio::sync::RwLock;
 
 use crate::{matcher::Matcher, source::Source};
@@ -58,14 +62,15 @@ impl State {
     pub fn start_session(
         &mut self,
         rt: Handle,
-        flow: Arc<Flow>
+        flow: Arc<Flow>,
+        query: Query
     ) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
         let id = self.next_session_id();
         let source = self.source(&flow.source)?.clone();
         let matcher = self.matcher(&flow.matcher)?.clone();
         let sess = match self.reuse(&source) {
             Some((_, s)) => s,
-            None => Session::start(rt, flow, source, matcher)
+            None => Session::start(rt, flow, source, matcher, query)
         };
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
@@ -135,6 +140,10 @@ impl State {
 
     pub fn source_names(&self) -> Vec<&str> {
         self.sources.iter().map(|(k, _)| -> &str { k }).collect()
+    }
+
+    pub fn matcher_names(&self) -> Vec<&str> {
+        self.matchers.iter().map(|(k, _)| -> &str { k }).collect()
     }
 }
 

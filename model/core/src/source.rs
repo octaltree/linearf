@@ -1,4 +1,4 @@
-use crate::{session::Sender, Flow, Item, New, Session, Shared};
+use crate::{session::Sender, Flow, Item, New, Query, Session, Shared};
 use std::sync::Arc;
 
 pub struct Transmitter {
@@ -43,10 +43,10 @@ pub trait DynamicGenerator: New + Send + Sync {
         &mut self,
         tx: Transmitter,
         flow: &Arc<Flow>,
-        query: &str
+        query: &Query
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    async fn reusable(&self, prev: &Session, flow: &Arc<Flow>, query: &str) -> bool;
+    async fn reusable(&self, prev: &Session, flow: &Arc<Flow>, query: Query) -> bool;
 }
 
 #[derive(Clone)]

@@ -1,9 +1,9 @@
-use crate::{Flow, Item, New};
+use crate::{Flow, Item, New, Query};
 use std::{cmp::Ordering, sync::Arc};
 
 #[async_trait]
 pub trait Matcher: New + Send + Sync {
-    async fn score(&mut self, flow: &Arc<Flow>, query: &str, item: &Item) -> Score;
+    async fn score(&mut self, flow: &Arc<Flow>, query: &Query, item: &Item) -> Score;
 }
 
 /// Items will be displayed in descending order

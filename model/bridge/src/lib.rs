@@ -1,4 +1,4 @@
-use linearf::{Flow, Shared, State};
+use linearf::{Flow, Query, Shared, State};
 use mlua::prelude::*;
 use std::{cell::RefMut, sync::Arc};
 use tokio::runtime::Runtime;
@@ -40,20 +40,24 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
         let handle = rt.handle().clone();
         // TODO: error
         let state = &mut st.write().await;
-        let flow = build_flow(state, args, selected).ok_or(LuaError::external("not found"))?;
+        let (flow, query) =
+            build_flow(state, args, selected).ok_or(LuaError::external("not found"))?;
         let (id, _) = state
-            .start_session(handle, flow)
+            .start_session(handle, flow, query)
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id)
     })
 }
 
-fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
+fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<(Arc<Flow>, Query)> {
     // TODO
-    Some(Arc::new(Flow {
-        source: "rustdoc".into(),
-        matcher: "substring".into()
-    }))
+    Some((
+        Arc::new(Flow {
+            source: "rustdoc".into(),
+            matcher: "substring".into()
+        }),
+        Query::S(Arc::new("".into()))
+    ))
 }
 
 fn terminate(lua: &Lua, session: i32) -> LuaResult<()> {
@@ -76,7 +80,7 @@ fn query(lua: &Lua, (session, query): (i32, LuaString)) -> LuaResult<()> {
         let state = st.read().await;
         if let Some(s) = state.session(session) {
             let sess = &mut s.write().await;
-            sess.query(q);
+            sess.query(Query::S(Arc::new(q.to_string())));
         }
         Ok(())
     })
