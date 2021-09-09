@@ -9,8 +9,6 @@ pub mod matcher;
 pub mod session;
 pub mod source;
 
-pub(crate) mod import;
-
 pub use crate::{flow::Flow, matcher::Score, session::Session};
 pub use tokio::sync::RwLock;
 

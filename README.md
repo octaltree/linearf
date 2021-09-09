@@ -1,7 +1,7 @@
 # linearf [WIP]
 A fast and extensible fuzzy finder for vimmers
 
-## Concepts
+## Concept
 * Show the first view faster
 * Find as fast as if they were in linear time
 * modularity and extensibility
