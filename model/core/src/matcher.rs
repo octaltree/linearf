@@ -1,5 +1,5 @@
 use crate::{Flow, Item, New};
-use std::sync::Arc;
+use std::{cmp::Ordering, sync::Arc};
 
 #[async_trait]
 pub trait Matcher: New {
@@ -24,6 +24,20 @@ impl PartialEq for Score {
     fn eq(&self, other: &Self) -> bool { self.v == other.v && !self.v.is_empty() }
 }
 
+#[inline]
+fn than(ordering: Ordering) -> Option<Ordering> {
+    match ordering {
+        Ordering::Less => Some(Ordering::Less),
+        Ordering::Greater => Some(Ordering::Greater),
+        _ => None
+    }
+}
+
 impl PartialOrd for Score {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { None }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        for (a, b) in self.v.iter().zip(other.v.iter()) {
+            than(a.cmp(b))?;
+        }
+        Some(self.id.cmp(&other.id))
+    }
 }

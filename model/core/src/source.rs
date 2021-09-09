@@ -1,6 +1,5 @@
 use crate::{session::Sender, Flow, Item, New, Session, Shared};
-use std::{stream::Stream, sync::Arc};
-use tokio::sync::mpsc;
+use std::sync::Arc;
 
 pub struct Transmitter {
     tx: Sender<Vec<Item>>

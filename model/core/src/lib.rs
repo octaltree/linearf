@@ -1,4 +1,3 @@
-#![feature(async_stream)]
 #[macro_use]
 extern crate serde;
 #[macro_use]
