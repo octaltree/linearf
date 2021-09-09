@@ -11,7 +11,7 @@ pub mod source;
 pub use crate::{flow::Flow, matcher::Score, session::Session};
 pub use tokio::sync::RwLock;
 
-use crate::source::Source;
+use crate::{matcher::Matcher, source::Source};
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
@@ -31,7 +31,8 @@ pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
     flows: HashMap<String, Arc<Flow>>,
     base_flow: Flow,
-    sources: HashMap<String, Source>
+    sources: HashMap<String, Source>,
+    matchers: HashMap<String, Shared<dyn Matcher>>
 }
 
 impl State {
@@ -45,6 +46,15 @@ impl State {
         x.sources.insert(name.into(), source);
     }
 
+    pub async fn register_matcher<N: Into<String>>(
+        state: &Shared<State>,
+        name: N,
+        matcher: Shared<dyn Matcher>
+    ) {
+        let x = &mut state.write().await;
+        x.matchers.insert(name.into(), matcher);
+    }
+
     pub fn start_session(
         &mut self,
         rt: Handle,
@@ -52,9 +62,10 @@ impl State {
     ) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
         let id = self.next_session_id();
         let source = self.source(&flow.source)?.clone();
+        let matcher = self.matcher(&flow.matcher)?.clone();
         let sess = match self.reuse(&source) {
             Some((_, s)) => s,
-            None => Session::start(rt, flow, source)
+            None => Session::start(rt, flow, source, matcher)
         };
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
@@ -65,6 +76,17 @@ impl State {
             .get(name)
             .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
                 format!("source {} not found", name).into()
+            })
+    }
+
+    fn matcher(
+        &self,
+        name: &str
+    ) -> Result<&Shared<dyn Matcher>, Box<dyn std::error::Error + Send + Sync>> {
+        self.matchers
+            .get(name)
+            .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+                format!("matcher {} not found", name).into()
             })
     }
 

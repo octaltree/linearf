@@ -68,25 +68,39 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
 }
 
 fn format_lib(recipe: &Recipe) -> String {
-    let registrations = recipe.sources.iter().map(|s| {
-        let name = &s.name;
-        let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
-        let path = quote::quote! {
-            #(#p)::*
-        };
-        let t = quote::format_ident!(
-            "{}",
-            match &s.r#type {
-                GeneratorType::Static => "Static",
-                GeneratorType::Dynamic => "Dynamic"
+    let registrations = recipe
+        .sources
+        .iter()
+        .map(|s| {
+            let name = &s.name;
+            let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
+            let path = quote::quote! {
+                #(#p)::*
+            };
+            let t = quote::format_ident!(
+                "{}",
+                match &s.r#type {
+                    GeneratorType::Static => "Static",
+                    GeneratorType::Dynamic => "Dynamic"
+                }
+            );
+            quote::quote! {
+                let g = Arc::new(RwLock::new(#path::new(state, handle)));
+                let s = Source::#t(g);
+                State::register_source(state, #name, s).await;
             }
-        );
-        quote::quote! {
-            let g = Arc::new(RwLock::new(#path::new(state, handle)));
-            let s = Source::#t(g);
-            State::register_source(state, #name, s).await;
-        }
-    });
+        })
+        .chain(recipe.matchers.iter().map(|m| {
+            let name = &m.name;
+            let p = m.path.split("::").map(|p| quote::format_ident!("{}", p));
+            let path = quote::quote! {
+                #(#p)::*
+            };
+            quote::quote! {
+                let m = Arc::new(RwLock::new(#path::new(state, handle)));
+                State::register_matcher(state, #name, m).await;
+            }
+        }));
     let t = quote::quote! {
         use linearf::{AsyncRt, Shared, State, New, source::Source, RwLock};
         use std::sync::Arc;
@@ -100,7 +114,8 @@ fn format_lib(recipe: &Recipe) -> String {
 #[derive(Debug, Deserialize, Default)]
 struct Recipe {
     crates: Vec<Crate>,
-    sources: Vec<SourceDescriptor>
+    sources: Vec<SourceDescriptor>,
+    matchers: Vec<MatchDescriptor>
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,6 +129,12 @@ struct SourceDescriptor {
     name: String,
     path: String,
     r#type: GeneratorType
+}
+
+#[derive(Debug, Deserialize)]
+struct MatchDescriptor {
+    name: String,
+    path: String
 }
 
 #[derive(Debug, Deserialize)]

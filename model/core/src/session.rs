@@ -1,4 +1,5 @@
 use crate::{
+    matcher::Matcher,
     source::{Source, Transmitter},
     Flow, Item, Shared
 };
@@ -17,6 +18,7 @@ pub struct Session {
     // TODO: items for each query
     flow: Arc<Flow>,
     source: Source,
+    matcher: Shared<dyn Matcher>,
     // TODO: query's items for dynamic
     items: Vec<Item>
 }
@@ -27,12 +29,18 @@ impl Session {
 }
 
 impl Session {
-    pub fn start(rt: Handle, flow: Arc<Flow>, source: Source) -> Shared<Self> {
+    pub fn start(
+        rt: Handle,
+        flow: Arc<Flow>,
+        source: Source,
+        matcher: Shared<dyn Matcher>
+    ) -> Shared<Self> {
         // TODO: query at start
         let this = Self {
             rt: rt.clone(),
             flow,
             source,
+            matcher,
             items: Vec::new()
         };
         let shared = Arc::new(RwLock::new(this));
@@ -103,6 +111,7 @@ fn matcher(
     tx: Sender<(Item, Score)>
 ) -> JoinHandle<()> {
     rt.spawn(async move {
+        let sess = &mut this.write().await;
         let start = std::time::Instant::now();
         while let Some(chunk) = rx.recv().await {
             for item in chunk {}

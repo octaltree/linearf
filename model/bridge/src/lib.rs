@@ -51,7 +51,8 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
 fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
     // TODO
     Some(Arc::new(Flow {
-        source: "rustdoc".into()
+        source: "rustdoc".into(),
+        matcher: "substring".into()
     }))
 }
 

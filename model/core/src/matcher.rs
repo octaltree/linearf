@@ -2,7 +2,7 @@ use crate::{Flow, Item, New};
 use std::{cmp::Ordering, sync::Arc};
 
 #[async_trait]
-pub trait Matcher: New {
+pub trait Matcher: New + Send + Sync {
     async fn score(&mut self, flow: &Arc<Flow>, query: &str, item: &Item) -> Score;
 }
 
@@ -24,19 +24,14 @@ impl PartialEq for Score {
     fn eq(&self, other: &Self) -> bool { self.v == other.v && !self.v.is_empty() }
 }
 
-#[inline]
-fn than(ordering: Ordering) -> Option<Ordering> {
-    match ordering {
-        Ordering::Less => Some(Ordering::Less),
-        Ordering::Greater => Some(Ordering::Greater),
-        _ => None
-    }
-}
-
 impl PartialOrd for Score {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         for (a, b) in self.v.iter().zip(other.v.iter()) {
-            than(a.cmp(b))?;
+            match a.cmp(b) {
+                Ordering::Less => return Some(Ordering::Less),
+                Ordering::Greater => return Some(Ordering::Greater),
+                _ => {}
+            }
         }
         Some(self.id.cmp(&other.id))
     }
