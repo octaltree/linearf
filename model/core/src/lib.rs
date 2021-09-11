@@ -8,7 +8,11 @@ pub mod matcher;
 pub mod session;
 pub mod source;
 
-pub use crate::{flow::Flow, matcher::Score, session::Session};
+pub use crate::{
+    flow::{Flow, Snapshot},
+    matcher::Score,
+    session::Session
+};
 pub use tokio::sync::RwLock;
 
 use crate::{matcher::Matcher, source::Source};
@@ -31,9 +35,12 @@ pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
     flows: HashMap<String, Arc<Flow>>,
     base_flow: Flow,
+
     sources: HashMap<String, Source>,
     matchers: HashMap<String, Shared<dyn Matcher>>
 }
+
+pub struct Context {}
 
 impl State {
     pub async fn new_shared() -> Shared<Self> {
@@ -69,6 +76,16 @@ impl State {
         };
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
+    }
+
+    pub fn start(
+        &mut self,
+        flow: Flow
+    ) -> Result<(i32, &Shared<Context>), Box<dyn std::error::Error + Send + Sync>> {
+        self.id += 1;
+        self.contexts
+            .insert(self.id, Arc::new(RwLock::new(Context {})));
+        Ok((self.id, self.contexts.get(&self.id).unwrap()))
     }
 
     fn source(&self, name: &str) -> Result<&Source, Box<dyn std::error::Error + Send + Sync>> {

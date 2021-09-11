@@ -6,6 +6,8 @@ use tokio::runtime::Runtime;
 const RT: &str = "_lienarf_rt";
 const ST: &str = "_linearf_state";
 
+// TODO: review the possibilities of deadlock
+
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().unwrap();
