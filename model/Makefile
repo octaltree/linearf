@@ -12,7 +12,7 @@ d:
 
 .PHONY: format
 format:
-	@cargo fmt --quiet
+	@rustup run nightly cargo fmt --quiet
 
 .PHONY: lint
 lint:
