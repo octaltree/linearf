@@ -1,5 +1,5 @@
 use crate::{session::Sender, Flow, Item, New, Session, Shared};
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 pub struct Transmitter {
     tx: Sender<Vec<Item>>
@@ -22,11 +22,12 @@ impl Transmitter {
     }
 }
 
+// TODO: error notification
+
 /// Source that are not affected by query
 /// NOTE: Source have the potential to have itw own cache, so make them live longer.
 #[async_trait]
 pub trait Generator: New + Send + Sync {
-    // TODO: error notification
     async fn generate(
         &mut self,
         tx: Transmitter,
@@ -54,3 +55,46 @@ pub enum Source {
     Static(Shared<dyn Generator>),
     Dynamic(Shared<dyn DynamicGenerator>)
 }
+
+// trait S: Stream<Item = (&Request, Item)> {}
+
+// struct SourceRunner {
+//    sources: HashMap<String, Source>,
+//    requests: VecDeque<Arc<Request>>
+//}
+
+// impl SourceRunner {
+//    async fn start(request: mpsc::UnboundedReceiver<Arc<Request>>) {}
+//}
+
+// trait FlowGenerator {
+//    async fn run(
+//        &mut self,
+//        request: mpsc::UnboundedReceiver<(
+//            Arc<Request>,
+//            Transmitter<Item = Result<Arc<Item>, Box<dyn std::error::Error + Send + Sync>>>
+//        )>
+//    );
+
+//    // reusable
+//}
+
+// trait SimpleGenerator {
+//    async fn generate(
+//        &self,
+//        tx: Transmitter<Item = Result<Arc<Item>, Box<dyn std::error::Error + Send + Sync>>>,
+//        request: Arc<Request>
+//    );
+//    // reusable
+//}
+
+// impl Future for SourceRunner {
+//    type Output = i32;
+
+//    fn poll(
+//        self: std::pin::Pin<&mut Self>,
+//        cx: &mut std::task::Context<'_>
+//    ) -> std::task::Poll<Self::Output> {
+//        todo!()
+//    }
+//}

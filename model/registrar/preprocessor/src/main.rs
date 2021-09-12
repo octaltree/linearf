@@ -114,7 +114,9 @@ fn format_lib(recipe: &Recipe) -> String {
 #[derive(Debug, Deserialize, Default)]
 struct Recipe {
     crates: Vec<Crate>,
+    #[serde(default)]
     sources: Vec<SourceDescriptor>,
+    #[serde(default)]
     matchers: Vec<MatchDescriptor>
 }
 

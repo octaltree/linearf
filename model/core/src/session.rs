@@ -12,7 +12,10 @@ use tokio::{
 
 pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
 
+enum Sorted {}
+
 /// State being calculated based on flow
+// TODO: split for each query?
 pub struct Session {
     rt: Handle,
     // TODO: items for each query
@@ -49,6 +52,7 @@ impl Session {
     }
 
     // TODO: stop threads
+    // Ignore priority of tasks: latest session, query is higher
     fn main(rt: Handle, this: Arc<RwLock<Session>>) {
         let (tx1, rx1) = mpsc::unbounded_channel();
         let source_handle = source(&rt, this.clone(), tx1);

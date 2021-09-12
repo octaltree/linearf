@@ -6,6 +6,7 @@ pub trait Matcher: New + Send + Sync {
     async fn score(&mut self, flow: &Arc<Flow>, query: &str, item: &Item) -> Score;
 }
 
+// TODO: fix id ASC
 /// Items will be displayed in descending order
 /// No guarantee of order when it is equal. You should use idx to make it less equal.
 pub struct Score {

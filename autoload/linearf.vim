@@ -1,8 +1,9 @@
 let g:linearf#root_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
-let g:linearf#command = exists('g:linearf#command') ? g:linearf#command : 'Linearf'
-let g:linearf#recipe = exists('g:linearf#recipe') ? g:linearf#recipe : v:null
+let g:linearf#command = get(g:, 'linearf#command', 'Linearf')
+let g:linearf#recipe = get(g:, 'linearf#recipe', v:null)
+let g:linearf#view = get(g:, 'linearf#view', {})
+
 let s:initialized = v:false
-let s:session = v:null
 
 function! linearf#build() abort
   return linearf#path#build()
@@ -21,14 +22,26 @@ function! linearf#init() abort
 endfunction
 
 function! linearf#run(args) abort
-  let selected = linearf#ui#_get_visual()
+  let selected = s:_get_visual()
   lua linearf = require('linearf')
   call luaeval('linearf.new()')
   call luaeval('linearf.value:push(_A)', selected)
   call luaeval('linearf.value:push(_A)', a:args)
-  let s:session = luaeval('linearf.call("run")')
-  call linearf#ui#start()
-  return s:session
+  let session = luaeval('linearf.call("run")')
+  call linearf#ui#start(session)
+  return session
+endfunction
+
+function! linearf#resume(session) abort
+  call linearf#ui#start(a:session)
+endfunction
+
+function! s:_get_visual() abort
+  let tmp = @@
+  silent normal! gvy
+  let selected = @@
+  let @@ = tmp
+  return selected
 endfunction
 
 function! linearf#_echo_error(e) abort
@@ -37,19 +50,21 @@ function! linearf#_echo_error(e) abort
   echohl Error | echomsg msg | echohl None
 endfunction
 
-
-function! s:resume(session) abort
+function! linearf#_lua() abort
+  if luaeval('jit and jit.version ~= nil')
+    return 'luajit'
+  endif
+  let v = split(luaeval('_VERSION'))[1]
+  let label = join(split(v, '\.'), '')
+  return 'lua' . label
 endfunction
 
-function! s:confirm() abort
+" Returns 0 if the session is not found
+function! linearf#fetch_num(session) abort
 endfunction
 
-function! s:select() abort
-endfunction
-
-function! s:fetch(range) abort
+" Returns v:null if the session is not found.
+" If the result is less than the range, it does not fail.
+function! linearf#fetch(session, range) abort
   " "id,view\n"
-endfunction
-
-function! s:fetch_num() abort
 endfunction

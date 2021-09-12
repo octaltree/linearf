@@ -11,7 +11,7 @@ function! linearf#path#bridge() abort
 endfunction
 
 function! linearf#path#bridge_dest() abort
-  return join([linearf#path#bridge(), 'target', linearf#vi#_lua()], s:sep())
+  return join([linearf#path#bridge(), 'target', linearf#_lua()], s:sep())
 endfunction
 
 function! linearf#path#bridge_name() abort
@@ -24,7 +24,7 @@ endfunction
 
 function! linearf#path#build() abort
   let dir = linearf#path#bridge()
-  let features = 'mlua/' . linearf#vi#_lua()
+  let features = 'mlua/' . linearf#_lua()
   if type(g:linearf#recipe) == v:t_dict
     let $LINEARF_RECIPE = json_encode(g:linearf#recipe)
   endif

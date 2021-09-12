@@ -23,6 +23,6 @@ end
 
 function M.call(f, ...) return vim.call(f, ...) end
 
-function M._lua() return M.call("linearf#vi#_lua") end
+function M._lua() return M.call("linearf#_lua") end
 
 return M

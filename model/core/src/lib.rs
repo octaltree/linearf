@@ -22,15 +22,13 @@ use tokio::runtime::Handle;
 
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;
-
-#[derive(Debug, thiserror::Error)]
-enum Error {}
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Default)]
 pub struct State {
     sessions: VecDeque<(i32, Shared<Session>)>,
-    flows: HashMap<String, Arc<Flow>>,
-    base_flow: Flow,
+    // flows: HashMap<String, Arc<Flow>>,
+    // base_flow: Flow,
     sources: HashMap<String, Source>,
     matchers: HashMap<String, Shared<dyn Matcher>>
 }
@@ -55,23 +53,27 @@ impl State {
         x.matchers.insert(name.into(), matcher);
     }
 
-    pub fn start_session(
-        &mut self,
-        rt: Handle,
-        flow: Arc<Flow>
-    ) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
-        let id = self.next_session_id();
-        let source = self.source(&flow.source)?.clone();
-        let matcher = self.matcher(&flow.matcher)?.clone();
-        let sess = match self.reuse(&source) {
-            Some((_, s)) => s,
-            None => Session::start(rt, flow, source, matcher)
-        };
-        self.sessions.push_back((id, sess));
-        Ok((id, &self.sessions[self.sessions.len() - 1].1))
-    }
+    // pub fn stert_session(
+    //    &mut self,
+    //    rt: Handle,
+    //    flow: Arc<Flow>
+    //) -> Result<(i32, &Shared<Session>), Box<dyn std::error::Error + Send + Sync>> {
+    //    let id = self.next_session_id();
+    //    let source = self.source(&flow.source)?.clone();
+    //    let matcher = self.matcher(&flow.matcher)?.clone();
+    //    let sess = match self.reuse(&source) {
+    //        Some((_, s)) => s,
+    //        None => Session::start(rt, flow, source, matcher)
+    //    };
+    //    self.sessions.push_back((id, sess));
+    //    Ok((id, &self.sessions[self.sessions.len() - 1].1))
+    //}
 
-    fn source(&self, name: &str) -> Result<&Source, Box<dyn std::error::Error + Send + Sync>> {
+    // fn start_session(&mut self, rt: Handle) -> Result<(i32, &Shared<Session>), Error> {}
+
+    // start_flow
+
+    fn source(&self, name: &str) -> Result<&Source, Error> {
         self.sources
             .get(name)
             .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
@@ -79,10 +81,7 @@ impl State {
             })
     }
 
-    fn matcher(
-        &self,
-        name: &str
-    ) -> Result<&Shared<dyn Matcher>, Box<dyn std::error::Error + Send + Sync>> {
+    fn matcher(&self, name: &str) -> Result<&Shared<dyn Matcher>, Error> {
         self.matchers
             .get(name)
             .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
@@ -95,43 +94,43 @@ impl State {
         None
     }
 
-    pub fn remove_session(&mut self, session: i32) {
-        if let Some(idx) = self
-            .sessions
-            .iter()
-            .enumerate()
-            .map(|(idx, (id, _))| (idx, id))
-            .find(|(_, &id)| id == session)
-            .map(|(idx, _)| idx)
-        {
-            self.sessions.remove(idx);
-        }
-    }
+    // pub fn remove_session(&mut self, session: i32) {
+    //    if let Some(idx) = self
+    //        .sessions
+    //        .iter()
+    //        .enumerate()
+    //        .map(|(idx, (id, _))| (idx, id))
+    //        .find(|(_, &id)| id == session)
+    //        .map(|(idx, _)| idx)
+    //    {
+    //        self.sessions.remove(idx);
+    //    }
+    //}
 
-    fn next_session_id(&self) -> i32 {
-        // WARNING: 0 is indistinguishable from null in vim.
-        // Keep at least on session
-        if self.sessions.is_empty() {
-            1
-        } else {
-            let last = self.sessions[self.sessions.len() - 1].0;
-            last + 1
-        }
-    }
+    // fn next_session_id(&self) -> i32 {
+    //    // WARNING: 0 is indistinguishable from null in vim.
+    //    // Keep at least on session
+    //    if self.sessions.is_empty() {
+    //        1
+    //    } else {
+    //        let last = self.sessions[self.sessions.len() - 1].0;
+    //        last + 1
+    //    }
+    //}
 
-    pub fn session(&self, id: i32) -> Option<&Shared<Session>> {
-        let mut rev = self.sessions.iter().rev();
-        rev.find(|s| s.0 == id).map(|(_, s)| s)
-    }
+    // pub fn session(&self, id: i32) -> Option<&Shared<Session>> {
+    //    let mut rev = self.sessions.iter().rev();
+    //    rev.find(|s| s.0 == id).map(|(_, s)| s)
+    //}
 
-    #[inline]
-    pub fn sessions(&self) -> &VecDeque<(i32, Shared<Session>)> { &self.sessions }
+    //#[inline]
+    // pub fn sessions(&self) -> &VecDeque<(i32, Shared<Session>)> { &self.sessions }
 
-    #[inline]
-    pub fn flows(&self) -> &HashMap<String, Arc<Flow>> { &self.flows }
+    //#[inline]
+    // pub fn flows(&self) -> &HashMap<String, Arc<Flow>> { &self.flows }
 
-    #[inline]
-    pub fn base_flow(&self) -> &Flow { &self.base_flow }
+    //#[inline]
+    // pub fn base_flow(&self) -> &Flow { &self.base_flow }
 
     pub fn source_names(&self) -> Vec<&str> {
         self.sources.iter().map(|(k, _)| -> &str { k }).collect()
