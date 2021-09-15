@@ -21,22 +21,56 @@ function! linearf#init() abort
   let s:initialized = v:true
 endfunction
 
-function! linearf#run(args) abort
-  let selected = s:_get_visual()
+function! linearf#run(senario_diff, action_diff) abort
+  let selected = s:get_visual()
   lua linearf = require('linearf')
   call luaeval('linearf.new()')
   call luaeval('linearf.value:push(_A)', selected)
   call luaeval('linearf.value:push(_A)', a:args)
   let session = luaeval('linearf.call("run")')
-  call linearf#ui#start(session)
+  if session
+    call linearf#ui#start(session, 1)
+  endif
   return session
 endfunction
 
 function! linearf#resume(session) abort
-  call linearf#ui#start(a:session)
+  let flow = luaeval('linearf.call_one("resume", _A)', a:session)
+  if flow
+    call linearf#ui#start(a:session, flow)
+  endif
+  return flow
 endfunction
 
-function! s:_get_visual() abort
+function! linearf#feed_query() abort
+  let s:flow = 42
+  return s:flow
+endfunction
+
+function! linearf#in_progress() abort
+endfunction
+
+" TODO: filtered num, sourced num
+" Returns 0 if the session is not found
+function! linearf#fetch_num() abort
+endfunction
+
+" Returns v:null if the session is not found.
+" If the number of items is less than [start, end), the result is less than end-start
+function! linearf#fetch_view(start, end) abort
+  " "id,view\n"
+endfunction
+
+" TODO: preview will overuse this.
+" If an id is not found, fail and return v:null
+function! linearf#fetch_value(ids) abort
+endfunction
+
+function! linearf#_run(args) abort
+  return linearf#run(request)
+endfunction
+
+function! s:get_visual() abort
   let tmp = @@
   silent normal! gvy
   let selected = @@
@@ -57,14 +91,4 @@ function! linearf#_lua() abort
   let v = split(luaeval('_VERSION'))[1]
   let label = join(split(v, '\.'), '')
   return 'lua' . label
-endfunction
-
-" Returns 0 if the session is not found
-function! linearf#fetch_num(session) abort
-endfunction
-
-" Returns v:null if the session is not found.
-" If the result is less than the range, it does not fail.
-function! linearf#fetch(session, range) abort
-  " "id,view\n"
 endfunction

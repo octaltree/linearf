@@ -22,6 +22,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
+    // exports.set("resume", lua.create_function(resume)?)?;
     // exports.set("terminate", lua.create_function(terminate)?)?;
     // exports.set("query", lua.create_function(query)?)?;
     // exports.set("count", lua.create_function(count)?)?;
@@ -49,6 +50,8 @@ fn run(lua: &Lua, (selected, args): (LuaString, LuaString)) -> LuaResult<i32> {
         // Ok(id)
     })
 }
+
+fn resume(lua: &Lua, session: i32) -> LuaResult<i32> { todo!() }
 
 fn build_flow(st: &State, args: LuaString, selected: LuaString) -> Option<Arc<Flow>> {
     // TODO

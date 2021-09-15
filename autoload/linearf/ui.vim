@@ -15,3 +15,5 @@ function! linearf#ui#start(session) abort
     call f()
   endif
 endfunction
+
+" action = dict of keymap-function
