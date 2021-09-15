@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "bridge",
+  "preprocessor",
+  "registrar",
+  "core"
+]

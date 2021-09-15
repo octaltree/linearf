@@ -1,0 +1,8 @@
+set nocompatible
+set rtp+=..
+
+let g:linearf#recipe = {
+      \ 'crates': [{'name': 'rustdoc', 'dep': {'path' :'../../../../linearf-my-sources/rustdoc'}}, {'name': 'plain', 'dep': {'path' :'../../../../linearf-my-sources/plain'}}],
+      \ 'sources': [{'name': 'rustdoc', 'path': 'rustdoc::Rustdoc', 'type': 'Static'}],
+      \ 'matchers': [{'name': 'substring', 'path': 'plain::Substring'}]
+      \ }
