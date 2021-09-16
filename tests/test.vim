@@ -16,5 +16,5 @@ endfunction
 function! s:suite.run() abort
   lua linearf = require('linearf')
   lua linearf.init(require('linearf-vanilla').new())
-  lua linearf.run()
+  lua linearf.run('')
 endfunction
