@@ -13,6 +13,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
+    exports.set("tick", lua.create_function(tick)?)?;
     Ok(exports)
 }
 
@@ -21,7 +22,14 @@ fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<Strin
     Ok(format!("{:?}", e))
 }
 
-fn run(lua: &Lua, (): ()) -> LuaResult<i32> {
+fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    rt.block_on(async { Ok(42) })
+}
+
+fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
+    let id = linearf::SessionId(id);
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     rt.block_on(async { Ok(42) })

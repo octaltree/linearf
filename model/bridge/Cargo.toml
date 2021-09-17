@@ -11,5 +11,6 @@ log = "0.4.14"
 log4rs = "1.0.0"
 serde = "1.0.130"
 serde_json = "1.0.67"
-mlua = { version = "0.6.2", features = ["module", "async", "send"] }
+mlua = { version = "0.6.2", features = ["module", "async", "send", "serialize"] }
 tokio = { version = "1.11.0", features = ["rt-multi-thread", "sync"] }
+linearf = { path = "../core" }

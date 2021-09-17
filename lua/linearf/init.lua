@@ -1,54 +1,71 @@
-local M = {recipe = nil, view = nil, collectors = {}}
+local M = {
+    bridge = require('linearf.bridge'),
+    recipe = nil,
+    view = nil,
+    senarios = {},
+    context_managers = {},
+    sessions = {}
+}
 
-local bridge = require('linearf.bridge')
 local utils = require('linearf.utils')
+local Session = require('linearf.session')
+local SenarioBuilder = require('linearf.senario_builder')
 
 function M.build()
-    return bridge.build(M.recipe)
+    return M.bridge.build(M.recipe)
 end
 
 function M.init(view)
-    bridge.init()
+    M.bridge.init()
     M.view = view
 end
 
--- Senario:
---   * source: string
---   * match: string
---   * source_params: table
---   * match_params: table
+local function new_senario_builder(senario_name, diff)
+    local base = M.senarios[senario_name]
+    if not base then
+        local s = string.format('senario "%s" is not found', senario_name)
+        utils.echo_error(s)
+        error(s)
+    end
+    local c = M.context_managers[senario_name]
+    local cm
+    if type(c) == 'function' then
+        cm = c
+    else
+        cm = function()
+            return nil
+        end
+    end
+    return SenarioBuilder.new(base, cm, diff)
+end
 
--- Option: nil|
+-- Senario:
+--   * linearf: LinearfVars,
+--   * source: SourceParams,
+--   * matcher: MatcherParams,
+--   * view: ViewParams,
+-- LinearfVars:
+--   * source: string
+--   * matcher: string
 --   * query: string
-function M.run(senario_name, option)
-    if type(option) ~= 'table' then option = {} end
-    local result = bridge.run(senario_name)
+function M.run(senario_name, diff)
+    local senario_builder = new_senario_builder(senario_name, diff)
+    local senario = senario_builder:build()
+    local result = M.bridge.run(senario)
     local session
     if not result.ok then
         utils.echo_error(result.value)
         error(result.value)
     else
-        session = result.value
+        local id = result.value
+        session = Session.new(M.bridge, id, senario, senario_builder)
+        M.sessions[id] = session
     end
     M.view:start(session)
 end
 
 function M.resume(session_id)
     M.view:start(session_id)
-end
-
-M.senario = {
-    set = function(name, t)
-        -- bridge.set_senario(name, t)
-    end
-}
-
-function M.get_source_name(session_id)
-end
-
-function M.emit(session_id, source_name, query)
-    local f = M.collectors[source_name]
-    local ctx = f and f() or nil
 end
 
 return M

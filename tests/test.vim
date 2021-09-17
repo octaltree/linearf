@@ -5,6 +5,7 @@ let s:assert = themis#helper('assert')
 
 function! s:suite.build() abort
   lua linearf = require('linearf')
+  lua linearf.recipe = {}
   lua linearf.build()
 endfunction
 
@@ -16,5 +17,6 @@ endfunction
 function! s:suite.run() abort
   lua linearf = require('linearf')
   lua linearf.init(require('linearf-vanilla').new())
-  lua linearf.run('')
+  lua linearf.senarios = {test = {linearf = {}}}
+  lua linearf.run('test')
 endfunction
