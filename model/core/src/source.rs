@@ -1,12 +1,12 @@
 use crate::{
-    session::{Options, Receiver, Sender},
-    Error, Item
+    session::{Receiver, Sender, Vars},
+    Error, Item, Shared
 };
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
-use std::sync::Arc;
+use serde::{de::DeserializeOwned, Serialize};
+use std::{any::Any, sync::Arc};
 
-pub trait SourceParams: DeserializeOwned {}
+pub trait SourceParams: DeserializeOwned + Serialize {}
 
 pub struct Transmitter {
     tx: Sender<Vec<Item>>
@@ -28,12 +28,12 @@ impl Transmitter {
 trait FlowGenerator {
     type Params: SourceParams;
 
-    async fn run(&mut self, args: Receiver<(Transmitter, (&Arc<Options>, &Arc<Self::Params>))>);
+    async fn run(&mut self, args: Receiver<(Transmitter, (&Arc<Vars>, &Arc<Self::Params>))>);
 
     async fn reusable(
         &self,
-        prev: (&Arc<Options>, &Arc<Self::Params>),
-        senario: (&Arc<Options>, &Arc<Self::Params>)
+        prev: (&Arc<Vars>, &Arc<Self::Params>),
+        senario: (&Arc<Vars>, &Arc<Self::Params>)
     ) -> bool;
 }
 
@@ -41,11 +41,11 @@ trait FlowGenerator {
 trait SimpleGenerator {
     type Params: SourceParams;
 
-    async fn generate(&self, tx: Transmitter, senario: (&Arc<Options>, &Arc<Self::Params>));
+    async fn generate(&self, tx: Transmitter, senario: (&Arc<Vars>, &Arc<Self::Params>));
 
     async fn reusable(
         &self,
-        prev: (&Arc<Options>, &Arc<Self::Params>),
-        senario: (&Arc<Options>, &Arc<Self::Params>)
+        prev: (&Arc<Vars>, &Arc<Self::Params>),
+        senario: (&Arc<Vars>, &Arc<Self::Params>)
     ) -> bool;
 }

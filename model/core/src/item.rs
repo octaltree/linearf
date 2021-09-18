@@ -15,7 +15,7 @@ pub struct Item {
     pub id: u32,
     pub r#type: &'static str,
     pub value: MaybeUtf8,
-    pub userdata: Option<Map<String, Value>>,
+    pub info: Option<Map<String, Value>>,
     pub view: Option<String>,
     pub view_for_matcing: Option<String>
 }
@@ -26,7 +26,7 @@ impl Item {
             id,
             r#type,
             value,
-            userdata: None,
+            info: None,
             view: None,
             view_for_matcing: None
         }
