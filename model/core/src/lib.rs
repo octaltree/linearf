@@ -2,9 +2,11 @@ pub mod item;
 pub mod session;
 pub mod source;
 
-pub use crate::{item::Item, session::Session};
+pub use crate::{
+    item::{Item, MaybeUtf8},
+    session::{Session, Vars}
+};
 
-use crate::session::Vars;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::{runtime::Handle, sync::RwLock};
@@ -62,6 +64,12 @@ impl State {
     //}
 }
 
+pub trait New {
+    fn new(_state: &Shared<State>) -> Self
+    where
+        Self: Sized;
+}
+
 pub trait SourceRegistry<'de, D>
 where
     D: serde::de::Deserializer<'de>
@@ -74,5 +82,5 @@ where
         &self,
         name: &str,
         deserializer: D
-    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, D::Error>;
+    ) -> Result<Option<Arc<dyn std::any::Any + Send + Sync>>, D::Error>;
 }

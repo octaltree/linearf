@@ -1,12 +1,15 @@
 use crate::{
     session::{Receiver, Sender, Vars},
-    Error, Item, Shared
+    Error, Item, New, Shared, State
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub trait SourceParams: DeserializeOwned + Serialize {}
+
+impl SourceParams for () {}
 
 pub struct Transmitter {
     tx: Sender<Vec<Item>>
@@ -16,36 +19,53 @@ impl Transmitter {
     pub fn new(tx: Sender<Vec<Item>>) -> Self { Self { tx } }
 
     #[inline]
-    pub fn item(&self, i: Item) -> Result<(), Error> { Ok(self.tx.send(vec![i])?) }
+    pub fn item(&self, i: Item) {
+        if let Err(e) = self.tx.send(vec![i]) {
+            log::error!("{:?}", e);
+        }
+    }
 
     #[inline]
-    pub fn chunk<A: Into<Vec<Item>>>(&self, xs: A) -> Result<(), Error> {
-        Ok(self.tx.send(xs.into())?)
+    pub fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
+        if let Err(e) = self.tx.send(xs.into()) {
+            log::error!("{:?}", e);
+        }
     }
 }
 
-#[async_trait]
-trait FlowGenerator {
+pub trait HasSourceParams {
     type Params: SourceParams;
-
-    async fn run(&mut self, args: Receiver<(Transmitter, (&Arc<Vars>, &Arc<Self::Params>))>);
-
-    async fn reusable(
-        &self,
-        prev: (&Arc<Vars>, &Arc<Self::Params>),
-        senario: (&Arc<Vars>, &Arc<Self::Params>)
-    ) -> bool;
 }
 
 #[async_trait]
-trait SimpleGenerator {
-    type Params: SourceParams;
+pub trait SimpleGenerator<P>: New + HasSourceParams<Params = P> {
+    fn into_source(self: Self) -> Source<P>
+    where
+        Self: Sized + 'static + Send + Sync
+    {
+        Source::Simple(Arc::new(RwLock::new(self)))
+    }
 
-    async fn generate(&self, tx: Transmitter, senario: (&Arc<Vars>, &Arc<Self::Params>));
+    async fn generate(&self, tx: Transmitter, senario: (&Arc<Vars>, &Arc<P>));
 
-    async fn reusable(
-        &self,
-        prev: (&Arc<Vars>, &Arc<Self::Params>),
-        senario: (&Arc<Vars>, &Arc<Self::Params>)
-    ) -> bool;
+    async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
+}
+
+#[async_trait]
+pub trait FlowGenerator<P>: New + HasSourceParams<Params = P> {
+    fn into_source(self: Self) -> Source<P>
+    where
+        Self: Sized + 'static + Send + Sync
+    {
+        Source::Flow(Arc::new(RwLock::new(self)))
+    }
+
+    async fn run(&mut self, args: Receiver<(Transmitter, (&Arc<Vars>, &Arc<P>))>);
+
+    async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
+}
+
+pub enum Source<P> {
+    Simple(Shared<dyn SimpleGenerator<P> + Send + Sync>),
+    Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
 }

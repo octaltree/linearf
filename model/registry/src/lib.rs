@@ -1,7 +1,7 @@
+use linearf::Shared;
 pub struct Source {
-    state: linearf::Shared<linearf::State>
+    _state: linearf::Shared<linearf::State>
 }
-
 impl<'de, D> linearf::SourceRegistry<'de, D> for Source
 where
     D: serde::de::Deserializer<'de>
@@ -10,14 +10,13 @@ where
     where
         Self: Sized
     {
-        Self { state }
+        Self { _state: state }
     }
-
     fn parse(
         &self,
-        name: &str,
-        deserializer: D
-    ) -> Result<std::sync::Arc<dyn std::any::Any + Send + Sync>, D::Error> {
-        todo!()
+        _name: &str,
+        _deserializer: D
+    ) -> Result<Option<std::sync::Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
+        Ok(None)
     }
 }

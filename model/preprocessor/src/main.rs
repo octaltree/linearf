@@ -29,9 +29,9 @@ fn input(env_reg: Result<String, env::VarError>) -> StdResult<Recipe> {
 
 fn dest(env_dir: &str) -> (PathBuf, PathBuf) {
     let here = Path::new(env_dir);
-    let registrar = here.parent().unwrap().join("registrar");
-    let cargo_toml = registrar.join("Cargo.toml");
-    let lib = registrar.join("src").join("lib.rs");
+    let registry = here.parent().unwrap().join("registry");
+    let cargo_toml = registry.join("Cargo.toml");
+    let lib = registry.join("src").join("lib.rs");
     (cargo_toml, lib)
 }
 
@@ -39,7 +39,7 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
     #[derive(Serialize)]
     struct Manifest {
         package: CargoPackage,
-        dependencies: HashMap<String, serde_json::Value>
+        dependencies: toml::value::Map<String, toml::Value>
     }
     #[derive(Serialize)]
     struct CargoPackage {
@@ -47,19 +47,30 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
         version: String,
         edition: String
     }
-    let mut dependencies = HashMap::new();
-    // dependencies.insert("linearf".into(), {
-    //    let mut m = serde_json::Map::new();
-    //    m.insert("path".into(), "../../core".into());
-    //    serde_json::Value::from(m)
-    //});
-    for c in &recipe.crates {
-        let m = serde_json::from_str(&c.dep)?;
-        dependencies.insert(c.name.clone(), m);
-    }
+    let dependencies = {
+        let mut d = toml::value::Map::new();
+        d.insert("linearf".into(), {
+            let mut m = toml::value::Map::new();
+            m.insert("path".into(), "../core".into());
+            toml::Value::from(m)
+        });
+        d.insert("serde".into(), {
+            let mut m = toml::value::Map::new();
+            m.insert("version".into(), "*".into());
+            m.insert("features".into(), toml::Value::Array(vec!["derive".into()]));
+            toml::Value::from(m)
+        });
+        for c in &recipe.crates {
+            let m: toml::value::Map<String, toml::Value> =
+                toml::from_str(&format!("{} = {}", &c.name, &c.dep))?;
+            let t = m.into_iter().next().unwrap();
+            d.insert(t.0, t.1);
+        }
+        d
+    };
     let manifest = Manifest {
         package: CargoPackage {
-            name: "registrar".into(),
+            name: "registry".into(),
             version: "0.1.0".into(),
             edition: "2018".into()
         },
@@ -69,42 +80,63 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
 }
 
 fn format_lib(recipe: &Recipe) -> String {
-    let registrations = recipe
-        .sources
-        .iter()
-        .map(|s| {
-            let name = &s.name;
-            let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
-            let path = quote::quote! {
-                #(#p)::*
-            };
-            let t = quote::format_ident!(
-                "{}",
-                match &s.r#type {
-                    GeneratorType::Static => "Static",
-                    GeneratorType::Dynamic => "Dynamic"
-                }
-            );
-            quote::quote! {
-                let g = Arc::new(RwLock::new(#path::new(state, handle)));
-                let s = Source::#t(g);
-                State::register_source(state, #name, s).await;
-            }
-        })
-        .chain(recipe.matchers.iter().map(|m| {
-            let name = &m.name;
-            let p = m.path.split("::").map(|p| quote::format_ident!("{}", p));
-            let path = quote::quote! {
-                #(#p)::*
-            };
-            quote::quote! {
-                let m = Arc::new(RwLock::new(#path::new(state, handle)));
-                State::register_matcher(state, #name, m).await;
-            }
-        }));
+    let sources = recipe.sources.iter().map(|s| {
+        let name = quote::format_ident!("{}", &s.name);
+        let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
+        let path = quote::quote! {
+            #(#p)::*
+        };
+        (s.name.clone(), name, path)
+    });
+    let fields = sources.clone().map(|(_, name, path)| {
+        quote::quote! {
+            #name: linearf::source::Source<<#path as HasSourceParams>::Params>
+        }
+    });
+    let new_fields = sources.clone().map(|(_, name, path)| {
+        quote::quote! {
+            #name: <#path as New>::new(&state).into_source()
+        }
+    });
+    let parses = sources.clone().map(|(name, _, path)| {
+        quote::quote! {
+            #name => Ok(Some(Arc::new(
+                        <#path as HasSourceParams>::Params::deserialize(deserializer)?)))
+        }
+    });
     let t = quote::quote! {
-        pub async fn register() {
-            #(#registrations)*
+        use linearf::Shared;
+        use linearf::New;
+        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams};
+        use std::sync::Arc;
+        use serde::Deserialize;
+
+        pub struct Source {
+            #(#fields),*,
+            state: linearf::Shared<linearf::State>
+        }
+
+        impl<'de, D> linearf::SourceRegistry<'de, D> for Source
+        where
+            D: serde::de::Deserializer<'de>
+        {
+            fn new(state: linearf::Shared<linearf::State>) -> Self
+            where
+                Self: Sized
+            {
+                Self { #(#new_fields),*, state }
+            }
+
+            fn parse(
+                &self,
+                name: &str,
+                deserializer: D
+            ) -> Result<Option<std::sync::Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
+                match name {
+                    #(#parses),*,
+                    _ => Ok(None)
+                }
+            }
         }
     };
     t.to_string()
@@ -112,6 +144,7 @@ fn format_lib(recipe: &Recipe) -> String {
 
 #[derive(Debug, Deserialize, Default)]
 struct Recipe {
+    #[serde(default)]
     crates: Vec<Crate>,
     #[serde(default)]
     sources: Vec<SourceDescriptor>,
@@ -128,18 +161,11 @@ struct Crate {
 #[derive(Debug, Deserialize)]
 struct SourceDescriptor {
     name: String,
-    path: String,
-    r#type: GeneratorType
+    path: String
 }
 
 #[derive(Debug, Deserialize)]
 struct MatchDescriptor {
     name: String,
     path: String
-}
-
-#[derive(Debug, Deserialize)]
-enum GeneratorType {
-    Static,
-    Dynamic
 }
