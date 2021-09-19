@@ -4,7 +4,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 pub trait SourceParams: DeserializeOwned + Serialize {}
 

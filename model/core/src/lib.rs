@@ -24,23 +24,30 @@ pub struct SessionId(pub i32);
 #[serde(transparent)]
 pub struct FlowId(pub i32);
 
-#[derive(Default)]
 pub struct State {
     last_id: SessionId,
     sessions: VecDeque<(SessionId, Shared<Session>)>
 }
 
 impl State {
-    pub async fn new_shared() -> Shared<Self> {
-        let this = Self::default();
+    pub fn new_shared() -> Shared<Self> {
+        let this = Self {
+            last_id: SessionId(0),
+            sessions: VecDeque::new()
+        };
         Arc::new(RwLock::new(this))
     }
 
-    pub fn stert_session(
+    pub fn start_session<'a, D, S>(
         &mut self,
         rt: AsyncRt,
-        senario: (Arc<Vars>, Arc<dyn Any>, Arc<dyn Any>)
-    ) -> Result<(SessionId, &Shared<Session>), Error> {
+        source: S,
+        senario: (Arc<Vars>, D, D)
+    ) -> Result<(SessionId, &Shared<Session>), Error>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D>
+    {
         todo!()
     }
     //    let id = self.next_session_id();
@@ -55,22 +62,17 @@ impl State {
     //}
 }
 
-pub trait SourceRegistry {
-    fn parse<'de, D>(
-        &self,
-        name: &str,
-        deserializer: D
-    ) -> Result<Arc<dyn std::any::Any>, D::Error>
+pub trait SourceRegistry<'de, D>
+where
+    D: serde::de::Deserializer<'de>
+{
+    fn new(state: Shared<State>) -> Self
     where
-        D: serde::de::Deserializer<'de>;
-}
+        Self: Sized;
 
-pub trait MatcherRegistry {
-    fn parse<'de, D>(
+    fn parse(
         &self,
         name: &str,
         deserializer: D
-    ) -> Result<Arc<dyn std::any::Any>, D::Error>
-    where
-        D: serde::de::Deserializer<'de>;
+    ) -> Result<Arc<dyn std::any::Any + Send + Sync>, D::Error>;
 }

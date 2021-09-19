@@ -2,5 +2,6 @@
 members = [
   "bridge",
   "preprocessor",
-  "core"
+  "core",
+  "registry"
 ]

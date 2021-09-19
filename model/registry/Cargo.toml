@@ -1,0 +1,8 @@
+[package]
+name = "registry"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+linearf = { path = "../core" }
+serde = { version = "1.0.130", features = ["derive"] }

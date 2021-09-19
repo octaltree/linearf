@@ -4,10 +4,15 @@ use tokio::sync::mpsc;
 pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
 pub(crate) type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
-pub struct Vars {}
+#[derive(Debug, PartialEq)]
+pub struct Vars {
+    source: String,
+    matcher: String,
+    query: String
+}
 
 pub struct Session {
     vars: Arc<Vars>,
-    source_params: Arc<dyn Any>,
-    _matcher_params: Arc<dyn Any>
+    source_params: Arc<dyn Any + Send + Sync>,
+    _matcher_params: Arc<dyn Any + Send + Sync>
 }

@@ -1,15 +1,27 @@
+use linearf::{SourceRegistry, State};
 use mlua::prelude::*;
-use std::cell::RefMut;
-use tokio::runtime::Runtime;
+use std::{cell::RefMut, sync::Arc};
+use tokio::{runtime::Runtime, sync::RwLock};
 
 const RT: &str = "_lienarf_rt";
+const ST: &str = "_linearf_st";
+const SOURCE: &str = "_linearf_source";
+const MATCHER: &str = "_linearf_matcher";
 
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().map_err(LuaError::external)?;
     let rt = Runtime::new()?;
-    lua.globals()
-        .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
+    let st = State::new_shared();
+    let source = Arc::new(<registry::Source as SourceRegistry<
+        mlua::serde::Deserializer<'_>
+    >>::new(st.clone()));
+    {
+        lua.globals()
+            .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
+        lua.set_named_registry_value(ST, Wrapper::new(st))?;
+        lua.set_named_registry_value(SOURCE, Wrapper::new(source))?;
+    }
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
