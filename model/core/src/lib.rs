@@ -7,8 +7,7 @@ pub use crate::{
     session::{Session, Vars}
 };
 
-use crate::source::SourceType;
-use async_trait::async_trait;
+use crate::source::SourceRegistry;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::{runtime::Handle, sync::RwLock};
@@ -30,7 +29,7 @@ pub struct FlowId(pub i32);
 
 pub struct State {
     last_id: SessionId,
-    sessions: VecDeque<(SessionId, Shared<Session>)>
+    sessions: VecDeque<(SessionId, Arc<Session>)>
 }
 
 impl State {
@@ -42,15 +41,15 @@ impl State {
         Arc::new(RwLock::new(this))
     }
 
-    pub fn start_session<'a, D, S>(
+    pub async fn start_session<'a, D, S>(
         &mut self,
         rt: AsyncRt,
         source: Arc<S>,
         senario: Senario<D, D>
-    ) -> Result<(SessionId, &Shared<Session>), Error>
+    ) -> Result<(SessionId, &Arc<Session>), Error>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
         <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
         let Senario {
@@ -62,57 +61,52 @@ impl State {
         let source_params = source
             .parse(&s_linearf.source, s_source)?
             .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
-        let sess = Session::start(rt, s_linearf, source_params, source);
-        todo!()
+        let sess = match self
+            .reuse(&source, &s_linearf.source, (&s_linearf, &source_params))
+            .await
+        {
+            Some((_, s)) => s,
+            None => Session::start(rt, s_linearf, source_params, source)
+        };
+        let id = self.next_id();
+        self.sessions.push_back((id, sess));
+        Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
-    //    let id = self.next_session_id();
-    //    let source = self.source(&flow.source)?.clone();
-    //    let matcher = self.matcher(&flow.matcher)?.clone();
-    //    let sess = match self.reuse(&source) {
-    //        Some((_, s)) => s,
-    //        None => Session::start(rt, flow, source, matcher)
-    //    };
-    //    self.sessions.push_back((id, sess));
-    //    Ok((id, &self.sessions[self.sessions.len() - 1].1))
-    //}
+
+    async fn reuse<'a, D, S>(
+        &mut self,
+        source: &Arc<S>,
+        name: &str,
+        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) -> Option<(SessionId, Arc<Session>)>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync
+    {
+        for (id, sess) in self.sessions.iter().rev() {
+            if sess.vars().source != name {
+                continue;
+            }
+            if source
+                .reusable(name, (&sess.vars(), &sess.source_params()), senario)
+                .await
+            {
+                return Some((*id, sess.clone()));
+            }
+        }
+        None
+    }
+
+    fn next_id(&mut self) -> SessionId {
+        self.last_id = SessionId(self.last_id.0 + 1);
+        self.last_id
+    }
 }
 
 pub trait New {
     fn new(_state: &Shared<State>) -> Self
     where
         Self: Sized;
-}
-
-#[async_trait]
-pub trait SourceRegistry<'de, D>
-where
-    D: serde::de::Deserializer<'de>
-{
-    fn new(state: Shared<State>) -> Self
-    where
-        Self: Sized;
-
-    fn parse(
-        &self,
-        name: &str,
-        deserializer: D
-    ) -> Result<Option<Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
-        Ok(None)
-    }
-
-    async fn reusable(
-        &self,
-        name: &str,
-        prev: (&Arc<Vars>, &Arc<dyn std::any::Any + Send + Sync>),
-        senario: (&Arc<Vars>, &Arc<dyn std::any::Any + Send + Sync>)
-    ) -> bool
-    where
-        Self: Sized
-    {
-        false
-    }
-
-    // fn generate(&self,
 }
 
 pub struct Senario<S, M> {

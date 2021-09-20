@@ -108,11 +108,37 @@ fn format_lib(recipe: &Recipe) -> String {
                         <#path as HasSourceParams>::Params::deserialize(deserializer)?)))
         }
     });
+    let reusable = sources.clone().map(|(name, field, path)| {
+        let p = quote::quote! {
+            let (prev_linearf, prev_source) = prev;
+            let (senario_linearf, senario_source) = senario;
+            if prev_source.is::<<#path as HasSourceParams>::Params>()
+                && senario_source.is::<<#path as HasSourceParams>::Params>()
+            {
+                let prev_source: &Arc<<#path as HasSourceParams>::Params> =
+                    unsafe { std::mem::transmute(prev_source) };
+                let senario_source: &Arc<<#path as HasSourceParams>::Params> =
+                    unsafe { std::mem::transmute(senario_source) };
+                g.read().await.reusable(
+                    (prev_linearf, prev_source), (senario_linearf, senario_source)).await
+            } else {
+                false
+            }
+        };
+        quote::quote! {
+            #name => match &self.#field {
+                linearf::source::Source::Simple(g) => { #p }
+                linearf::source::Source::Flow(g) => { #p }
+            }
+        }
+    });
     let t = quote::quote! {
         use linearf::Shared;
         use linearf::New;
+        use linearf::Vars;
         use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType};
         use std::sync::Arc;
+        use std::any::Any;
         use serde::Deserialize;
         use async_trait::async_trait;
 
@@ -122,7 +148,7 @@ fn format_lib(recipe: &Recipe) -> String {
         }
 
         #[async_trait]
-        impl<'de, D> linearf::SourceRegistry<'de, D> for Source
+        impl<'de, D> linearf::source::SourceRegistry<'de, D> for Source
         where
             D: serde::de::Deserializer<'de>
         {
@@ -137,10 +163,51 @@ fn format_lib(recipe: &Recipe) -> String {
                 &self,
                 name: &str,
                 deserializer: D
-            ) -> Result<Option<std::sync::Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
+            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
                 match name {
                     #(#parses),*,
                     _ => Ok(None)
+                }
+            }
+
+            async fn reusable(
+                &self,
+                name: &str,
+                prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+            ) -> bool
+            where
+                Self: Sized
+            {
+                match name {
+                    #(#reusable),*,
+                    _ => false
+                }
+            }
+
+            async fn on_session_start(
+                &self,
+                name: &str,
+                tx: linearf::source::Transmitter,
+                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+            ) where
+                Self: Sized
+            {
+                match name {
+                    _ => {}
+                }
+            }
+
+            async fn on_flow_start(
+                &self,
+                name: &str,
+                tx: linearf::source::Transmitter,
+                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+            ) where
+                Self: Sized
+            {
+                match name {
+                    _ => {}
                 }
             }
         }

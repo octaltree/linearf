@@ -1,10 +1,10 @@
 use crate::{
     session::{Receiver, Sender, Vars},
-    Error, Item, New, Shared, State
+    Item, New, Shared, State
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 use tokio::sync::RwLock;
 
 pub trait SourceParams: DeserializeOwned + Serialize {}
@@ -81,5 +81,55 @@ impl<P> From<&Source<P>> for SourceType {
             Source::Simple(_) => SourceType::Simple,
             Source::Flow(_) => SourceType::Flow
         }
+    }
+}
+
+#[async_trait]
+pub trait SourceRegistry<'de, D>
+where
+    D: serde::de::Deserializer<'de>
+{
+    fn new(state: Shared<State>) -> Self
+    where
+        Self: Sized;
+
+    fn parse(
+        &self,
+        name: &str,
+        deserializer: D
+    ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
+        Ok(None)
+    }
+
+    async fn reusable(
+        &self,
+        name: &str,
+        prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) -> bool
+    where
+        Self: Sized
+    {
+        false
+    }
+
+    async fn on_session_start(
+        &self,
+        name: &str,
+        tx: Transmitter,
+        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) where
+        Self: Sized
+    {
+    }
+
+    async fn on_flow_start(
+        &self,
+        name: &str,
+        tx: Transmitter,
+        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) where
+        Self: Sized
+    {
     }
 }

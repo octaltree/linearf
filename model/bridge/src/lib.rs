@@ -1,4 +1,4 @@
-use linearf::{Senario, Shared, SourceRegistry, State};
+use linearf::{source::SourceRegistry, Senario, Shared, State};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
 use std::{cell::RefMut, sync::Arc};
@@ -46,6 +46,7 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
         let state = &mut st.write().await;
         let (id, _) = state
             .start_session(handle, (*source).clone(), senario)
+            .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id.0)
     })

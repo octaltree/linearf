@@ -1,7 +1,7 @@
 pub struct Source {}
 
 #[async_trait::async_trait]
-impl<'de, D> linearf::SourceRegistry<'de, D> for Source
+impl<'de, D> linearf::source::SourceRegistry<'de, D> for Source
 where
     D: serde::de::Deserializer<'de>
 {
