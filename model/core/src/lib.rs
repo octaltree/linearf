@@ -7,6 +7,7 @@ pub use crate::{
     session::{Session, Vars}
 };
 
+use crate::source::SourceType;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::{runtime::Handle, sync::RwLock};
@@ -93,7 +94,11 @@ where
         &self,
         name: &str,
         deserializer: D
-    ) -> Result<Option<Arc<dyn std::any::Any + Send + Sync>>, D::Error>;
+    ) -> Result<Option<Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
+        Ok(None)
+    }
+
+    fn source_type(&self, name: &str) -> Option<SourceType> { None }
 }
 
 pub struct Senario<S, M> {

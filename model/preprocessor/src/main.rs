@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     env,
     error::Error as StdError,
     fs,
@@ -104,10 +103,15 @@ fn format_lib(recipe: &Recipe) -> String {
                         <#path as HasSourceParams>::Params::deserialize(deserializer)?)))
         }
     });
+    let source_types = sources.clone().map(|(name, field, _)| {
+        quote::quote! {
+            #name => Some((&self.#field).into())
+        }
+    });
     let t = quote::quote! {
         use linearf::Shared;
         use linearf::New;
-        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams};
+        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType};
         use std::sync::Arc;
         use serde::Deserialize;
 
@@ -135,6 +139,13 @@ fn format_lib(recipe: &Recipe) -> String {
                 match name {
                     #(#parses),*,
                     _ => Ok(None)
+                }
+            }
+
+            fn source_type(&self, name: &str) -> Option<SourceType> {
+                match name {
+                    #(#source_types),*,
+                    _ => None
                 }
             }
         }

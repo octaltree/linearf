@@ -28,10 +28,10 @@ impl Session {
             vars,
             source_params
         };
+        this.main(source_registry);
         let shared = Arc::new(RwLock::new(this));
-        Self::main();
         shared
     }
 
-    fn main() {}
+    fn main<'a, D>(&self, source_registry: Arc<dyn SourceRegistry<'a, D>>) {}
 }

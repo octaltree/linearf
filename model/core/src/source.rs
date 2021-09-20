@@ -69,3 +69,17 @@ pub enum Source<P> {
     Simple(Shared<dyn SimpleGenerator<P> + Send + Sync>),
     Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
 }
+
+pub enum SourceType {
+    Simple,
+    Flow
+}
+
+impl<P> From<&Source<P>> for SourceType {
+    fn from(s: &Source<P>) -> Self {
+        match s {
+            Source::Simple(_) => SourceType::Simple,
+            Source::Flow(_) => SourceType::Flow
+        }
+    }
+}

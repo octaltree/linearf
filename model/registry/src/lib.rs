@@ -1,21 +1,13 @@
-pub struct Source {
-    _state: linearf::Shared<linearf::State>
-}
+pub struct Source {}
+
 impl<'de, D> linearf::SourceRegistry<'de, D> for Source
 where
     D: serde::de::Deserializer<'de>
 {
-    fn new(state: linearf::Shared<linearf::State>) -> Self
+    fn new(_state: linearf::Shared<linearf::State>) -> Self
     where
         Self: Sized
     {
-        Self { _state: state }
-    }
-    fn parse(
-        &self,
-        _name: &str,
-        _deserializer: D
-    ) -> Result<Option<std::sync::Arc<dyn std::any::Any + Send + Sync>>, D::Error> {
-        Ok(None)
+        Self {}
     }
 }
