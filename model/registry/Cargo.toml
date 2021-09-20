@@ -2,12 +2,11 @@
 name = "registry"
 version = "0.1.0"
 edition = "2018"
+
+[dependencies.async-trait]
+version = "*"
 [dependencies.linearf]
 path = "../core"
-
-[dependencies.rustdoc]
-path = "../../../linearf-my-flavors/rustdoc"
-
 [dependencies.serde]
 features = ["derive"]
 version = "*"

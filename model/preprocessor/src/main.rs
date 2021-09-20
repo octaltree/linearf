@@ -53,6 +53,11 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
             m.insert("path".into(), "../core".into());
             toml::Value::from(m)
         });
+        d.insert("async-trait".into(), {
+            let mut m = toml::value::Map::new();
+            m.insert("version".into(), "*".into());
+            toml::Value::from(m)
+        });
         d.insert("serde".into(), {
             let mut m = toml::value::Map::new();
             m.insert("version".into(), "*".into());
@@ -103,23 +108,20 @@ fn format_lib(recipe: &Recipe) -> String {
                         <#path as HasSourceParams>::Params::deserialize(deserializer)?)))
         }
     });
-    let source_types = sources.clone().map(|(name, field, _)| {
-        quote::quote! {
-            #name => Some((&self.#field).into())
-        }
-    });
     let t = quote::quote! {
         use linearf::Shared;
         use linearf::New;
         use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType};
         use std::sync::Arc;
         use serde::Deserialize;
+        use async_trait::async_trait;
 
         pub struct Source {
             #(#fields),*,
             state: linearf::Shared<linearf::State>
         }
 
+        #[async_trait]
         impl<'de, D> linearf::SourceRegistry<'de, D> for Source
         where
             D: serde::de::Deserializer<'de>
@@ -139,13 +141,6 @@ fn format_lib(recipe: &Recipe) -> String {
                 match name {
                     #(#parses),*,
                     _ => Ok(None)
-                }
-            }
-
-            fn source_type(&self, name: &str) -> Option<SourceType> {
-                match name {
-                    #(#source_types),*,
-                    _ => None
                 }
             }
         }

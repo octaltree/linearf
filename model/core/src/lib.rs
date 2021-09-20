@@ -8,6 +8,7 @@ pub use crate::{
 };
 
 use crate::source::SourceType;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::{runtime::Handle, sync::RwLock};
@@ -61,7 +62,7 @@ impl State {
         let source_params = source
             .parse(&s_linearf.source, s_source)?
             .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
-        let sess = Session::start(s_linearf, source_params, source);
+        let sess = Session::start(rt, s_linearf, source_params, source);
         todo!()
     }
     //    let id = self.next_session_id();
@@ -82,6 +83,7 @@ pub trait New {
         Self: Sized;
 }
 
+#[async_trait]
 pub trait SourceRegistry<'de, D>
 where
     D: serde::de::Deserializer<'de>
@@ -98,7 +100,19 @@ where
         Ok(None)
     }
 
-    fn source_type(&self, name: &str) -> Option<SourceType> { None }
+    async fn reusable(
+        &self,
+        name: &str,
+        prev: (&Arc<Vars>, &Arc<dyn std::any::Any + Send + Sync>),
+        senario: (&Arc<Vars>, &Arc<dyn std::any::Any + Send + Sync>)
+    ) -> bool
+    where
+        Self: Sized
+    {
+        false
+    }
+
+    // fn generate(&self,
 }
 
 pub struct Senario<S, M> {

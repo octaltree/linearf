@@ -1,4 +1,4 @@
-use crate::{Shared, SourceRegistry};
+use crate::{source::SourceType, AsyncRt, Shared, SourceRegistry};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
@@ -20,18 +20,29 @@ pub struct Session {
 
 impl Session {
     pub fn start<'a, D>(
+        rt: AsyncRt,
         vars: Arc<Vars>,
         source_params: Arc<dyn Any + Send + Sync>,
         source_registry: Arc<dyn SourceRegistry<'a, D>>
-    ) -> Shared<Self> {
+    ) -> Shared<Self>
+    where
+        D: serde::de::Deserializer<'a>
+    {
         let this = Self {
             vars,
             source_params
         };
-        this.main(source_registry);
+        this.main(rt, source_registry);
         let shared = Arc::new(RwLock::new(this));
         shared
     }
 
-    fn main<'a, D>(&self, source_registry: Arc<dyn SourceRegistry<'a, D>>) {}
+    fn main<'a, D>(&self, rt: AsyncRt, source_registry: Arc<dyn SourceRegistry<'a, D>>)
+    where
+        D: serde::de::Deserializer<'a>
+    {
+        // let (tx1, rx1) = mpsc::unbounded_channel();
+        rt.spawn(async move {});
+        ()
+    }
 }
