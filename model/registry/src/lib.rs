@@ -1,4 +1,3 @@
-use linearf::Shared;
 pub struct Source {
     _state: linearf::Shared<linearf::State>
 }

@@ -43,13 +43,24 @@ impl State {
     pub fn start_session<'a, D, S>(
         &mut self,
         rt: AsyncRt,
-        source: S,
-        senario: (Arc<Vars>, D, D)
+        source: Arc<S>,
+        senario: Senario<D, D>
     ) -> Result<(SessionId, &Shared<Session>), Error>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D>
+        S: SourceRegistry<'a, D> + 'static,
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
+        let Senario {
+            linearf: s_linearf,
+            source: s_source,
+            matcher: s_matcher
+        } = senario;
+        let s_linearf = Arc::new(s_linearf);
+        let source_params = source
+            .parse(&s_linearf.source, s_source)?
+            .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
+        let sess = Session::start(s_linearf, source_params, source);
         todo!()
     }
     //    let id = self.next_session_id();
@@ -83,4 +94,10 @@ where
         name: &str,
         deserializer: D
     ) -> Result<Option<Arc<dyn std::any::Any + Send + Sync>>, D::Error>;
+}
+
+pub struct Senario<S, M> {
+    pub linearf: Vars,
+    pub source: S,
+    pub matcher: M
 }
