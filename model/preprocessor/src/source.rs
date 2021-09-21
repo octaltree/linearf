@@ -1,14 +1,15 @@
 use crate::Recipe;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
+
+struct A {
+    name: String,
+    field: Ident,
+    path: TokenStream,
+    params: TokenStream,
+    sender: Ident
+}
 
 pub fn format(recipe: &Recipe) -> TokenStream {
-    struct A<I, T> {
-        name: String,
-        field: I,
-        path: T,
-        params: T,
-        sender: I
-    }
     let s = recipe.sources.iter().map(|s| {
         let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
@@ -23,101 +24,17 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             sender
         }
     });
-    let fields = s.clone().map(
-        |A {
-             name,
-             params,
-             sender,
-             ..
-         }| {
-            quote::quote! {
-                #name: linearf::source::Source<#params>,
-                #sender: Option<Sender<(Transmitter, (&Arc<Vars>, &Arc<#params>))>>
-            }
-        }
-    );
-    let new_fields = s.clone().map(
-        |A {
-             name, path, sender, ..
-         }| {
-            quote::quote! {
-                #name: <#path as New>::new(&state).into_source(),
-                #sender: None
-            }
-        }
-    );
-    let parses = s.clone().map(|A { name, params, .. }| {
-        quote::quote! {
-            #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?)))
-        }
-    });
-    let reusable = s.clone().map(
-        |A {
-             name,
-             field,
-             params,
-             ..
-         }| {
-            let p = quote::quote! {
-                let (prev_vars, prev_source) = prev;
-                let (senario_vars, senario_source) = senario;
-                if prev_source.is::<#params>()
-                    && senario_source.is::<#params>()
-                {
-                    let prev_source: &Arc<#params> =
-                        unsafe { std::mem::transmute(prev_source) };
-                    let senario_source: &Arc<#params> =
-                        unsafe { std::mem::transmute(senario_source) };
-                    g.read().await.reusable(
-                        (prev_vars, prev_source), (senario_vars, senario_source)).await
-                } else {
-                    false
-                }
-            };
-            quote::quote! {
-                #name => match &self.#field {
-                    linearf::source::Source::Simple(g) => { #p }
-                    linearf::source::Source::Flow(g) => { #p }
-                }
-            }
-        }
-    );
-    let on_session_start = s.clone().map(
-        |A {
-             name,
-             field,
-             path,
-             sender,
-             params,
-             ..
-         }| {
-            // let pre = quote::quote! {
-            //    let (senario_vars, senario_source) = senario;
-            //    if !senario_source.is::<#params>() {
-            //        return; // drop and close the channel
-            //    }
-            //    let senario_source: &Arc<#params> =
-            //        unsafe { std::mem::transmute(senario_source) };
-            //};
-            // quote::quote! {
-            //    #name => match &self.#field {
-            //        linearf::source::Source::Simple(g) => {
-            //            #pre
-            //            g.generate(tx, (senario_vars, senario_source))
-            //        }
-            //        linearf::source::Source::Flow(g) => {
-            //            #pre
-            //        }
-            //    }
-            //}
-        }
-    );
+    macro_rules! let_sources {
+        ($($i:ident),*) => {
+            $(let $i = s.clone().map($i);)*
+        };
+    }
+    let_sources! {fields, new_fields, parses, reusable, on_session_start}
     quote::quote! {
-        use linearf::Shared;
-        use linearf::New;
-        use linearf::Vars;
-        use linearf::session::Sender;
-        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType, Transmitter};
+        use linearf::{Shared, New, Vars, RwLock, AsyncRt};
+        use linearf::session::{Sender, new_channel};
+        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams,
+            SourceType, Transmitter};
         use std::sync::Arc;
         use std::any::Any;
         use serde::Deserialize;
@@ -168,6 +85,22 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
             async fn on_session_start(
                 &self,
+                rt: &AsyncRt,
+                name: &str,
+                tx: linearf::source::Transmitter,
+                senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>)
+            ) where
+                Self: Sized
+            {
+                match name {
+                    #(#on_session_start),*,
+                    _ => {}
+                }
+            }
+
+            async fn on_flow_start(
+                &self,
+                rt: &AsyncRt,
                 name: &str,
                 tx: linearf::source::Transmitter,
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
@@ -178,17 +111,123 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                     _ => {}
                 }
             }
+        }
+    }
+}
 
-            async fn on_flow_start(
-                &self,
-                name: &str,
-                tx: linearf::source::Transmitter,
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-            ) where
-                Self: Sized
-            {
-                match name {
-                    _ => {}
+fn fields(a: A) -> TokenStream {
+    let A {
+        field,
+        params,
+        sender,
+        ..
+    } = a;
+    quote::quote! {
+        #field: linearf::source::Source<#params>,
+        #sender: RwLock<Option<Sender<(Transmitter, (Arc<Vars>, Arc<#params>))>>>
+    }
+}
+
+fn new_fields(a: A) -> TokenStream {
+    let A {
+        field,
+        path,
+        sender,
+        ..
+    } = a;
+    quote::quote! {
+        #field: <#path as New>::new(&state).into_source(),
+        #sender: RwLock::new(None)
+    }
+}
+
+fn parses(A { name, params, .. }: A) -> TokenStream {
+    quote::quote! {
+        #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?)))
+    }
+}
+
+fn reusable(a: A) -> TokenStream {
+    let A {
+        name,
+        field,
+        params,
+        ..
+    } = a;
+    let p = quote::quote! {
+        let (prev_vars, prev_source) = prev;
+        let (senario_vars, senario_source) = senario;
+        if prev_source.is::<#params>()
+            && senario_source.is::<#params>()
+        {
+            let prev_source: &Arc<#params> =
+                unsafe { std::mem::transmute(prev_source) };
+            let senario_source: &Arc<#params> =
+                unsafe { std::mem::transmute(senario_source) };
+            g.read().await.reusable(
+                (prev_vars, prev_source), (senario_vars, senario_source)).await
+        } else {
+            false
+        }
+    };
+    quote::quote! {
+        #name => match &self.#field {
+            linearf::source::Source::Simple(g) => { #p }
+            linearf::source::Source::Flow(g) => { #p }
+        }
+    }
+}
+
+fn on_session_start(a: A) -> TokenStream {
+    let A {
+        name,
+        field,
+        sender,
+        params,
+        ..
+    } = a;
+    let pre = quote::quote! {
+        let (senario_vars, senario_source) = senario;
+        if !senario_source.is::<#params>() {
+            return; // drop and close the channel
+        }
+        let (senario_source, _): (Arc<#params>, usize) =
+            unsafe { std::mem::transmute(senario_source) };
+    };
+    quote::quote! {
+        #name => match self.#field.clone() {
+            linearf::source::Source::Simple(g) => {
+                #pre
+                rt.spawn(async move {
+                    let g = g.read().await;
+                    g.generate(tx, (&senario_vars, &senario_source)).await;
+                });
+            }
+            linearf::source::Source::Flow(g) => {
+                #pre
+                let is_initialized = {
+                    let s = self.rustdoc_sender.read().await;
+                    s.is_some()
+                };
+                if !is_initialized {
+                    let mut place = self.#sender.write().await;
+                    if place.is_none() {
+                        let (tx, rx) = new_channel();
+                        *place = Some(tx);
+                        let rt2 = rt.clone();
+                        rt.spawn_blocking(move || {
+                            rt2.block_on(async {
+                                let mut g = g.write().await;
+                                g.run(rx).await;
+                            });
+                        });
+                    }
+                }
+                if let Some(sender) = &*self.#sender.read().await {
+                    let s = (senario_vars, senario_source);
+                    if let Err(e) = sender.send((tx, s)) {
+                        log::error!("{:?}", e);
+                    }
                 }
             }
         }

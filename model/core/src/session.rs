@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 
-pub(crate) type Sender<T> = mpsc::UnboundedSender<T>;
-pub(crate) type Receiver<T> = mpsc::UnboundedReceiver<T>;
+pub type Sender<T> = mpsc::UnboundedSender<T>;
+pub type Receiver<T> = mpsc::UnboundedReceiver<T>;
+
+pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {

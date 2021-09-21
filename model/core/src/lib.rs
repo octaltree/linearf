@@ -6,11 +6,12 @@ pub use crate::{
     item::{Item, MaybeUtf8},
     session::{Session, Vars}
 };
+pub use tokio::sync::RwLock;
 
 use crate::source::SourceRegistry;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
-use tokio::{runtime::Handle, sync::RwLock};
+use tokio::runtime::Handle;
 
 pub type AsyncRt = Handle;
 pub type Shared<T> = Arc<RwLock<T>>;

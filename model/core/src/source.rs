@@ -1,6 +1,6 @@
 use crate::{
     session::{Receiver, Sender, Vars},
-    Item, New, Shared, State
+    AsyncRt, Item, New, Shared, State
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
@@ -17,6 +17,7 @@ pub(crate) enum Output {
     Chunk(Vec<Item>)
 }
 
+#[derive(Debug)]
 pub struct Transmitter {
     tx: Sender<Output>
 }
@@ -66,11 +67,12 @@ pub trait FlowGenerator<P>: New + HasSourceParams<Params = P> {
         Source::Flow(Arc::new(RwLock::new(self)))
     }
 
-    async fn run(&mut self, args: Receiver<(Transmitter, (&Arc<Vars>, &Arc<P>))>);
+    async fn run(&mut self, args: Receiver<(Transmitter, (Arc<Vars>, Arc<P>))>);
 
     async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
 }
 
+#[derive(Clone)]
 pub enum Source<P> {
     Simple(Shared<dyn SimpleGenerator<P> + Send + Sync>),
     Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
@@ -121,9 +123,10 @@ where
 
     async fn on_session_start(
         &self,
+        rt: &AsyncRt,
         name: &str,
         tx: Transmitter,
-        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>)
     ) where
         Self: Sized
     {
@@ -131,6 +134,7 @@ where
 
     async fn on_flow_start(
         &self,
+        rt: &AsyncRt,
         name: &str,
         tx: Transmitter,
         senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)

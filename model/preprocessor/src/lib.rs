@@ -33,6 +33,8 @@ pub struct MatchDescriptor {
     pub path: String
 }
 
+pub fn format_lib(recipe: &Recipe) -> String { crate::source::format(recipe).to_string() }
+
 pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
     #[derive(Serialize)]
     struct Manifest {
@@ -63,6 +65,11 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
             m.insert("features".into(), toml::Value::Array(vec!["derive".into()]));
             toml::Value::from(m)
         });
+        d.insert("log".into(), {
+            let mut m = toml::value::Map::new();
+            m.insert("version".into(), "*".into());
+            toml::Value::from(m)
+        });
         for c in &recipe.crates {
             let m: toml::value::Map<String, toml::Value> =
                 toml::from_str(&format!("{} = {}", &c.name, &c.dep))?;
@@ -81,5 +88,3 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
     };
     Ok(toml::to_string(&manifest)?)
 }
-
-pub fn format_lib(recipe: &Recipe) -> String { crate::source::format(recipe).to_string() }
