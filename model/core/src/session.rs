@@ -14,8 +14,8 @@ pub struct Vars {
 }
 
 pub struct Session {
-    pub(crate) vars: Arc<Vars>,
-    pub(crate) source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
+    vars: Arc<Vars>,
+    source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
     flows: Shared<VecDeque<Shared<Flow>>>
 }
 

@@ -11,23 +11,29 @@ pub trait SourceParams: DeserializeOwned + Serialize {}
 
 impl SourceParams for () {}
 
+#[derive(Debug)]
+pub(crate) enum Output {
+    Item(Item),
+    Chunk(Vec<Item>)
+}
+
 pub struct Transmitter {
-    tx: Sender<Vec<Item>>
+    tx: Sender<Output>
 }
 
 impl Transmitter {
-    pub fn new(tx: Sender<Vec<Item>>) -> Self { Self { tx } }
+    pub(crate) fn new(tx: Sender<Output>) -> Self { Self { tx } }
 
     #[inline]
     pub fn item(&self, i: Item) {
-        if let Err(e) = self.tx.send(vec![i]) {
+        if let Err(e) = self.tx.send(Output::Item(i)) {
             log::error!("{:?}", e);
         }
     }
 
     #[inline]
     pub fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
-        if let Err(e) = self.tx.send(xs.into()) {
+        if let Err(e) = self.tx.send(Output::Chunk(xs.into())) {
             log::error!("{:?}", e);
         }
     }

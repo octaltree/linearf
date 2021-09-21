@@ -84,59 +84,123 @@ fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
 }
 
 fn format_lib(recipe: &Recipe) -> String {
-    let sources = recipe.sources.iter().map(|s| {
-        let name = quote::format_ident!("{}", &s.name);
+    struct A<I, T> {
+        name: String,
+        field: I,
+        path: T,
+        params: T,
+        sender: I
+    }
+    let s = recipe.sources.iter().map(|s| {
+        let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
-        let path = quote::quote! {
-            #(#p)::*
-        };
-        (s.name.clone(), name, path)
-    });
-    let fields = sources.clone().map(|(_, name, path)| {
-        quote::quote! {
-            #name: linearf::source::Source<<#path as HasSourceParams>::Params>
+        let path = quote::quote! { #(#p)::* };
+        let params = quote::quote! { <#path as HasSourceParams>::Params };
+        let sender = quote::format_ident!("{}_sender", &s.name);
+        A {
+            name: s.name.clone(),
+            field,
+            path,
+            params,
+            sender
         }
     });
-    let new_fields = sources.clone().map(|(_, name, path)| {
-        quote::quote! {
-            #name: <#path as New>::new(&state).into_source()
-        }
-    });
-    let parses = sources.clone().map(|(name, _, path)| {
-        quote::quote! {
-            #name => Ok(Some(Arc::new(
-                        <#path as HasSourceParams>::Params::deserialize(deserializer)?)))
-        }
-    });
-    let reusable = sources.clone().map(|(name, field, path)| {
-        let p = quote::quote! {
-            let (prev_linearf, prev_source) = prev;
-            let (senario_linearf, senario_source) = senario;
-            if prev_source.is::<<#path as HasSourceParams>::Params>()
-                && senario_source.is::<<#path as HasSourceParams>::Params>()
-            {
-                let prev_source: &Arc<<#path as HasSourceParams>::Params> =
-                    unsafe { std::mem::transmute(prev_source) };
-                let senario_source: &Arc<<#path as HasSourceParams>::Params> =
-                    unsafe { std::mem::transmute(senario_source) };
-                g.read().await.reusable(
-                    (prev_linearf, prev_source), (senario_linearf, senario_source)).await
-            } else {
-                false
-            }
-        };
-        quote::quote! {
-            #name => match &self.#field {
-                linearf::source::Source::Simple(g) => { #p }
-                linearf::source::Source::Flow(g) => { #p }
+    let fields = s.clone().map(
+        |A {
+             name,
+             params,
+             sender,
+             ..
+         }| {
+            quote::quote! {
+                #name: linearf::source::Source<#params>,
+                #sender: Option<Sender<(Transmitter, (&Arc<Vars>, &Arc<#params>))>>
             }
         }
+    );
+    let new_fields = s.clone().map(
+        |A {
+             name, path, sender, ..
+         }| {
+            quote::quote! {
+                #name: <#path as New>::new(&state).into_source(),
+                #sender: None
+            }
+        }
+    );
+    let parses = s.clone().map(|A { name, params, .. }| {
+        quote::quote! {
+            #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?)))
+        }
     });
+    let reusable = s.clone().map(
+        |A {
+             name,
+             field,
+             path,
+             params,
+             ..
+         }| {
+            let p = quote::quote! {
+                let (prev_vars, prev_source) = prev;
+                let (senario_vars, senario_source) = senario;
+                if prev_source.is::<#params>()
+                    && senario_source.is::<#params>()
+                {
+                    let prev_source: &Arc<#params> =
+                        unsafe { std::mem::transmute(prev_source) };
+                    let senario_source: &Arc<#params> =
+                        unsafe { std::mem::transmute(senario_source) };
+                    g.read().await.reusable(
+                        (prev_vars, prev_source), (senario_vars, senario_source)).await
+                } else {
+                    false
+                }
+            };
+            quote::quote! {
+                #name => match &self.#field {
+                    linearf::source::Source::Simple(g) => { #p }
+                    linearf::source::Source::Flow(g) => { #p }
+                }
+            }
+        }
+    );
+    let on_session_start = s.clone().map(
+        |A {
+             name,
+             field,
+             path,
+             sender,
+             params,
+             ..
+         }| {
+            // let pre = quote::quote! {
+            //    let (senario_vars, senario_source) = senario;
+            //    if !senario_source.is::<#params>() {
+            //        return; // drop and close the channel
+            //    }
+            //    let senario_source: &Arc<#params> =
+            //        unsafe { std::mem::transmute(senario_source) };
+            //};
+            // quote::quote! {
+            //    #name => match &self.#field {
+            //        linearf::source::Source::Simple(g) => {
+            //            #pre
+            //            g.generate(tx, (senario_vars, senario_source))
+            //        }
+            //        linearf::source::Source::Flow(g) => {
+            //            #pre
+            //        }
+            //    }
+            //}
+        }
+    );
     let t = quote::quote! {
         use linearf::Shared;
         use linearf::New;
         use linearf::Vars;
-        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType};
+        use linearf::session::Sender;
+        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams, SourceType, Transmitter};
         use std::sync::Arc;
         use std::any::Any;
         use serde::Deserialize;
