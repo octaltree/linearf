@@ -78,20 +78,6 @@ pub enum Source<P> {
     Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
 }
 
-pub enum SourceType {
-    Simple,
-    Flow
-}
-
-impl<P> From<&Source<P>> for SourceType {
-    fn from(s: &Source<P>) -> Self {
-        match s {
-            Source::Simple(_) => SourceType::Simple,
-            Source::Flow(_) => SourceType::Flow
-        }
-    }
-}
-
 #[async_trait]
 pub trait SourceRegistry<'de, D>
 where
