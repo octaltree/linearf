@@ -1,4 +1,4 @@
-use crate::{AsyncRt, Shared, SourceRegistry};
+use crate::{AsyncRt, FlowId, Item, Shared, SourceRegistry};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
@@ -18,7 +18,7 @@ pub struct Vars {
 pub struct Session {
     vars: Arc<Vars>,
     source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
-    flows: Shared<VecDeque<Shared<Flow>>>
+    flows: Shared<VecDeque<(FlowId, Shared<Flow>)>>
 }
 
 pub struct Flow {}
@@ -49,30 +49,40 @@ impl Session {
         S: SourceRegistry<'a, D> + 'static + Send + Sync
     {
         let (tx1, mut rx1) = mpsc::unbounded_channel();
+        let (tx2, mut rx2) = mpsc::unbounded_channel::<Item>();
+
+        // TODO: match
         rt.spawn(async move {
+            let send = |x| {
+                if let Err(e) = tx2.send(x) {
+                    log::error!("{:?}", e);
+                }
+            };
             loop {
                 match rx1.recv().await {
                     Some(crate::source::Output::Item(x)) => {
-                        log::info!("{:?}", x);
+                        send(x);
                     }
                     Some(crate::source::Output::Chunk(xs)) => {
                         for x in xs {
-                            log::info!("{:?}", x);
+                            send(x);
                         }
                     }
                     None => break
                 }
             }
         });
-        source_registry
-            .on_session_start(
+
+        rt.spawn(async move {});
+
+        tokio::join!({
+            source_registry.on_session_start(
                 &rt,
                 &self.vars.source,
                 crate::source::Transmitter::new(tx1),
                 (self.vars.clone(), self.source_params.clone())
             )
-            .await;
-        ()
+        });
     }
 
     #[inline]
@@ -80,4 +90,19 @@ impl Session {
 
     #[inline]
     pub(crate) fn source_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.source_params }
+}
+
+impl Flow {
+    pub async fn start<'a, D, S>(
+        rt: AsyncRt,
+        vars: Arc<Vars>,
+        source_params: Arc<dyn Any + Send + Sync>,
+        source_registry: &Arc<S>
+    ) -> Arc<Self>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync
+    {
+        todo!()
+    }
 }
