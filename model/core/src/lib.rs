@@ -67,7 +67,7 @@ impl State {
             .await
         {
             Some((_, s)) => s,
-            None => Session::start(rt, s_linearf, source_params, &source)
+            None => Session::start(rt, s_linearf, source_params, &source).await
         };
         let id = self.next_id();
         self.sessions.push_back((id, sess));

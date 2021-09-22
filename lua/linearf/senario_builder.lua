@@ -1,5 +1,13 @@
 local SenarioBuilder = {}
 
+local BASE = {
+  linearf = {
+    query = ''
+  },
+  source_params = {},
+  matcher_params = {}
+}
+
 local function merge(a, b)
     local a_is_dict = type(a) == 'table' and #a == 0
     local b_is_dict = type(b) == 'table' and #b == 0
@@ -32,7 +40,7 @@ function SenarioBuilder.build(self)
     local ctx
     ctx = self.context_manager()
     if type(ctx) ~= 'table' then ctx = {} end
-    return self.merge(self.merge(self.base, ctx), self.diff)
+    return self.merge(self.merge(self.merge(BASE, self.base), ctx), self.diff)
 end
 
 return SenarioBuilder

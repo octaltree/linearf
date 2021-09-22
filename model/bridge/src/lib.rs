@@ -56,12 +56,8 @@ fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<LuaDeserializer,
     let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
         senario.raw_get::<_, LuaTable>("linearf")?
     )))?;
-    let source = LuaDeserializer::new(mlua::Value::Table(
-        senario.raw_get::<_, LuaTable>("source")?
-    ));
-    let matcher = LuaDeserializer::new(mlua::Value::Table(
-        senario.raw_get::<_, LuaTable>("matcher")?
-    ));
+    let source = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("source")?);
+    let matcher = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("matcher")?);
     Ok(Senario {
         linearf: vars,
         source,

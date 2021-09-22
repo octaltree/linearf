@@ -24,7 +24,7 @@ pub struct Session {
 pub struct Flow {}
 
 impl Session {
-    pub fn start<'a, D, S>(
+    pub async fn start<'a, D, S>(
         rt: AsyncRt,
         vars: Arc<Vars>,
         source_params: Arc<dyn Any + Send + Sync>,
@@ -39,27 +39,16 @@ impl Session {
             source_params,
             flows: Default::default()
         };
-        this.main(rt, source_registry);
+        this.main(rt, source_registry).await;
         Arc::new(this)
     }
 
-    fn main<'a, D, S>(&self, rt: AsyncRt, source_registry: &Arc<S>)
+    async fn main<'a, D, S>(&self, rt: AsyncRt, source_registry: &Arc<S>)
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync
     {
         let (tx1, mut rx1) = mpsc::unbounded_channel();
-        let source_name = &self.vars.source;
-        rt.block_on(async {
-            source_registry
-                .on_session_start(
-                    &rt,
-                    source_name,
-                    crate::source::Transmitter::new(tx1),
-                    (self.vars.clone(), self.source_params.clone())
-                )
-                .await;
-        });
         rt.spawn(async move {
             loop {
                 match rx1.recv().await {
@@ -75,6 +64,14 @@ impl Session {
                 }
             }
         });
+        source_registry
+            .on_session_start(
+                &rt,
+                &self.vars.source,
+                crate::source::Transmitter::new(tx1),
+                (self.vars.clone(), self.source_params.clone())
+            )
+            .await;
         ()
     }
 
