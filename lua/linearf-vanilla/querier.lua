@@ -5,7 +5,9 @@ local utils = require('linearf.utils')
 local NAME = 'linearf-vanilla-querier'
 
 function Querier.new()
-    return setmetatable({}, {__index = Querier})
+    return setmetatable({}, {
+        __index = Querier
+    })
 end
 
 function Querier.start(self, session)

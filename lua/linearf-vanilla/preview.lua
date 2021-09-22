@@ -1,7 +1,9 @@
 local Preview = {}
 
 function Preview.new()
-    return setmetatable({}, {__index = Preview})
+    return setmetatable({}, {
+        __index = Preview
+    })
 end
 
 function Preview.start(self, session)

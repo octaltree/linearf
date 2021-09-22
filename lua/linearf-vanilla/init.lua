@@ -10,7 +10,9 @@ function Vanilla.new()
     this.refresh_interval = 15
     this.querier_on_start = 'inactive' -- 'inactive'/'active'/'insert'
     this.deactivate_querier_on_normal = true
-    return setmetatable(this, {__index = Vanilla})
+    return setmetatable(this, {
+        __index = Vanilla
+    })
 end
 
 function Vanilla.start(self, session)

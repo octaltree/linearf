@@ -1,11 +1,21 @@
 local Result = {}
 
 function Result.Ok(x)
-    return setmetatable({ok = true, value = x}, {__index = Result})
+    return setmetatable({
+        ok = true,
+        value = x
+    }, {
+        __index = Result
+    })
 end
 
 function Result.Err(e)
-    return setmetatable({ok = false, value = e}, {__index = Result})
+    return setmetatable({
+        ok = false,
+        value = e
+    }, {
+        __index = Result
+    })
 end
 
 function Result.pcall(f, ...)
@@ -19,7 +29,10 @@ end
 
 function Result.map_err(self, f)
     if self.ok then return self end
-    return {ok = false, value = f(self.value)}
+    return {
+        ok = false,
+        value = f(self.value)
+    }
 end
 
 function Result.and_then(self, f)
