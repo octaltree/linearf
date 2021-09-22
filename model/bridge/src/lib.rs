@@ -2,7 +2,7 @@ use linearf::{source::SourceRegistry, Senario, Shared, State};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
 use std::{cell::RefMut, sync::Arc};
-use tokio::{runtime::Runtime, sync::RwLock};
+use tokio::runtime::Runtime;
 
 const RT: &str = "_lienarf_rt";
 const ST: &str = "_linearf_st";
@@ -15,7 +15,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let rt = Runtime::new()?;
     let st = State::new_shared();
     let source = Arc::new(<registry::Source as SourceRegistry<
-        mlua::serde::Deserializer<'_>
+        mlua::serde::Deserializer<'_>,
     >>::new(st.clone()));
     {
         lua.globals()
@@ -54,14 +54,14 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<LuaDeserializer, LuaDeserializer>> {
     let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
-        senario.raw_get::<_, LuaTable>("linearf")?
+        senario.raw_get::<_, LuaTable>("linearf")?,
     )))?;
     let source = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("source")?);
     let matcher = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("matcher")?);
     Ok(Senario {
         linearf: vars,
         source,
-        matcher
+        matcher,
     })
 }
 
@@ -79,11 +79,15 @@ impl<T> LuaUserData for Wrapper<T> {}
 
 impl<T> std::ops::Deref for Wrapper<T> {
     type Target = T;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl<T> Wrapper<T> {
-    fn new(inner: T) -> Self { Self(inner) }
+    fn new(inner: T) -> Self {
+        Self(inner)
+    }
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -93,7 +97,7 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use log::LevelFilter;
     use log4rs::{
         append::file::FileAppender,
-        config::{Appender, Config, Root}
+        config::{Appender, Config, Root},
     };
     let p = std::env::temp_dir().join("vim_linearf.log");
     let logfile = FileAppender::builder().build(p)?;
@@ -102,7 +106,7 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .build(
             Root::builder()
                 .appender("logfile")
-                .build(LevelFilter::Trace)
+                .build(LevelFilter::Trace),
         )?;
     log4rs::init_config(config)?;
     log::info!("initialize");

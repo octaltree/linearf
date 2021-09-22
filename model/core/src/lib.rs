@@ -5,7 +5,7 @@ pub mod source;
 
 pub use crate::{
     item::{Item, MaybeUtf8},
-    session::{Session, Vars}
+    session::{Session, Vars},
 };
 pub use tokio::sync::RwLock;
 
@@ -31,14 +31,14 @@ pub struct FlowId(pub i32);
 
 pub struct State {
     last_id: SessionId,
-    sessions: VecDeque<(SessionId, Arc<Session>)>
+    sessions: VecDeque<(SessionId, Arc<Session>)>,
 }
 
 impl State {
     pub fn new_shared() -> Shared<Self> {
         let this = Self {
             last_id: SessionId(0),
-            sessions: VecDeque::new()
+            sessions: VecDeque::new(),
         };
         Arc::new(RwLock::new(this))
     }
@@ -47,17 +47,17 @@ impl State {
         &mut self,
         rt: AsyncRt,
         source: Arc<S>,
-        senario: Senario<D, D>
+        senario: Senario<D, D>,
     ) -> Result<(SessionId, &Arc<Session>), Error>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
     {
         let Senario {
             linearf: s_linearf,
             source: s_source,
-            matcher: s_matcher
+            matcher: s_matcher,
         } = senario;
         let s_linearf = Arc::new(s_linearf);
         let source_params = source
@@ -68,7 +68,7 @@ impl State {
             .await
         {
             Some((_, s)) => s,
-            None => Session::start(rt, s_linearf, source_params, &source).await
+            None => Session::start(rt, s_linearf, source_params, &source).await,
         };
         let id = self.next_id();
         self.sessions.push_back((id, sess));
@@ -79,18 +79,18 @@ impl State {
         &mut self,
         source: &Arc<S>,
         name: &str,
-        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
     ) -> Option<(SessionId, Arc<Session>)>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
     {
         for (id, sess) in self.sessions.iter().rev() {
             if sess.vars().source != name {
                 continue;
             }
             if source
-                .reusable(name, (&sess.vars(), &sess.source_params()), senario)
+                .reusable(name, (sess.vars(), sess.source_params()), senario)
                 .await
             {
                 return Some((*id, sess.clone()));
@@ -114,5 +114,5 @@ pub trait New {
 pub struct Senario<S, M> {
     pub linearf: Vars,
     pub source: S,
-    pub matcher: M
+    pub matcher: M,
 }

@@ -6,19 +6,21 @@ use tokio::sync::{mpsc, RwLock};
 pub type Sender<T> = mpsc::UnboundedSender<T>;
 pub type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
-pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() }
+pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) {
+    mpsc::unbounded_channel()
+}
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {
     pub(crate) source: String,
     pub(crate) matcher: String,
-    pub(crate) query: String
+    pub(crate) query: String,
 }
 
 pub struct Session {
     vars: Arc<Vars>,
     source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
-    flows: Shared<VecDeque<(FlowId, Shared<Flow>)>>
+    flows: Shared<VecDeque<(FlowId, Shared<Flow>)>>,
 }
 
 pub struct Flow {}
@@ -28,16 +30,16 @@ impl Session {
         rt: AsyncRt,
         vars: Arc<Vars>,
         source_params: Arc<dyn Any + Send + Sync>,
-        source_registry: &Arc<S>
+        source_registry: &Arc<S>,
     ) -> Arc<Self>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
     {
         let this = Self {
             vars,
             source_params,
-            flows: Default::default()
+            flows: Default::default(),
         };
         this.main(rt, source_registry).await;
         Arc::new(this)
@@ -46,10 +48,10 @@ impl Session {
     async fn main<'a, D, S>(&self, rt: AsyncRt, source_registry: &Arc<S>)
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
     {
         let (tx1, mut rx1) = mpsc::unbounded_channel();
-        let (tx2, mut rx2) = mpsc::unbounded_channel::<Item>();
+        let (tx2, _rx2) = mpsc::unbounded_channel::<Item>();
 
         // TODO: match
         rt.spawn(async move {
@@ -68,7 +70,7 @@ impl Session {
                             send(x);
                         }
                     }
-                    None => break
+                    None => break,
                 }
             }
         });
@@ -80,29 +82,35 @@ impl Session {
                 &rt,
                 &self.vars.source,
                 crate::source::Transmitter::new(tx1),
-                (self.vars.clone(), self.source_params.clone())
+                (self.vars.clone(), self.source_params.clone()),
             )
         });
     }
 
     #[inline]
-    pub(crate) fn vars(&self) -> &Arc<Vars> { &self.vars }
+    pub(crate) fn vars(&self) -> &Arc<Vars> {
+        &self.vars
+    }
 
     #[inline]
-    pub(crate) fn source_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.source_params }
+    pub(crate) fn source_params(&self) -> &Arc<dyn Any + Send + Sync> {
+        &self.source_params
+    }
 }
 
 impl Flow {
     pub async fn start<'a, D, S>(
-        rt: AsyncRt,
-        vars: Arc<Vars>,
-        source_params: Arc<dyn Any + Send + Sync>,
-        source_registry: &Arc<S>
-    ) -> Arc<Self>
+        _rt: AsyncRt,
+        _vars: Arc<Vars>,
+        _source_params: Arc<dyn Any + Send + Sync>,
+        _source_registry: &Arc<S>,
+    ) -> Shared<Self>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
     {
-        todo!()
+        // TODO
+        let this = Flow {};
+        Arc::new(RwLock::new(this))
     }
 }
