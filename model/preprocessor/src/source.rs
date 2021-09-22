@@ -41,7 +41,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         use async_trait::async_trait;
 
         pub struct Source {
-            #(#fields),*,
+            #(#fields)*
             state: linearf::Shared<linearf::State>
         }
 
@@ -54,7 +54,10 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             where
                 Self: Sized
             {
-                Self { state, #(#new_fields),* }
+                Self {
+                    #(#new_fields)*
+                    state
+                }
             }
 
             fn parse(
@@ -63,7 +66,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 deserializer: D
             ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
                 match name {
-                    #(#parses),*,
+                    #(#parses)*
                     _ => Ok(None)
                 }
             }
@@ -78,7 +81,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 Self: Sized
             {
                 match name {
-                    #(#reusable),*,
+                    #(#reusable)*
                     _ => false
                 }
             }
@@ -93,7 +96,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 Self: Sized
             {
                 match name {
-                    #(#on_session_start),*,
+                    #(#on_session_start)*
                     _ => {}
                 }
             }
@@ -124,7 +127,7 @@ fn fields(a: A) -> TokenStream {
     } = a;
     quote::quote! {
         #field: linearf::source::Source<#params>,
-        #sender: RwLock<Option<Sender<(Transmitter, (Arc<Vars>, Arc<#params>))>>>
+        #sender: RwLock<Option<Sender<(Transmitter, (Arc<Vars>, Arc<#params>))>>>,
     }
 }
 
@@ -137,13 +140,13 @@ fn new_fields(a: A) -> TokenStream {
     } = a;
     quote::quote! {
         #field: <#path as New>::new(&state).into_source(),
-        #sender: RwLock::new(None)
+        #sender: RwLock::new(None),
     }
 }
 
 fn parses(A { name, params, .. }: A) -> TokenStream {
     quote::quote! {
-        #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?)))
+        #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?))),
     }
 }
 
@@ -174,7 +177,7 @@ fn reusable(a: A) -> TokenStream {
         #name => match &self.#field {
             linearf::source::Source::Simple(g) => { #p }
             linearf::source::Source::Flow(g) => { #p }
-        }
+        },
     }
 }
 
@@ -230,6 +233,6 @@ fn on_session_start(a: A) -> TokenStream {
                     }
                 }
             }
-        }
+        },
     }
 }
