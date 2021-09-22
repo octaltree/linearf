@@ -40,12 +40,12 @@ impl Transmitter {
     }
 }
 
-pub trait HasSourceParams {
+pub trait IsSource {
     type Params: SourceParams;
 }
 
 #[async_trait]
-pub trait SimpleGenerator<P>: New + HasSourceParams<Params = P> {
+pub trait SimpleGenerator<P>: New + IsSource<Params = P> {
     fn into_source(self: Self) -> Source<P>
     where
         Self: Sized + 'static + Send + Sync
@@ -59,7 +59,7 @@ pub trait SimpleGenerator<P>: New + HasSourceParams<Params = P> {
 }
 
 #[async_trait]
-pub trait FlowGenerator<P>: New + HasSourceParams<Params = P> {
+pub trait FlowGenerator<P>: New + IsSource<Params = P> {
     fn into_source(self: Self) -> Source<P>
     where
         Self: Sized + 'static + Send + Sync

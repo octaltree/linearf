@@ -1,4 +1,5 @@
 pub mod item;
+pub mod matcher;
 pub mod session;
 pub mod source;
 

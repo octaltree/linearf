@@ -14,7 +14,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
         let path = quote::quote! { #(#p)::* };
-        let params = quote::quote! { <#path as HasSourceParams>::Params };
+        let params = quote::quote! { <#path as IsSource>::Params };
         let sender = quote::format_ident!("{}_sender", &s.name);
         A {
             name: s.name.clone(),
@@ -33,7 +33,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     quote::quote! {
         use linearf::{Shared, New, Vars, RwLock, AsyncRt};
         use linearf::session::{Sender, new_channel};
-        use linearf::source::{SimpleGenerator, FlowGenerator, HasSourceParams,
+        use linearf::source::{SimpleGenerator, FlowGenerator, IsSource,
             SourceType, Transmitter};
         use std::sync::Arc;
         use std::any::Any;
