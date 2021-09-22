@@ -12,4 +12,4 @@ clean:
 
 .PHONY: d
 d:
-	@watchexec -i model/registrar -c 'make dev'
+	@watchexec -i model/registry -c 'make dev'

@@ -24,14 +24,15 @@ pub struct Session {
 pub struct Flow {}
 
 impl Session {
-    pub fn start<'a, D>(
+    pub fn start<'a, D, S>(
         rt: AsyncRt,
         vars: Arc<Vars>,
         source_params: Arc<dyn Any + Send + Sync>,
-        source_registry: Arc<dyn SourceRegistry<'a, D>>
+        source_registry: &Arc<S>
     ) -> Arc<Self>
     where
-        D: serde::de::Deserializer<'a>
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync
     {
         let this = Self {
             vars,
@@ -42,12 +43,38 @@ impl Session {
         Arc::new(this)
     }
 
-    fn main<'a, D>(&self, rt: AsyncRt, source_registry: Arc<dyn SourceRegistry<'a, D>>)
+    fn main<'a, D, S>(&self, rt: AsyncRt, source_registry: &Arc<S>)
     where
-        D: serde::de::Deserializer<'a>
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync
     {
-        // let (tx1, rx1) = mpsc::unbounded_channel();
-        rt.spawn(async move {});
+        let (tx1, mut rx1) = mpsc::unbounded_channel();
+        let source_name = &self.vars.source;
+        rt.block_on(async {
+            source_registry
+                .on_session_start(
+                    &rt,
+                    source_name,
+                    crate::source::Transmitter::new(tx1),
+                    (self.vars.clone(), self.source_params.clone())
+                )
+                .await;
+        });
+        rt.spawn(async move {
+            loop {
+                match rx1.recv().await {
+                    Some(crate::source::Output::Item(x)) => {
+                        log::info!("{:?}", x);
+                    }
+                    Some(crate::source::Output::Chunk(xs)) => {
+                        for x in xs {
+                            log::info!("{:?}", x);
+                        }
+                    }
+                    None => break
+                }
+            }
+        });
         ()
     }
 

@@ -54,7 +54,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             where
                 Self: Sized
             {
-                Self { #(#new_fields),*, state }
+                Self { state, #(#new_fields),* }
             }
 
             fn parse(

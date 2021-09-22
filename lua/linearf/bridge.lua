@@ -52,9 +52,9 @@ function M.build(recipe)
     utils.command('let $RUSTFLAGS = "-Awarnings"')
     local tmp = vim.fn.getcwd()
     local t = table.concat({
-        'cd %s; ', 'git checkout registrar &&',
+        'cd %s; ', 'git checkout registry &&',
         'cargo run --bin=preprocessor &&',
-        'cargo build --features=%s --release && ', 'git checkout registrar; ',
+        'cargo build --features=%s --release && ', 'git checkout registry; ',
         'cd %s'
     }, '')
     local b = vim.fn.shellescape(path.bridge())
