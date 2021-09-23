@@ -35,7 +35,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
 }
 
 fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
-    log::error!("[{}] {:?}", name.to_string_lossy(), e);
+    log::error!("[{}] {:?}", name.to_string_lossy(), &e);
     Ok(format!("{:?}", e))
 }
 

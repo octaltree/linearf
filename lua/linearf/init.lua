@@ -24,7 +24,6 @@ local function new_senario_builder(senario_name, diff)
     local base = M.senarios[senario_name]
     if not base then
         local s = string.format('senario "%s" is not found', senario_name)
-        utils.echo_error(s)
         error(s)
     end
     local c = M.context_managers[senario_name]
@@ -54,7 +53,6 @@ function M.run(senario_name, diff)
     local result = M.bridge.run(senario)
     local session
     if not result.ok then
-        utils.echo_error(result.value)
         error(result.value)
     else
         local id = result.value
