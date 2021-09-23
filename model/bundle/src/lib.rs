@@ -2,7 +2,7 @@ mod matcher;
 mod source;
 
 use serde::{Deserialize, Serialize};
-use std::error::Error as StdError;
+use std::{error::Error as StdError, path::PathBuf};
 
 pub type StdResult<T> = Result<T, Box<dyn StdError>>;
 
@@ -19,7 +19,7 @@ pub struct Recipe {
 #[derive(Debug, Deserialize)]
 pub struct Crate {
     pub name: String,
-    pub dep: String
+    pub dir: PathBuf
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,10 +86,13 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
             toml::Value::from(m)
         });
         for c in &recipe.crates {
-            let m: toml::value::Map<String, toml::Value> =
-                toml::from_str(&format!("{} = {}", &c.name, &c.dep))?;
-            let t = m.into_iter().next().unwrap();
-            d.insert(t.0, t.1);
+            let mut m = toml::map::Map::new();
+            m.insert(
+                "path".into(),
+                toml::Value::from(c.dir.display().to_string())
+            );
+            let dep = toml::Value::Table(m);
+            d.insert(c.name.clone(), dep);
         }
         d
     };

@@ -1,6 +1,6 @@
 local M = {
     bridge = require('linearf.bridge'),
-    recipe = nil,
+    recipe = {crates = {}},
     view = nil,
     senarios = {},
     context_managers = {},

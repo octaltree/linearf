@@ -1,7 +1,7 @@
 [workspace]
 members = [
-  "bridge",
-  "preprocessor",
   "core",
-  "registry"
+  "bundle",
+  "registry",
+  "bridge"
 ]

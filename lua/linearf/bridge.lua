@@ -53,12 +53,8 @@ function M.build(recipe)
     local tmp = vim.fn.getcwd()
     local t = table.concat({
         'cd %s; ',
-        'git checkout registry &&',
-        'echo $LINEARF_RECIPE &&',
-        'cargo run --bin=preprocessor &&',
-        'cargo build --features=%s --release && ',
-        'git checkout registry;',
-        'cd %s'
+        'cargo run --bin=bundle -- %s;',
+        'cd %s;'
     }, '')
     local b = vim.fn.shellescape(path.bridge())
     local sh = vim.fn.printf(t, b, features, tmp)
