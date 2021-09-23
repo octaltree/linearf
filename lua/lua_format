@@ -1,1 +1,2 @@
 keep_simple_function_one_line: false
+chop_down_table: true

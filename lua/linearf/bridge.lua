@@ -26,20 +26,20 @@ local function format_recipe(recipe)
     recipe = recipe or {}
     local crates = {}
     local sources = {}
-    local matches = {}
+    local matchers = {}
     for _, x in ipairs(recipe.crates or {}) do
         table.insert(crates, utils.dict(x))
     end
     for _, x in ipairs(recipe.sources or {}) do
         table.insert(sources, utils.dict(x))
     end
-    for _, x in ipairs(recipe.matches or {}) do
-        table.insert(matches, utils.dict(x))
+    for _, x in ipairs(recipe.matchers or {}) do
+        table.insert(matchers, utils.dict(x))
     end
     return vim.fn.json_encode(utils.dict({
         crates = utils.list(crates),
         sources = utils.list(sources),
-        matches = utils.list(matches)
+        matchers = utils.list(matchers)
     }))
 end
 
@@ -52,9 +52,12 @@ function M.build(recipe)
     utils.command('let $RUSTFLAGS = "-Awarnings"')
     local tmp = vim.fn.getcwd()
     local t = table.concat({
-        'cd %s; ', 'git checkout registry &&',
+        'cd %s; ',
+        'git checkout registry &&',
+        'echo $LINEARF_RECIPE &&',
         'cargo run --bin=preprocessor &&',
-        'cargo build --features=%s --release && ', 'git checkout registry; ',
+        'cargo build --features=%s --release && ',
+        'git checkout registry;',
         'cd %s'
     }, '')
     local b = vim.fn.shellescape(path.bridge())
