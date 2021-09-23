@@ -3,28 +3,16 @@ local M = {}
 local linearf = require('linearf')
 
 function M.run()
-    linearf.recipe = {
-        crates = {
-            {
-                name = "rustdoc",
-                dep = [[{ git = "https://github.com/octaltree/linearf-my-flavors", branch = "dev" }]]
-            },
-            {
-                name = "plain",
-                dep = [[{ git = "https://github.com/octaltree/linearf-my-flavors", branch = "dev" }]]
-            }
-        },
-        sources = {
-            {
-                name = "rustdoc",
-                path = "rustdoc::Rustdoc"
-            }
-        },
-        matchers = {
-            {
-                name = "substring",
-                path = "plain::Substring"
-            }
+    linearf.recipe.sources = {
+        {
+            name = "rustdoc",
+            path = "flavors_rustdoc::Rustdoc"
+        }
+    }
+    linearf.recipe.matchers = {
+        {
+            name = "substring",
+            path = "flavors_plain::Substring"
         }
     }
     linearf.build()

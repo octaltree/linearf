@@ -1,2 +1,3 @@
 set nocompatible
 set rtp+=..
+source ../../linearf-my-flavors/plugin/linearf_my_flavors.vim
