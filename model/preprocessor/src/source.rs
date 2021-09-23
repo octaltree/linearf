@@ -33,7 +33,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     quote::quote! {
         use linearf::{Shared, New, Vars, RwLock, AsyncRt};
         use linearf::session::{Sender, new_channel};
-        use linearf::source::{SimpleGenerator, FlowGenerator, IsSource, Transmitter};
+        use linearf::source::*;
         use std::sync::Arc;
         use std::any::Any;
         use serde::Deserialize;

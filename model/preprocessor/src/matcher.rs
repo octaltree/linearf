@@ -26,7 +26,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             $(let $i = m.clone().map($i);)*
         };
     }
-    let_matchers! {fields, new_fields, parses, reusable}
+    let_matchers! {fields, new_fields, parses, reusable, score}
     quote::quote! {
         use linearf::{Shared, New, Vars, RwLock, AsyncRt};
         use linearf::matcher::*;
@@ -81,22 +81,96 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                     _ => false
                 }
             }
+
+            async fn score(
+                &self,
+                name: &str,
+                rx: Receiver<&Arc<Item>>,
+                tx: Sender<(&Arc<Item>, Score)>,
+                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+            ) {
+                match name {
+                    #(#score)*
+                    _ => {}
+                }
+            }
         }
     }
 }
 
 fn fields(a: A) -> TokenStream {
-    quote::quote! {}
+    let A { field, params, .. } = a;
+    quote::quote! {
+        #field: linearf::matcher::Matcher<#params>,
+    }
 }
 
 fn new_fields(a: A) -> TokenStream {
-    quote::quote! {}
+    let A { field, path, .. } = a;
+    quote::quote! {
+        #field: <#path as New>::new(&state).into_matcher(),
+    }
 }
 
 fn parses(a: A) -> TokenStream {
-    quote::quote! {}
+    let A { name, params, .. } = a;
+    quote::quote! {
+        #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?))),
+    }
 }
 
 fn reusable(a: A) -> TokenStream {
-    quote::quote! {}
+    let A {
+        name,
+        field,
+        params,
+        ..
+    } = a;
+    let p = quote::quote! {
+        let (prev_vars, prev_matcher) = prev;
+        let (senario_vars, senario_matcher) = senario;
+        if prev_matcher.is::<#params>()
+            && senario_matcher.is::<#params>()
+        {
+            let prev_matcher: &Arc<#params> =
+                unsafe { std::mem::transmute(prev_matcher) };
+            let senario_matcher: &Arc<#params> =
+                unsafe { std::mem::transmute(senario_matcher) };
+            s.read().await.reusable(
+                (prev_vars, prev_matcher), (senario_vars, senario_matcher)).await
+        } else {
+            false
+        }
+    };
+    quote::quote! {
+        #name => match &self.#field {
+            linearf::matcher::Matcher::Simple(s) => { #p }
+        },
+    }
+}
+
+fn score(a: A) -> TokenStream {
+    let A {
+        name,
+        field,
+        params,
+        ..
+    } = a;
+    quote::quote! {
+        #name => match &self.#field {
+            linaerf::matcher::Matcher::Simple(s) => {
+                while let Some(i) = rx.recv().await {
+                    let (senario_vars, senario_matcher) = senario;
+                    if senario_matcher.is::<#params>()
+                    {
+                        let senario_matcher: &Arc<#params> =
+                            unsafe { std::mem::transmute(senario_matcher) };
+                        let score =
+                            s.read().await.score((senario_vars, senario_matcher), i).await;
+                        tx.send((i, s));
+                    }
+                }
+            }
+        },
+    }
 }

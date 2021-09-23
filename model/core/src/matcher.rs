@@ -1,4 +1,7 @@
-use crate::{session::Vars, Item, New, Shared, State};
+use crate::{
+    session::{Receiver, Sender, Vars},
+    Item, New, Shared, State
+};
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{any::Any, cmp::Ordering, sync::Arc};
@@ -31,6 +34,7 @@ pub enum Matcher<P> {
 
 /// Items will be displayed in v DESC, item_id ASC.
 /// No guarantee of order when it is equal.
+#[derive(Debug)]
 pub struct Score {
     pub item_id: u32,
     /// If empty, the item will not be displayed
@@ -97,12 +101,12 @@ where
         false
     }
 
-    // TODO: name and stream
-    // async fn score(
-    //    &self,
-    //    _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-    //    item: &Arc<Item>,
-    //) -> Score {
-    //    Score::new(item.id, [0])
-    //}
+    async fn score(
+        &self,
+        _name: &str,
+        _rx: Receiver<&Arc<Item>>,
+        _tx: Sender<(&Arc<Item>, Score)>,
+        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) {
+    }
 }
