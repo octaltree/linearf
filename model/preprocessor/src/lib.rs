@@ -1,3 +1,4 @@
+mod matcher;
 mod source;
 
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,21 @@ pub struct MatchDescriptor {
     pub path: String
 }
 
-pub fn format_lib(recipe: &Recipe) -> String { crate::source::format(recipe).to_string() }
+pub fn format_lib(recipe: &Recipe) -> String {
+    let source = crate::source::format(recipe);
+    let matcher = crate::matcher::format(recipe);
+    quote::quote! (
+        pub use source::Source;
+        pub use matcher::Matcher;
+        mod source {
+            #source
+        }
+        mod matcher {
+            #matcher
+        }
+    )
+    .to_string()
+}
 
 pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
     #[derive(Serialize)]

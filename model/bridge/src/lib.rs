@@ -1,4 +1,4 @@
-use linearf::{source::SourceRegistry, Senario, Shared, State};
+use linearf::{matcher::MatcherRegistry, source::SourceRegistry, Senario, Shared, State};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
 use std::{cell::RefMut, sync::Arc};
@@ -15,13 +15,17 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let rt = Runtime::new()?;
     let st = State::new_shared();
     let source = Arc::new(<registry::Source as SourceRegistry<
-        mlua::serde::Deserializer<'_>,
+        mlua::serde::Deserializer<'_>
+    >>::new(st.clone()));
+    let matcher = Arc::new(<registry::Matcher as MatcherRegistry<
+        mlua::serde::Deserializer<'_>
     >>::new(st.clone()));
     {
         lua.globals()
             .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
         lua.set_named_registry_value(ST, Wrapper::new(st))?;
         lua.set_named_registry_value(SOURCE, Wrapper::new(source))?;
+        lua.set_named_registry_value(MATCHER, Wrapper::new(matcher))?;
     }
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
@@ -41,11 +45,12 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
     let source: Wrapper<Arc<registry::Source>> = lua.named_registry_value(SOURCE)?;
+    let matcher: Wrapper<Arc<registry::Matcher>> = lua.named_registry_value(MATCHER)?;
     rt.block_on(async {
         let handle = rt.handle().clone();
         let state = &mut st.write().await;
         let (id, _) = state
-            .start_session(handle, (*source).clone(), senario)
+            .start_session(handle, (*source).clone(), (*matcher).clone(), senario)
             .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id.0)
@@ -54,14 +59,14 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<LuaDeserializer, LuaDeserializer>> {
     let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
-        senario.raw_get::<_, LuaTable>("linearf")?,
+        senario.raw_get::<_, LuaTable>("linearf")?
     )))?;
     let source = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("source")?);
     let matcher = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("matcher")?);
     Ok(Senario {
         linearf: vars,
         source,
-        matcher,
+        matcher
     })
 }
 
@@ -79,15 +84,11 @@ impl<T> LuaUserData for Wrapper<T> {}
 
 impl<T> std::ops::Deref for Wrapper<T> {
     type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl<T> Wrapper<T> {
-    fn new(inner: T) -> Self {
-        Self(inner)
-    }
+    fn new(inner: T) -> Self { Self(inner) }
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -97,7 +98,7 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use log::LevelFilter;
     use log4rs::{
         append::file::FileAppender,
-        config::{Appender, Config, Root},
+        config::{Appender, Config, Root}
     };
     let p = std::env::temp_dir().join("vim_linearf.log");
     let logfile = FileAppender::builder().build(p)?;
@@ -106,7 +107,7 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .build(
             Root::builder()
                 .appender("logfile")
-                .build(LevelFilter::Trace),
+                .build(LevelFilter::Trace)
         )?;
     log4rs::init_config(config)?;
     log::info!("initialize");

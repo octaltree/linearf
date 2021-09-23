@@ -1,6 +1,6 @@
 use crate::{
     session::{Receiver, Sender, Vars},
-    AsyncRt, Item, New, Shared, State,
+    AsyncRt, Item, New, Shared, State
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
@@ -14,18 +14,16 @@ impl SourceParams for () {}
 #[derive(Debug)]
 pub(crate) enum Output {
     Item(Item),
-    Chunk(Vec<Item>),
+    Chunk(Vec<Item>)
 }
 
 #[derive(Debug)]
 pub struct Transmitter {
-    tx: Sender<Output>,
+    tx: Sender<Output>
 }
 
 impl Transmitter {
-    pub(crate) fn new(tx: Sender<Output>) -> Self {
-        Self { tx }
-    }
+    pub(crate) fn new(tx: Sender<Output>) -> Self { Self { tx } }
 
     #[inline]
     pub fn item(&self, i: Item) {
@@ -50,7 +48,7 @@ pub trait IsSource {
 pub trait SimpleGenerator<P>: New + IsSource<Params = P> {
     fn into_source(self) -> Source<P>
     where
-        Self: Sized + 'static + Send + Sync,
+        Self: Sized + 'static + Send + Sync
     {
         Source::Simple(Arc::new(RwLock::new(self)))
     }
@@ -64,7 +62,7 @@ pub trait SimpleGenerator<P>: New + IsSource<Params = P> {
 pub trait FlowGenerator<P>: New + IsSource<Params = P> {
     fn into_source(self) -> Source<P>
     where
-        Self: Sized + 'static + Send + Sync,
+        Self: Sized + 'static + Send + Sync
     {
         Source::Flow(Arc::new(RwLock::new(self)))
     }
@@ -77,13 +75,13 @@ pub trait FlowGenerator<P>: New + IsSource<Params = P> {
 #[derive(Clone)]
 pub enum Source<P> {
     Simple(Shared<dyn SimpleGenerator<P> + Send + Sync>),
-    Flow(Shared<dyn FlowGenerator<P> + Send + Sync>),
+    Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
 }
 
 #[async_trait]
 pub trait SourceRegistry<'de, D>
 where
-    D: serde::de::Deserializer<'de>,
+    D: serde::de::Deserializer<'de>
 {
     fn new(state: Shared<State>) -> Self
     where
@@ -92,7 +90,7 @@ where
     fn parse(
         &self,
         _name: &str,
-        _deserializer: D,
+        _deserializer: D
     ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
         Ok(None)
     }
@@ -101,10 +99,10 @@ where
         &self,
         _name: &str,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> bool
     where
-        Self: Sized,
+        Self: Sized
     {
         false
     }
@@ -114,9 +112,9 @@ where
         _rt: &AsyncRt,
         _name: &str,
         _tx: Transmitter,
-        _senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
+        _senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>)
     ) where
-        Self: Sized,
+        Self: Sized
     {
     }
 
@@ -125,9 +123,9 @@ where
         _rt: &AsyncRt,
         _name: &str,
         _tx: Transmitter,
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) where
-        Self: Sized,
+        Self: Sized
     {
     }
 }
