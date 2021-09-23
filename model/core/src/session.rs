@@ -10,9 +10,9 @@ pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() 
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {
-    pub(crate) source: String,
-    pub(crate) matcher: String,
-    pub(crate) query: String
+    pub source: String,
+    pub matcher: String,
+    pub query: String
 }
 
 pub struct Session {

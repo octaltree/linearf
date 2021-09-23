@@ -13,7 +13,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
         let path = quote::quote! { #(#p)::* };
-        let params = quote::quote! { <#path as IsSource>::Params };
+        let params = quote::quote! { <#path as IsMatcher>::Params };
         A {
             name: s.name.clone(),
             field,
@@ -28,7 +28,8 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     }
     let_matchers! {fields, new_fields, parses, reusable, score}
     quote::quote! {
-        use linearf::{Shared, New, Vars, RwLock, AsyncRt};
+        use linearf::{Shared, New, Vars, RwLock, AsyncRt, Item};
+        use linearf::session::{Sender, Receiver};
         use linearf::matcher::*;
         use std::sync::Arc;
         use std::any::Any;
@@ -82,11 +83,11 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 }
             }
 
-            async fn score(
+            async fn score<'a>(
                 &self,
                 name: &str,
-                rx: Receiver<&Arc<Item>>,
-                tx: Sender<(&Arc<Item>, Score)>,
+                mut rx: Receiver<&'a Arc<Item>>,
+                tx: Sender<(&'a Arc<Item>, Score)>,
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
             ) {
                 match name {
@@ -158,7 +159,7 @@ fn score(a: A) -> TokenStream {
     } = a;
     quote::quote! {
         #name => match &self.#field {
-            linaerf::matcher::Matcher::Simple(s) => {
+            linearf::matcher::Matcher::Simple(s) => {
                 while let Some(i) = rx.recv().await {
                     let (senario_vars, senario_matcher) = senario;
                     if senario_matcher.is::<#params>()
@@ -167,7 +168,7 @@ fn score(a: A) -> TokenStream {
                             unsafe { std::mem::transmute(senario_matcher) };
                         let score =
                             s.read().await.score((senario_vars, senario_matcher), i).await;
-                        tx.send((i, s));
+                        tx.send((i, score));
                     }
                 }
             }

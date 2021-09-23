@@ -9,13 +9,15 @@ use tokio::sync::RwLock;
 
 pub trait MatcherParams: DeserializeOwned + Serialize {}
 
+impl MatcherParams for () {}
+
 pub trait IsMatcher {
     type Params: MatcherParams;
 }
 
 #[async_trait]
 pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
-    fn into_source(self) -> Matcher<P>
+    fn into_matcher(self) -> Matcher<P>
     where
         Self: Sized + 'static + Send + Sync
     {
@@ -101,11 +103,11 @@ where
         false
     }
 
-    async fn score(
+    async fn score<'a>(
         &self,
         _name: &str,
-        _rx: Receiver<&Arc<Item>>,
-        _tx: Sender<(&Arc<Item>, Score)>,
+        _rx: Receiver<&'a Arc<Item>>,
+        _tx: Sender<(&'a Arc<Item>, Score)>,
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) {
     }

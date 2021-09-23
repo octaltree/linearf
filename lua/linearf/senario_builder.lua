@@ -1,11 +1,11 @@
 local SenarioBuilder = {}
 
 local BASE = {
-  linearf = {
-    query = ''
-  },
-  source_params = {},
-  matcher_params = {}
+    linearf = {
+        query = ''
+    },
+    source_params = {},
+    matcher_params = {}
 }
 
 local function merge(a, b)

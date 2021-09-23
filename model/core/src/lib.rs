@@ -7,6 +7,7 @@ pub use crate::{
     item::{Item, MaybeUtf8},
     session::{Session, Vars}
 };
+pub use async_trait::async_trait;
 pub use tokio::sync::RwLock;
 
 use crate::{matcher::MatcherRegistry, source::SourceRegistry};
