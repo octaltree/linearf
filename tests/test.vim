@@ -2,21 +2,9 @@
 
 let s:suite = themis#suite('test')
 let s:assert = themis#helper('assert')
-
-function! s:suite.build() abort
-  lua linearf = require('linearf')
-  lua linearf.recipe = {}
-  lua linearf.build()
-endfunction
-
-function! s:suite.init() abort
-  lua linearf = require('linearf')
-  lua linearf.init(require('linearf-vanilla').new())
-endfunction
+let s:dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
+call luaeval("function(_A) package.path = table.concat({package.path, _A}, ';') end", s:dir .. "/test.lua")
 
 function! s:suite.run() abort
-  lua linearf = require('linearf')
-  lua linearf.init(require('linearf-vanilla').new())
-  lua linearf.senarios = {test = {linearf = {}}}
-  lua linearf.run('test')
+  lua require('test').run()
 endfunction
