@@ -49,7 +49,7 @@ impl State {
         rt: AsyncRt,
         source: Arc<S>,
         matcher: Arc<M>,
-        senario: Senario<D, D>
+        senario: Senario<Vars, D>
     ) -> Result<(SessionId, &Arc<Session>), Error>
     where
         D: serde::de::Deserializer<'a>,
@@ -70,34 +70,65 @@ impl State {
             .parse(&s_linearf.matcher, s_matcher)?
             .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
         let sess = match self
-            .reuse(&source, &s_linearf.source, (&s_linearf, &source_params))
+            .reuse(
+                &source,
+                &matcher,
+                &s_linearf.source,
+                &s_linearf.matcher,
+                Senario {
+                    linearf: &s_linearf,
+                    source: &source_params,
+                    matcher: &matcher_params
+                }
+            )
             .await
         {
             Some((_, s)) => s,
-            None => Session::start(rt, s_linearf, source_params, &source).await
+            None => {
+                let senario = Senario {
+                    linearf: s_linearf,
+                    source: source_params,
+                    matcher: matcher_params
+                };
+                Session::start(rt, senario, &source, &matcher).await
+            }
         };
         let id = self.next_id();
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
 
-    async fn reuse<'a, D, S>(
+    async fn reuse<'a, D, S, M>(
         &mut self,
         source: &Arc<S>,
-        name: &str,
-        senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        matcher: &Arc<M>,
+        source_name: &str,
+        matcher_name: &str,
+        senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>
     ) -> Option<(SessionId, Arc<Session>)>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
         for (id, sess) in self.sessions.iter().rev() {
-            if sess.vars().source != name {
+            if sess.vars().source != source_name || sess.vars().matcher != matcher_name {
                 continue;
             }
             if source
-                .reusable(name, (sess.vars(), sess.source_params()), senario)
+                .reusable(
+                    source_name,
+                    (sess.vars(), sess.source_params()),
+                    (senario.linearf, senario.source)
+                )
                 .await
+                && matcher
+                    .reusable(
+                        matcher_name,
+                        (sess.vars(), sess.matcher_params()),
+                        (senario.linearf, senario.matcher)
+                    )
+                    .await
             {
                 return Some((*id, sess.clone()));
             }
@@ -117,8 +148,9 @@ pub trait New {
         Self: Sized;
 }
 
-pub struct Senario<S, M> {
-    pub linearf: Vars,
-    pub source: S,
-    pub matcher: M
+#[derive(Clone)]
+pub struct Senario<V, P> {
+    pub linearf: V,
+    pub source: P,
+    pub matcher: P
 }

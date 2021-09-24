@@ -63,8 +63,8 @@ fn preprocess(
     crates: Vec<(&Crate, F)>,
     core: &Path
 ) -> StdResult<()> {
-    fs::write(&registry_lib, format_lib(&recipe))?;
-    fs::write(&registry_toml, format_cargo_toml(&recipe)?)?;
+    fs::write(&registry_lib, format_lib(recipe))?;
+    fs::write(&registry_toml, format_cargo_toml(recipe)?)?;
     for (c, F { p, s }) in crates.into_iter() {
         let mut manifest: toml::value::Table = toml::from_str(&s)?;
         let deps = manifest
@@ -120,6 +120,7 @@ impl F {
 }
 
 impl Stash {
+    #[allow(clippy::self_named_constructors)]
     fn stash(cargo_toml: &Path, lib: &Path, crates: Vec<F>) -> StdResult<Self> {
         let mut files = crates.to_vec();
         files.push(F::read(cargo_toml)?);

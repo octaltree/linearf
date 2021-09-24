@@ -1,4 +1,4 @@
-use linearf::{matcher::MatcherRegistry, source::SourceRegistry, Senario, Shared, State};
+use linearf::{matcher::MatcherRegistry, source::SourceRegistry, Senario, Shared, State, Vars};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
 use std::{cell::RefMut, sync::Arc};
@@ -57,7 +57,7 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
     })
 }
 
-fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<LuaDeserializer, LuaDeserializer>> {
+fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<Vars, LuaDeserializer>> {
     let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
         senario.raw_get::<_, LuaTable>("linearf")?
     )))?;

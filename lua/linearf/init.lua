@@ -52,15 +52,9 @@ end
 function M.run(senario_name, diff)
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
-    local result = M.bridge.run(senario)
-    local session
-    if not result.ok then
-        error(result.value)
-    else
-        local id = result.value
-        session = Session.new(M.bridge, id, senario, senario_builder)
-        M.sessions[id] = session
-    end
+    local id = M.bridge.run(senario):unwrap()
+    local session = Session.new(M.bridge, id, senario, senario_builder)
+    M.sessions[id] = session
     M.view:start(session)
 end
 
