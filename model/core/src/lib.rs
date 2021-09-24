@@ -69,7 +69,7 @@ impl State {
         let matcher_params = matcher
             .parse(&s_linearf.matcher, s_matcher)?
             .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
-        let sess = match self
+        let reusable = self
             .reuse(
                 &source,
                 &matcher,
@@ -81,19 +81,23 @@ impl State {
                     matcher: &matcher_params
                 }
             )
-            .await
-        {
-            Some((_, s)) => s,
+            .await;
+        let (id, sess) = match reusable {
+            Some((id, s)) => {
+                self.remove_session(id);
+                (id, s)
+            }
             None => {
                 let senario = Senario {
                     linearf: s_linearf,
                     source: source_params,
                     matcher: matcher_params
                 };
-                Session::start(rt, senario, &source, &matcher).await
+                let sess = Session::start(rt, senario, &source, &matcher).await;
+                let id = self.next_id();
+                (id, sess)
             }
         };
-        let id = self.next_id();
         self.sessions.push_back((id, sess));
         Ok((id, &self.sessions[self.sessions.len() - 1].1))
     }
@@ -136,9 +140,47 @@ impl State {
         None
     }
 
+    pub fn remove_session(&mut self, session: SessionId) {
+        if let Some(idx) = self
+            .sessions
+            .iter()
+            .enumerate()
+            .map(|(idx, (id, _))| (idx, id))
+            .find(|(_, &id)| id == session)
+            .map(|(idx, _)| idx)
+        {
+            self.sessions.remove(idx);
+        }
+    }
+
     fn next_id(&mut self) -> SessionId {
         self.last_id = SessionId(self.last_id.0 + 1);
         self.last_id
+    }
+
+    pub async fn tick<'a, D, S, M>(
+        &mut self,
+        rt: AsyncRt,
+        source: Arc<S>,
+        matcher: Arc<M>,
+        id: SessionId,
+        senario: Senario<Vars, D>
+    ) -> Result<FlowId, Error>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync,
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+    {
+        let sess = self
+            .session(id)
+            .ok_or_else(|| format!("session {} is not found", id.0))?;
+        Ok(FlowId(42))
+    }
+
+    pub fn session(&self, id: SessionId) -> Option<&Arc<Session>> {
+        let mut rev = self.sessions.iter().rev();
+        rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 }
 

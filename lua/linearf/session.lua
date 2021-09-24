@@ -4,6 +4,8 @@ function Session.new(bridge, id, senario, senario_builder)
     local this = {}
     this.bridge = bridge
     this.id = id
+    senario.source = nil
+    senario.matcher = nil
     this.senario = senario
     this.senario_builder = senario_builder
     this.flow_id = nil

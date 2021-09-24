@@ -1,10 +1,14 @@
 local M = {
-    bridge = require('linearf.bridge'),
+    -- config
     recipe = {
-        crates = {}
+        crates = {},
+        sources = {},
+        matchers = {}
     },
-    view = nil,
     senarios = {},
+    -- mutables
+    bridge = require('linearf.bridge'),
+    view = nil,
     context_managers = {},
     sessions = {}
 }
@@ -40,15 +44,6 @@ local function new_senario_builder(senario_name, diff)
     return SenarioBuilder.new(base, cm, diff)
 end
 
--- Senario:
---   * linearf: LinearfVars,
---   * source: SourceParams,
---   * matcher: MatcherParams,
---   * view: ViewParams,
--- LinearfVars:
---   * source: string
---   * matcher: string
---   * query: string
 function M.run(senario_name, diff)
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()

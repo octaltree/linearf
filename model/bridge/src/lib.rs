@@ -30,7 +30,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
-    // exports.set("tick", lua.create_function(tick)?)?;
+    exports.set("tick", lua.create_function(tick)?)?;
     Ok(exports)
 }
 
@@ -57,6 +57,25 @@ fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
     })
 }
 
+fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
+    let id = linearf::SessionId(id);
+    let senario = senario_deserializer(senario)?;
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
+    let source: Wrapper<Arc<registry::Source>> = lua.named_registry_value(SOURCE)?;
+    let matcher: Wrapper<Arc<registry::Matcher>> = lua.named_registry_value(MATCHER)?;
+    rt.block_on(async {
+        let handle = rt.handle().clone();
+        let state = &mut st.write().await;
+        let id = state
+            .tick(handle, (*source).clone(), (*matcher).clone(), id, senario)
+            .await
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+        Ok(id.0)
+    })
+}
+
 fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<Vars, LuaDeserializer>> {
     let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
         senario.raw_get::<_, LuaTable>("linearf")?
@@ -69,13 +88,6 @@ fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<Vars, LuaDeseria
         matcher
     })
 }
-
-// fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
-//    let id = linearf::SessionId(id);
-//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-//    rt.block_on(async { Ok(42) })
-//}
 
 #[derive(Clone)]
 struct Wrapper<T>(T);

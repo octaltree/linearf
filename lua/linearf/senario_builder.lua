@@ -1,11 +1,17 @@
 local SenarioBuilder = {}
 
-local BASE = {
+-- Senario:
+--   * linearf: LinearfVars,
+--   * source: SourceParams,
+--   * matcher: MatcherParams,
+--   * view: ViewParams,
+local DEFAULT = {
     linearf = {
         query = ''
     },
-    source_params = {},
-    matcher_params = {}
+    source = {},
+    matcher = {},
+    view = {}
 }
 
 local function merge(a, b)
@@ -36,11 +42,17 @@ function SenarioBuilder.new(base, context_manager, diff)
     })
 end
 
+local function foldl(f, x, xs)
+    local ret = x
+    for _, y in ipairs(xs) do ret = f(ret, y) end
+    return ret
+end
+
 function SenarioBuilder.build(self)
     local ctx
     ctx = self.context_manager()
     if type(ctx) ~= 'table' then ctx = {} end
-    return self.merge(self.merge(self.merge(BASE, self.base), ctx), self.diff)
+    return foldl(self.merge, DEFAULT, {self.base, ctx, self.diff})
 end
 
 return SenarioBuilder

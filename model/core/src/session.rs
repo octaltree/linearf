@@ -51,12 +51,29 @@ impl Session {
             matcher_params,
             flows: Default::default()
         };
-        let flow = Flow::start(rt, senario, source_registry, matcher_registry).await;
+        let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
+            .await
+            .unwrap();
         {
             let mut flows = this.flows.write().await;
             flows.push_back((FlowId(1), flow));
         }
         Arc::new(this)
+    }
+
+    pub async fn tick<'a, D, S, M>(
+        rt: AsyncRt,
+        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
+        source_registry: &Arc<S>,
+        matcher_registry: &Arc<M>
+    ) -> Option<FlowId>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+    {
+        let flow = Flow::start(rt, senario, source_registry, matcher_registry, false).await?;
+        None
     }
 
     #[inline]
@@ -74,8 +91,9 @@ impl Flow {
         rt: AsyncRt,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
         source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>
-    ) -> Shared<Self>
+        matcher_registry: &Arc<M>,
+        first: bool
+    ) -> Option<Shared<Self>>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
@@ -92,7 +110,7 @@ impl Flow {
             matcher_params
         };
         this.main(rt, source_registry, matcher_registry).await;
-        Arc::new(RwLock::new(this))
+        Some(Arc::new(RwLock::new(this)))
     }
 
     async fn main<'a, D, S, M>(
