@@ -1,4 +1,4 @@
-use crate::{AsyncRt, FlowId, Item, MatcherRegistry, Senario, Shared, SourceRegistry};
+use crate::{AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, Shared, SourceRegistry};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
@@ -15,14 +15,20 @@ pub struct Vars {
     pub query: String
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BlankParams {
+    Unit(()),
+    Obj {}
+}
+
 pub struct Session {
-    vars: Arc<Vars>,
-    source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
-    matcher_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
-    flows: Shared<VecDeque<(FlowId, Shared<Flow>)>>
+    // Session must have one or more flows
+    flows: VecDeque<(FlowId, Flow)>
 }
 
 pub struct Flow {
+    // TODO: dest
     vars: Arc<Vars>,
     source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
     matcher_params: Arc<dyn Any + Send + Sync>  // Arc<dyn Any + Send + Sync>
@@ -34,7 +40,7 @@ impl Session {
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
         source_registry: &Arc<S>,
         matcher_registry: &Arc<M>
-    ) -> Arc<Self>
+    ) -> Self
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
@@ -45,20 +51,14 @@ impl Session {
             source: source_params,
             matcher: matcher_params
         } = senario.clone();
-        let this = Self {
-            vars,
-            source_params,
-            matcher_params,
+        let mut this = Self {
             flows: Default::default()
         };
         let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
             .await
             .unwrap();
-        {
-            let mut flows = this.flows.write().await;
-            flows.push_back((FlowId(1), flow));
-        }
-        Arc::new(this)
+        this.flows.push_back((FlowId(1), flow));
+        this
     }
 
     pub async fn tick<'a, D, S, M>(
@@ -77,13 +77,36 @@ impl Session {
     }
 
     #[inline]
-    pub(crate) fn vars(&self) -> &Arc<Vars> { &self.vars }
+    pub(crate) fn flows(&self) -> &VecDeque<(FlowId, Flow)> { &self.flows }
 
     #[inline]
-    pub(crate) fn source_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.source_params }
+    pub fn last_flow(&self) -> (FlowId, &Flow) {
+        let last = &self.flows[self.flows.len() - 1];
+        (last.0, &last.1)
+    }
 
-    #[inline]
-    pub(crate) fn matcher_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.matcher_params }
+    pub(crate) fn resume_flow(&mut self, id: FlowId) -> Result<(), Error> {
+        let flow = self
+            .remove_flow(id)
+            .ok_or_else(|| format!("Flow {:?} is not found", id))?;
+        self.flows.push_back((id, flow));
+        Ok(())
+    }
+
+    fn remove_flow(&mut self, flow: FlowId) -> Option<Flow> {
+        if let Some(idx) = self
+            .flows
+            .iter()
+            .enumerate()
+            .map(|(idx, (id, _))| (idx, id))
+            .find(|(_, &id)| id == flow)
+            .map(|(idx, _)| idx)
+        {
+            self.flows.remove(idx).map(|(_, s)| s)
+        } else {
+            None
+        }
+    }
 }
 
 impl Flow {
@@ -93,7 +116,7 @@ impl Flow {
         source_registry: &Arc<S>,
         matcher_registry: &Arc<M>,
         first: bool
-    ) -> Option<Shared<Self>>
+    ) -> Option<Self>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
@@ -109,16 +132,19 @@ impl Flow {
             source_params,
             matcher_params
         };
-        this.main(rt, source_registry, matcher_registry).await;
-        Some(Arc::new(RwLock::new(this)))
+        this.main(rt, source_registry, matcher_registry, first)
+            .await?;
+        Some(this)
     }
 
     async fn main<'a, D, S, M>(
         &self,
         rt: AsyncRt,
         source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>
-    ) where
+        matcher_registry: &Arc<M>,
+        first: bool
+    ) -> Option<()>
+    where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
@@ -133,19 +159,21 @@ impl Flow {
                     log::error!("{:?}", e);
                 }
             };
+            let start = std::time::Instant::now();
             loop {
                 match rx1.recv().await {
                     Some(crate::source::Output::Item(x)) => {
-                        send(x);
+                        // send(x);
                     }
                     Some(crate::source::Output::Chunk(xs)) => {
                         for x in xs {
-                            send(x);
+                            // send(x);
                         }
                     }
                     None => break
                 }
             }
+            println!("{:?}", std::time::Instant::now() - start);
         });
 
         rt.spawn(async move {});
@@ -158,5 +186,20 @@ impl Flow {
                 (self.vars.clone(), self.source_params.clone())
             )
         });
+        Some(())
     }
+
+    #[inline]
+    pub(crate) fn vars(&self) -> &Arc<Vars> { &self.vars }
+
+    #[inline]
+    pub(crate) fn source_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.source_params }
+
+    #[inline]
+    pub(crate) fn matcher_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.matcher_params }
 }
+
+trait Sorted {}
+
+// TODO: improve performance
+struct SortedImp {}

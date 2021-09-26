@@ -32,7 +32,7 @@ pub struct FlowId(pub i32);
 
 pub struct State {
     last_id: SessionId,
-    sessions: VecDeque<(SessionId, Arc<Session>)>
+    sessions: VecDeque<(SessionId, Session)>
 }
 
 impl State {
@@ -50,7 +50,7 @@ impl State {
         source: Arc<S>,
         matcher: Arc<M>,
         senario: Senario<Vars, D>
-    ) -> Result<(SessionId, &Arc<Session>), Error>
+    ) -> Result<(SessionId, FlowId), Error>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
@@ -83,9 +83,11 @@ impl State {
             )
             .await;
         let (id, sess) = match reusable {
-            Some((id, s)) => {
-                self.remove_session(id);
-                (id, s)
+            Some((sid, fid)) => {
+                // unwrap: reusable returns the id that exists
+                let mut s = self.remove_session(sid).unwrap();
+                s.resume_flow(fid).unwrap();
+                (sid, s)
             }
             None => {
                 let senario = Senario {
@@ -99,7 +101,9 @@ impl State {
             }
         };
         self.sessions.push_back((id, sess));
-        Ok((id, &self.sessions[self.sessions.len() - 1].1))
+        let (id, sess) = &self.sessions[self.sessions.len() - 1];
+        let (fid, _) = sess.last_flow();
+        Ok((*id, fid))
     }
 
     async fn reuse<'a, D, S, M>(
@@ -109,38 +113,41 @@ impl State {
         source_name: &str,
         matcher_name: &str,
         senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>
-    ) -> Option<(SessionId, Arc<Session>)>
+    ) -> Option<(SessionId, FlowId)>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        for (id, sess) in self.sessions.iter().rev() {
-            if sess.vars().source != source_name || sess.vars().matcher != matcher_name {
-                continue;
-            }
-            if source
-                .reusable(
-                    source_name,
-                    (sess.vars(), sess.source_params()),
-                    (senario.linearf, senario.source)
-                )
-                .await
-                && matcher
+        for (sid, sess) in self.sessions.iter().rev() {
+            for (fid, flow) in sess.flows().iter().rev() {
+                let vars = flow.vars();
+                if vars.source != source_name || vars.matcher != matcher_name {
+                    break;
+                }
+                if source
                     .reusable(
-                        matcher_name,
-                        (sess.vars(), sess.matcher_params()),
-                        (senario.linearf, senario.matcher)
+                        source_name,
+                        (vars, flow.source_params()),
+                        (senario.linearf, senario.source)
                     )
                     .await
-            {
-                return Some((*id, sess.clone()));
+                    && matcher
+                        .reusable(
+                            matcher_name,
+                            (vars, flow.matcher_params()),
+                            (senario.linearf, senario.matcher)
+                        )
+                        .await
+                {
+                    return Some((*sid, *fid));
+                }
             }
         }
         None
     }
 
-    pub fn remove_session(&mut self, session: SessionId) {
+    pub fn remove_session(&mut self, session: SessionId) -> Option<Session> {
         if let Some(idx) = self
             .sessions
             .iter()
@@ -149,7 +156,9 @@ impl State {
             .find(|(_, &id)| id == session)
             .map(|(idx, _)| idx)
         {
-            self.sessions.remove(idx);
+            self.sessions.remove(idx).map(|(_, s)| s)
+        } else {
+            None
         }
     }
 
@@ -178,7 +187,7 @@ impl State {
         Ok(FlowId(42))
     }
 
-    pub fn session(&self, id: SessionId) -> Option<&Arc<Session>> {
+    pub fn session(&self, id: SessionId) -> Option<&Session> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }

@@ -39,22 +39,26 @@ fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<Strin
     Ok(format!("{:?}", e))
 }
 
-fn run(lua: &Lua, senario: LuaTable) -> LuaResult<i32> {
+fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
     let senario = senario_deserializer(senario)?;
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
     let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
     let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
     let source: Wrapper<Arc<registry::Source>> = lua.named_registry_value(SOURCE)?;
     let matcher: Wrapper<Arc<registry::Matcher>> = lua.named_registry_value(MATCHER)?;
-    rt.block_on(async {
+    let (sid, fid) = rt.block_on(async {
         let handle = rt.handle().clone();
         let state = &mut st.write().await;
-        let (id, _) = state
+        let (sid, fid) = state
             .start_session(handle, (*source).clone(), (*matcher).clone(), senario)
             .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok(id.0)
-    })
+        Ok::<_, LuaError>((sid.0, fid.0))
+    })?;
+    let mut t = lua.create_table()?;
+    t.set("session", sid)?;
+    t.set("flow", sid)?;
+    Ok(t)
 }
 
 fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {

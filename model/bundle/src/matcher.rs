@@ -168,7 +168,9 @@ fn score(a: A) -> TokenStream {
                             unsafe { std::mem::transmute(senario_matcher) };
                         let score =
                             s.read().await.score((senario_vars, senario_matcher), i).await;
-                        tx.send((i, score));
+                        if let Err(e) = tx.send((i, score)) {
+                            log::error!("{:?}", e);
+                        }
                     }
                 }
             }

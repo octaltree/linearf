@@ -1,3 +1,4 @@
+pub use crate::session::BlankParams;
 use crate::{
     session::{Receiver, Sender, Vars},
     AsyncRt, Item, New, Shared, State
@@ -9,7 +10,7 @@ use tokio::sync::RwLock;
 
 pub trait SourceParams: DeserializeOwned + Serialize {}
 
-impl SourceParams for () {}
+impl SourceParams for BlankParams {}
 
 #[derive(Debug)]
 pub(crate) enum Output {
@@ -124,8 +125,10 @@ where
         _name: &str,
         _tx: Transmitter,
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-    ) where
+    ) -> bool
+    where
         Self: Sized
     {
+        false
     }
 }

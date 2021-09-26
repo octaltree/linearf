@@ -29,10 +29,7 @@ end
 
 function Result.map_err(self, f)
     if self.ok then return self end
-    return {
-        ok = false,
-        value = f(self.value)
-    }
+    return Result.Err(f(self.value))
 end
 
 function Result.and_then(self, f)

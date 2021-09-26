@@ -3,5 +3,6 @@ members = [
   "core",
   "bundle",
   "registry",
-  "bridge"
+  "bridge",
+  "test_sources"
 ]

@@ -1,3 +1,17 @@
 set nocompatible
 set rtp+=..
-source ../../linearf-my-flavors/plugin/linearf_my_flavors.vim
+
+let root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
+
+let test_crate = luaeval(
+      \ "require('linearf.path').join{_A, 'model', 'test_sources'}",
+      \ root)
+
+function! s:append(dir, name) abort
+  lua crate = {}
+  call luaeval("(function(x) crate.name = x end)(_A)", a:name)
+  call luaeval("(function(x) crate.dir = x end)(_A)", a:dir)
+  lua table.insert(require('linearf').recipe.crates, crate)
+endfunction
+
+call s:append(test_crate, 'test_sources')

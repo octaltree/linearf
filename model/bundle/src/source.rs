@@ -29,7 +29,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             $(let $i = s.clone().map($i);)*
         };
     }
-    let_sources! {fields, new_fields, parses, reusable, on_session_start}
+    let_sources! {fields, new_fields, parses, reusable, on_session_start, on_flow_start}
     quote::quote! {
         use linearf::{Shared, New, Vars, RwLock, AsyncRt};
         use linearf::session::{Sender, new_channel};
@@ -106,11 +106,13 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 name: &str,
                 tx: linearf::source::Transmitter,
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-            ) where
+            ) -> bool
+            where
                 Self: Sized
             {
                 match name {
-                    _ => {}
+                    #(#on_flow_start)*
+                    _ => false
                 }
             }
         }
@@ -191,6 +193,7 @@ fn on_session_start(a: A) -> TokenStream {
     let pre = quote::quote! {
         let (senario_vars, senario_source) = senario;
         if !senario_source.is::<#params>() {
+            log::error!("mismatch params type");
             return; // drop and close the channel
         }
         let (senario_source, _): (Arc<#params>, usize) =
@@ -208,7 +211,7 @@ fn on_session_start(a: A) -> TokenStream {
             linearf::source::Source::Flow(g) => {
                 #pre
                 let is_initialized = {
-                    let s = self.rustdoc_sender.read().await;
+                    let s = self.#sender.read().await;
                     s.is_some()
                 };
                 if !is_initialized {
@@ -231,6 +234,43 @@ fn on_session_start(a: A) -> TokenStream {
                         log::error!("{:?}", e);
                     }
                 }
+            }
+        },
+    }
+}
+
+fn on_flow_start(a: A) -> TokenStream {
+    let A {
+        name,
+        field,
+        sender,
+        params,
+        ..
+    } = a;
+    let pre = quote::quote! {
+        let (senario_vars, senario_source) = senario;
+        if !senario_source.is::<#params>() {
+            log::error!("mismatch params type");
+            return false; // drop and close the channel
+        }
+        let senario_source: &Arc<#params> =
+            unsafe { std::mem::transmute(senario_source) };
+    };
+    quote::quote! {
+        #name => match self.#field.clone() {
+            linearf::source::Source::Simple(_) => {
+                false
+            }
+            linearf::source::Source::Flow(g) => {
+                #pre
+                // unwrap: sender must be set on session start
+                let maybe_sender = self.#sender.read().await;
+                let sender = maybe_sender.as_ref().expect("FlowGenerator is not running");
+                let s = (senario_vars.clone(), senario_source.clone());
+                if let Err(e) = sender.send((tx, s)) {
+                    log::error!("{:?}", e);
+                }
+                true
             }
         },
     }

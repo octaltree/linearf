@@ -16,7 +16,7 @@ function Session.new(bridge, id, senario, senario_builder)
 end
 
 function Session.tick(self, senario)
-    self.bridge.tick(self.id, senario)
+    local fid = self.bridge.tick(self.id, senario):unwrap()
     -- flow
 end
 

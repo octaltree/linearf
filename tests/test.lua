@@ -5,22 +5,26 @@ local linearf = require('linearf')
 function M.run()
     linearf.recipe.sources = {
         {
-            name = "rustdoc",
-            path = "flavors_rustdoc::Rustdoc"
+            name = "simple",
+            path = "test_sources::source::Simple"
         }
     }
     linearf.recipe.matchers = {
         {
             name = "substring",
-            path = "flavors_plain::Substring"
+            path = "test_sources::matcher::Substring"
         }
     }
     linearf.build()
-    linearf.init(require('linearf-vanilla').new())
+    local view = {
+        start = function(self, session)
+        end
+    }
+    linearf.init(view)
     linearf.senarios = {
         test = {
             linearf = {
-                source = 'rustdoc',
+                source = 'simple',
                 matcher = 'substring'
             }
         }

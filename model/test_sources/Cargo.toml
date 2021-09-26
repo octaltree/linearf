@@ -1,0 +1,7 @@
+[package]
+edition = "2018"
+name = "test_sources"
+version = "0.1.0"
+
+[dependencies]
+linearf = { path = "../core" }

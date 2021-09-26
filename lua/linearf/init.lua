@@ -48,8 +48,10 @@ function M.run(senario_name, diff)
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
     local id = M.bridge.run(senario):unwrap()
-    local session = Session.new(M.bridge, id, senario, senario_builder)
-    M.sessions[id] = session
+    local sid = id.session
+    local fid = id.flow
+    local session = Session.new(M.bridge, sid, senario, senario_builder)
+    M.sessions[sid] = session
     M.view:start(session)
 end
 

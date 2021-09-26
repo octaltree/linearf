@@ -1,3 +1,4 @@
+pub use crate::session::BlankParams;
 use crate::{
     session::{Receiver, Sender, Vars},
     Item, New, Shared, State
@@ -9,7 +10,7 @@ use tokio::sync::RwLock;
 
 pub trait MatcherParams: DeserializeOwned + Serialize {}
 
-impl MatcherParams for () {}
+impl MatcherParams for BlankParams {}
 
 pub trait IsMatcher {
     type Params: MatcherParams;

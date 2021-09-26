@@ -14,8 +14,11 @@ M = setmetatable(M, {
         return function(...)
             local result = Result.pcall(self.inner[key], ...)
             local ret = result:map_err(function(e)
-                local msg = self.inner.format_error(key, e)
-                return msg
+                if type(e) == 'userdata' then
+                    return self.inner.format_error(key, e)
+                else
+                    return e
+                end
             end)
             return ret
         end
