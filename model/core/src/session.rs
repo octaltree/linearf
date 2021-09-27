@@ -1,11 +1,11 @@
 pub mod sorted;
 
-use self::sorted::Sorted;
 pub use crate::matcher::Score;
-use crate::{AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, Shared, SourceRegistry};
+use crate::{AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, SourceRegistry};
 use serde::{Deserialize, Serialize};
+use sorted::Sorted;
 use std::{any::Any, collections::VecDeque, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 
 pub type Sender<T> = mpsc::UnboundedSender<T>;
 pub type Receiver<T> = mpsc::UnboundedReceiver<T>;

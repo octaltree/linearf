@@ -37,7 +37,7 @@ pub enum Matcher<P> {
 
 /// Items will be displayed in v DESC, item_id ASC.
 /// No guarantee of order when it is equal.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Score {
     pub item_id: u32,
     /// If empty, the item will not be displayed
@@ -57,10 +57,6 @@ impl Score {
     pub fn should_be_excluded(&self) -> bool { self.v.is_empty() }
 }
 
-impl PartialEq for Score {
-    fn eq(&self, other: &Self) -> bool { self.v == other.v && !self.should_be_excluded() }
-}
-
 impl PartialOrd for Score {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         for (a, b) in self.v.iter().zip(other.v.iter()) {
@@ -75,6 +71,23 @@ impl PartialOrd for Score {
             Ordering::Greater => Ordering::Less,
             Ordering::Equal => Ordering::Equal
         })
+    }
+}
+
+impl Ord for Score {
+    fn cmp(&self, other: &Self) -> Ordering {
+        for (a, b) in self.v.iter().zip(other.v.iter()) {
+            match a.cmp(b) {
+                Ordering::Less => return Ordering::Less,
+                Ordering::Greater => return Ordering::Greater,
+                _ => {}
+            }
+        }
+        match self.item_id.cmp(&other.item_id) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Greater => Ordering::Less,
+            Ordering::Equal => Ordering::Equal
+        }
     }
 }
 
