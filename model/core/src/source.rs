@@ -18,7 +18,7 @@ pub(crate) enum Output {
     Chunk(Vec<Item>)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Transmitter {
     tx: Sender<Output>
 }
@@ -27,15 +27,15 @@ impl Transmitter {
     pub(crate) fn new(tx: Sender<Output>) -> Self { Self { tx } }
 
     #[inline]
-    pub fn item(&self, i: Item) {
-        if let Err(e) = self.tx.send(Output::Item(i)) {
+    pub async fn item(&self, i: Item) {
+        if let Err(e) = self.tx.send(Output::Item(i)).await {
             log::error!("{:?}", e);
         }
     }
 
     #[inline]
-    pub fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
-        if let Err(e) = self.tx.send(Output::Chunk(xs.into())) {
+    pub async fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
+        if let Err(e) = self.tx.send(Output::Chunk(xs.into())).await {
             log::error!("{:?}", e);
         }
     }

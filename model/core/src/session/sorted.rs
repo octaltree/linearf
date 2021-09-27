@@ -22,7 +22,7 @@ impl Sorted {
 
     pub(crate) fn start(&self, mut rx: Receiver<WithScore>) {
         let inner = self.inner.clone();
-        let chunk_size = 500;
+        let chunk_size = 50;
         self.rt.spawn(async move {
             let start = std::time::Instant::now();
             loop {
@@ -43,8 +43,8 @@ impl Sorted {
                     break;
                 }
             }
-            log::info!("{:?}", std::time::Instant::now() - start);
-            log::info!("{}", inner.read().await.1.len());
+            log::debug!("sorted {:?}", std::time::Instant::now() - start);
+            log::debug!("{}", inner.read().await.1.len());
         });
     }
 

@@ -7,10 +7,10 @@ use sorted::Sorted;
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::sync::mpsc;
 
-pub type Sender<T> = mpsc::UnboundedSender<T>;
-pub type Receiver<T> = mpsc::UnboundedReceiver<T>;
+pub type Sender<T> = mpsc::Sender<T>;
+pub type Receiver<T> = mpsc::Receiver<T>;
 
-pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() }
+pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::channel(100) }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {
@@ -188,7 +188,8 @@ impl Flow {
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
         let mut score_worker_queues = Vec::new();
-        for _score_worker in 0..2 {
+        let num_workers = 4;
+        for _score_worker in 0..num_workers {
             let (tx, rx) = new_channel();
             let vars = self.vars.clone();
             let params = self.matcher_params.clone();
@@ -204,26 +205,29 @@ impl Flow {
         rt.spawn(async move {
             let mut i = 0;
             let num_workers = score_worker_queues.len();
-            let mut send = |x| {
-                let tx = &score_worker_queues[i % num_workers];
-                if let Err(e) = tx.send(x) {
-                    log::error!("{:?}", e);
-                }
-                i += 1;
-            };
+            let start = std::time::Instant::now();
             loop {
                 match rx1.recv().await {
                     Some(crate::source::Output::Item(x)) => {
-                        send(Arc::new(x));
+                        let tx = &score_worker_queues[i % num_workers];
+                        if let Err(e) = tx.send(Arc::new(x)).await {
+                            log::error!("{:?}", e);
+                        }
+                        i += 1;
                     }
                     Some(crate::source::Output::Chunk(xs)) => {
                         for x in xs {
-                            send(Arc::new(x));
+                            let tx = &score_worker_queues[i % num_workers];
+                            if let Err(e) = tx.send(Arc::new(x)).await {
+                                log::error!("{:?}", e);
+                            }
+                            i += 1;
                         }
                     }
                     None => break
                 }
             }
+            log::debug!("root matcher {:?}", std::time::Instant::now() - start);
         });
     }
 

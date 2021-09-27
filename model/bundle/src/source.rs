@@ -204,8 +204,10 @@ fn on_session_start(a: A) -> TokenStream {
             linearf::source::Source::Simple(g) => {
                 #pre
                 rt.spawn(async move {
+                    let start = std::time::Instant::now();
                     let g = g.read().await;
                     g.generate(tx, (&senario_vars, &senario_source)).await;
+                    log::debug!("source {:?}", std::time::Instant::now() - start);
                 });
             }
             linearf::source::Source::Flow(g) => {
@@ -230,7 +232,7 @@ fn on_session_start(a: A) -> TokenStream {
                 }
                 if let Some(sender) = &*self.#sender.read().await {
                     let s = (senario_vars, senario_source);
-                    if let Err(e) = sender.send((tx, s)) {
+                    if let Err(e) = sender.send((tx, s)).await {
                         log::error!("{:?}", e);
                     }
                 }
@@ -267,7 +269,7 @@ fn on_flow_start(a: A) -> TokenStream {
                 let maybe_sender = self.#sender.read().await;
                 let sender = maybe_sender.as_ref().expect("FlowGenerator is not running");
                 let s = (senario_vars.clone(), senario_source.clone());
-                if let Err(e) = sender.send((tx, s)) {
+                if let Err(e) = sender.send((tx, s)).await {
                     log::error!("{:?}", e);
                 }
                 true

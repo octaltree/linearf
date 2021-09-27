@@ -35,6 +35,7 @@ pub mod source {
                         .map(|id| Item::new(id, "", MaybeUtf8::Utf8(i.to_string())))
                         .collect::<Vec<_>>()
                 )
+                .await;
             }
         }
 

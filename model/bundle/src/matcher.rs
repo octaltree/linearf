@@ -160,6 +160,7 @@ fn score(a: A) -> TokenStream {
     quote::quote! {
         #name => match &self.#field {
             linearf::matcher::Matcher::Simple(s) => {
+                let start = std::time::Instant::now();
                 while let Some(i) = rx.recv().await {
                     let (senario_vars, senario_matcher) = senario;
                     if senario_matcher.is::<#params>()
@@ -168,11 +169,12 @@ fn score(a: A) -> TokenStream {
                             unsafe { std::mem::transmute(senario_matcher) };
                         let score =
                             s.read().await.score((senario_vars, senario_matcher), &i).await;
-                        if let Err(e) = tx.send((i, score)) {
+                        if let Err(e) = tx.send((i, score)).await {
                             log::error!("{:?}", e);
                         }
                     }
                 }
+                log::debug!("matcher {:?}", std::time::Instant::now() - start);
             }
         },
     }
