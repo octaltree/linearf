@@ -37,9 +37,9 @@ pub struct Flow {
 impl Session {
     pub async fn start<'a, D, S, M>(
         rt: AsyncRt,
-        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
         source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>
+        matcher_registry: &Arc<M>,
+        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Self
     where
         D: serde::de::Deserializer<'a>,
@@ -62,10 +62,11 @@ impl Session {
     }
 
     pub async fn tick<'a, D, S, M>(
+        &mut self,
         rt: AsyncRt,
-        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
         source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>
+        matcher_registry: &Arc<M>,
+        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Option<FlowId>
     where
         D: serde::de::Deserializer<'a>,
@@ -199,7 +200,5 @@ impl Flow {
     pub(crate) fn matcher_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.matcher_params }
 }
 
-trait Sorted {}
-
 // TODO: improve performance
-struct SortedImp {}
+struct Sorted {}

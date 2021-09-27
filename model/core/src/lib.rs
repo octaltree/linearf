@@ -58,25 +58,16 @@ impl State {
         <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
         let Senario {
-            linearf: s_linearf,
-            source: s_source,
-            matcher: s_matcher
-        } = senario;
-        let s_linearf = Arc::new(s_linearf);
-        let source_params = source
-            .parse(&s_linearf.source, s_source)?
-            .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
-        let matcher_params = matcher
-            .parse(&s_linearf.matcher, s_matcher)?
-            .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
+            linearf: vars,
+            source: source_params,
+            matcher: matcher_params
+        } = parse_params(&source, &matcher, senario)?;
         let reusable = self
             .reuse(
                 &source,
                 &matcher,
-                &s_linearf.source,
-                &s_linearf.matcher,
                 Senario {
-                    linearf: &s_linearf,
+                    linearf: &vars,
                     source: &source_params,
                     matcher: &matcher_params
                 }
@@ -91,11 +82,11 @@ impl State {
             }
             None => {
                 let senario = Senario {
-                    linearf: s_linearf,
+                    linearf: vars,
                     source: source_params,
                     matcher: matcher_params
                 };
-                let sess = Session::start(rt, senario, &source, &matcher).await;
+                let sess = Session::start(rt, &source, &matcher, senario).await;
                 let id = self.next_id();
                 (id, sess)
             }
@@ -110,8 +101,6 @@ impl State {
         &mut self,
         source: &Arc<S>,
         matcher: &Arc<M>,
-        source_name: &str,
-        matcher_name: &str,
         senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>
     ) -> Option<(SessionId, FlowId)>
     where
@@ -122,19 +111,20 @@ impl State {
         for (sid, sess) in self.sessions.iter().rev() {
             for (fid, flow) in sess.flows().iter().rev() {
                 let vars = flow.vars();
-                if vars.source != source_name || vars.matcher != matcher_name {
+                if vars.source != senario.linearf.source || vars.matcher != senario.linearf.matcher
+                {
                     break;
                 }
                 if source
                     .reusable(
-                        source_name,
+                        &senario.linearf.source,
                         (vars, flow.source_params()),
                         (senario.linearf, senario.source)
                     )
                     .await
                     && matcher
                         .reusable(
-                            matcher_name,
+                            &senario.linearf.matcher,
                             (vars, flow.matcher_params()),
                             (senario.linearf, senario.matcher)
                         )
@@ -145,6 +135,38 @@ impl State {
             }
         }
         None
+    }
+
+    pub async fn tick<'a, D, S, M>(
+        &mut self,
+        rt: AsyncRt,
+        source: Arc<S>,
+        matcher: Arc<M>,
+        id: SessionId,
+        senario: Senario<Vars, D>
+    ) -> Result<FlowId, Error>
+    where
+        D: serde::de::Deserializer<'a>,
+        S: SourceRegistry<'a, D> + 'static + Send + Sync,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync,
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+    {
+        let sess = self
+            .session_mut(id)
+            .ok_or_else(|| format!("session {} is not found", id.0))?;
+        validate_senario(sess, &senario)?;
+        let senario = parse_params(&source, &matcher, senario)?;
+        sess.tick(rt, &source, &matcher, senario).await;
+        Ok(sess.last_flow().0)
+    }
+
+    pub async fn resume(&mut self, id: SessionId) -> Result<FlowId, Error> {
+        let s = self
+            .remove_session(id)
+            .ok_or_else(|| format!("session {:?} is not found", id))?;
+        let fid = s.last_flow().0;
+        self.sessions.push_back((id, s));
+        Ok(fid)
     }
 
     pub fn remove_session(&mut self, session: SessionId) -> Option<Session> {
@@ -167,30 +189,65 @@ impl State {
         self.last_id
     }
 
-    pub async fn tick<'a, D, S, M>(
-        &mut self,
-        rt: AsyncRt,
-        source: Arc<S>,
-        matcher: Arc<M>,
-        id: SessionId,
-        senario: Senario<Vars, D>
-    ) -> Result<FlowId, Error>
-    where
-        D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync,
-        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
-    {
-        let sess = self
-            .session(id)
-            .ok_or_else(|| format!("session {} is not found", id.0))?;
-        Ok(FlowId(42))
-    }
-
     pub fn session(&self, id: SessionId) -> Option<&Session> {
         let mut rev = self.sessions.iter().rev();
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
+
+    fn session_mut(&mut self, id: SessionId) -> Option<&mut Session> {
+        let mut rev = self.sessions.iter_mut().rev();
+        rev.find(|s| s.0 == id).map(|(_, s)| s)
+    }
+}
+
+fn parse_params<'a, D, S, M>(
+    source: &Arc<S>,
+    matcher: &Arc<M>,
+    senario: Senario<Vars, D>
+) -> Result<Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>, Error>
+where
+    D: serde::de::Deserializer<'a>,
+    S: SourceRegistry<'a, D> + 'static + Send + Sync,
+    M: MatcherRegistry<'a, D> + 'static + Send + Sync,
+    <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+{
+    let Senario {
+        linearf: s_linearf,
+        source: s_source,
+        matcher: s_matcher
+    } = senario;
+    let s_linearf = Arc::new(s_linearf);
+    let source_params = source
+        .parse(&s_linearf.source, s_source)?
+        .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
+    let matcher_params = matcher
+        .parse(&s_linearf.matcher, s_matcher)?
+        .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
+    Ok(Senario {
+        linearf: s_linearf,
+        source: source_params,
+        matcher: matcher_params
+    })
+}
+
+fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<(), Error> {
+    let flow = session.last_flow().1;
+    let prev = flow.vars();
+    if prev.source != senario.linearf.source {
+        return Err(format!(
+            r#"source "{}" != "{}""#,
+            &prev.source, senario.linearf.source
+        )
+        .into());
+    }
+    if prev.matcher != senario.linearf.matcher {
+        return Err(format!(
+            r#"matcher "{}" != "{}""#,
+            &prev.matcher, senario.linearf.matcher
+        )
+        .into());
+    }
+    Ok(())
 }
 
 pub trait New {

@@ -31,6 +31,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
+    exports.set("resume", lua.create_function(resume)?)?;
     Ok(exports)
 }
 
@@ -55,10 +56,12 @@ fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok::<_, LuaError>((sid.0, fid.0))
     })?;
-    let mut t = lua.create_table()?;
-    t.set("session", sid)?;
-    t.set("flow", sid)?;
-    Ok(t)
+    {
+        let t = lua.create_table()?;
+        t.set("session", sid)?;
+        t.set("flow", fid)?;
+        Ok(t)
+    }
 }
 
 fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
@@ -74,6 +77,21 @@ fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
         let state = &mut st.write().await;
         let id = state
             .tick(handle, (*source).clone(), (*matcher).clone(), id, senario)
+            .await
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+        Ok(id.0)
+    })
+}
+
+fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
+    let id = linearf::SessionId(id);
+    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
+    rt.block_on(async {
+        let state = &mut st.write().await;
+        let id = state
+            .resume(id)
             .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok(id.0)
