@@ -93,7 +93,7 @@ fn preprocess(
 
 fn build(features: &str) {
     Command::new("cargo")
-        .args(["build", "--features", features, "--release"])
+        .args(["build", "--features", features, "--release", "--lib=bridge"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()

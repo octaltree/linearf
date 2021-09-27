@@ -86,8 +86,8 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             async fn score<'a>(
                 &self,
                 name: &str,
-                mut rx: Receiver<&'a Arc<Item>>,
-                tx: Sender<(&'a Arc<Item>, Score)>,
+                mut rx: Receiver<Arc<Item>>,
+                tx: Sender<(Arc<Item>, Score)>,
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
             ) {
                 match name {
@@ -167,7 +167,7 @@ fn score(a: A) -> TokenStream {
                         let senario_matcher: &Arc<#params> =
                             unsafe { std::mem::transmute(senario_matcher) };
                         let score =
-                            s.read().await.score((senario_vars, senario_matcher), i).await;
+                            s.read().await.score((senario_vars, senario_matcher), &i).await;
                         if let Err(e) = tx.send((i, score)) {
                             log::error!("{:?}", e);
                         }

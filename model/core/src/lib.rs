@@ -86,7 +86,7 @@ impl State {
                     source: source_params,
                     matcher: matcher_params
                 };
-                let sess = Session::start(rt, &source, &matcher, senario).await;
+                let sess = Session::start(rt, source, matcher, senario).await;
                 let id = self.next_id();
                 (id, sess)
             }
@@ -156,7 +156,7 @@ impl State {
             .ok_or_else(|| format!("session {} is not found", id.0))?;
         validate_senario(sess, &senario)?;
         let senario = parse_params(&source, &matcher, senario)?;
-        sess.tick(rt, &source, &matcher, senario).await;
+        sess.tick(rt, source, matcher, senario).await;
         Ok(sess.last_flow().0)
     }
 

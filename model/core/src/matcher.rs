@@ -107,8 +107,8 @@ where
     async fn score<'a>(
         &self,
         _name: &str,
-        _rx: Receiver<&'a Arc<Item>>,
-        _tx: Sender<(&'a Arc<Item>, Score)>,
+        _rx: Receiver<Arc<Item>>,
+        _tx: Sender<(Arc<Item>, Score)>,
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) {
     }

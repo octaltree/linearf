@@ -1,3 +1,7 @@
+pub mod sorted;
+
+use self::sorted::Sorted;
+pub use crate::matcher::Score;
 use crate::{AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, Shared, SourceRegistry};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
@@ -28,17 +32,17 @@ pub struct Session {
 }
 
 pub struct Flow {
-    // TODO: dest
     vars: Arc<Vars>,
     source_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
-    matcher_params: Arc<dyn Any + Send + Sync>  // Arc<dyn Any + Send + Sync>
+    matcher_params: Arc<dyn Any + Send + Sync>, // Arc<dyn Any + Send + Sync>
+    sorted: Sorted
 }
 
 impl Session {
     pub async fn start<'a, D, S, M>(
         rt: AsyncRt,
-        source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>,
+        source_registry: Arc<S>,
+        matcher_registry: Arc<M>,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Self
     where
@@ -46,11 +50,6 @@ impl Session {
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let Senario {
-            linearf: vars,
-            source: source_params,
-            matcher: matcher_params
-        } = senario.clone();
         let mut this = Self {
             flows: Default::default()
         };
@@ -64,8 +63,8 @@ impl Session {
     pub async fn tick<'a, D, S, M>(
         &mut self,
         rt: AsyncRt,
-        source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>,
+        source_registry: Arc<S>,
+        matcher_registry: Arc<M>,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Option<FlowId>
     where
@@ -114,8 +113,8 @@ impl Flow {
     pub async fn start<'a, D, S, M>(
         rt: AsyncRt,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
-        source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>,
+        source_registry: Arc<S>,
+        matcher_registry: Arc<M>,
         first: bool
     ) -> Option<Self>
     where
@@ -128,10 +127,11 @@ impl Flow {
             source: source_params,
             matcher: matcher_params
         } = senario;
-        let this = Flow {
+        let mut this = Flow {
             vars,
             source_params,
-            matcher_params
+            matcher_params,
+            sorted: Sorted::new(rt.clone())
         };
         this.main(rt, source_registry, matcher_registry, first)
             .await?;
@@ -139,10 +139,10 @@ impl Flow {
     }
 
     async fn main<'a, D, S, M>(
-        &self,
+        &mut self,
         rt: AsyncRt,
-        source_registry: &Arc<S>,
-        matcher_registry: &Arc<M>,
+        source_registry: Arc<S>,
+        matcher_registry: Arc<M>,
         first: bool
     ) -> Option<()>
     where
@@ -150,44 +150,81 @@ impl Flow {
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let (tx1, mut rx1) = mpsc::unbounded_channel();
-        let (tx2, _rx2) = mpsc::unbounded_channel::<Item>();
+        let (tx1, rx1) = new_channel();
+        let (tx2, rx2) = new_channel();
+        self.sorted.start(rx2);
+        self.run_matcher(&rt, matcher_registry, rx1, tx2);
+        let run = if first {
+            source_registry
+                .on_session_start(
+                    &rt,
+                    &self.vars.source,
+                    crate::source::Transmitter::new(tx1),
+                    (self.vars.clone(), self.source_params.clone())
+                )
+                .await;
+            true
+        } else {
+            source_registry
+                .on_flow_start(
+                    &rt,
+                    &self.vars.source,
+                    crate::source::Transmitter::new(tx1),
+                    (&self.vars, &self.source_params)
+                )
+                .await
+        };
+        run.then(|| ())
+    }
 
-        // TODO: match
+    fn run_matcher<'a, D, M>(
+        &self,
+        rt: &AsyncRt,
+        matcher_registry: Arc<M>,
+        mut rx1: Receiver<crate::source::Output>,
+        tx2: Sender<(Arc<Item>, Score)>
+    ) where
+        D: serde::de::Deserializer<'a>,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+    {
+        let mut score_worker_queues = Vec::new();
+        for _score_worker in 0..2 {
+            let (tx, rx) = new_channel();
+            let vars = self.vars.clone();
+            let params = self.matcher_params.clone();
+            let matcher_registry = matcher_registry.clone();
+            let tx2 = tx2.clone();
+            rt.spawn(async move {
+                matcher_registry
+                    .score(&vars.matcher, rx, tx2, (&vars, &params))
+                    .await;
+            });
+            score_worker_queues.push(tx);
+        }
         rt.spawn(async move {
-            let send = |x| {
-                if let Err(e) = tx2.send(x) {
+            let mut i = 0;
+            let num_workers = score_worker_queues.len();
+            let mut send = |x| {
+                let tx = &score_worker_queues[i % num_workers];
+                if let Err(e) = tx.send(x) {
                     log::error!("{:?}", e);
                 }
+                i += 1;
             };
-            let start = std::time::Instant::now();
             loop {
                 match rx1.recv().await {
                     Some(crate::source::Output::Item(x)) => {
-                        // send(x);
+                        send(Arc::new(x));
                     }
                     Some(crate::source::Output::Chunk(xs)) => {
                         for x in xs {
-                            // send(x);
+                            send(Arc::new(x));
                         }
                     }
                     None => break
                 }
             }
-            println!("{:?}", std::time::Instant::now() - start);
         });
-
-        rt.spawn(async move {});
-
-        tokio::join!({
-            source_registry.on_session_start(
-                &rt,
-                &self.vars.source,
-                crate::source::Transmitter::new(tx1),
-                (self.vars.clone(), self.source_params.clone())
-            )
-        });
-        Some(())
     }
 
     #[inline]
@@ -199,6 +236,3 @@ impl Flow {
     #[inline]
     pub(crate) fn matcher_params(&self) -> &Arc<dyn Any + Send + Sync> { &self.matcher_params }
 }
-
-// TODO: improve performance
-struct Sorted {}
