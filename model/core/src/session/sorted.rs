@@ -22,7 +22,7 @@ impl Sorted {
 
     pub(crate) fn start(&self, mut rx: Receiver<WithScore>) {
         let inner = self.inner.clone();
-        let chunk_size = 50;
+        let chunk_size = 5000;
         self.rt.spawn(async move {
             let start = std::time::Instant::now();
             loop {
@@ -31,6 +31,7 @@ impl Sorted {
                     if chunk.len() >= chunk_size {
                         break false;
                     }
+                    // TODO: channel is none if buffer is empty
                     let (item, score) = match rx.recv().await {
                         Some((i, s)) => (i, s),
                         None => break true

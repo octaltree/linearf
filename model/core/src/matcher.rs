@@ -1,7 +1,7 @@
 pub use crate::session::BlankParams;
 use crate::{
     session::{Receiver, Sender, Vars},
-    Item, New, Shared, State
+    source, Item, New, Shared, State
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
@@ -22,7 +22,7 @@ pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
     where
         Self: Sized + 'static + Send + Sync
     {
-        Matcher::Simple(Arc::new(RwLock::new(self)))
+        Matcher::Simple(Arc::new(self))
     }
 
     async fn score(&self, senario: (&Arc<Vars>, &Arc<P>), item: &Arc<Item>) -> Score;
@@ -32,7 +32,7 @@ pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
 
 #[derive(Clone)]
 pub enum Matcher<P> {
-    Simple(Shared<dyn SimpleScorer<P> + Send + Sync>)
+    Simple(Arc<dyn SimpleScorer<P> + Send + Sync>)
 }
 
 /// Items will be displayed in v DESC, item_id ASC.

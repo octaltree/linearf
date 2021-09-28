@@ -28,7 +28,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     }
     let_matchers! {fields, new_fields, parses, reusable, score}
     quote::quote! {
-        use linearf::{Shared, New, Vars, RwLock, AsyncRt, Item};
+        use linearf::{Shared, New, Vars, AsyncRt, Item};
         use linearf::session::{Sender, Receiver};
         use linearf::matcher::*;
         use std::sync::Arc;
@@ -137,7 +137,7 @@ fn reusable(a: A) -> TokenStream {
                 unsafe { std::mem::transmute(prev_matcher) };
             let senario_matcher: &Arc<#params> =
                 unsafe { std::mem::transmute(senario_matcher) };
-            s.read().await.reusable(
+            s.reusable(
                 (prev_vars, prev_matcher), (senario_vars, senario_matcher)).await
         } else {
             false
@@ -161,14 +161,14 @@ fn score(a: A) -> TokenStream {
         #name => match &self.#field {
             linearf::matcher::Matcher::Simple(s) => {
                 let start = std::time::Instant::now();
+                // TODO: channel is none if buffer is empty
                 while let Some(i) = rx.recv().await {
                     let (senario_vars, senario_matcher) = senario;
                     if senario_matcher.is::<#params>()
                     {
                         let senario_matcher: &Arc<#params> =
                             unsafe { std::mem::transmute(senario_matcher) };
-                        let score =
-                            s.read().await.score((senario_vars, senario_matcher), &i).await;
+                        let score = s.score((senario_vars, senario_matcher), &i).await;
                         if let Err(e) = tx.send((i, score)).await {
                             log::error!("{:?}", e);
                         }

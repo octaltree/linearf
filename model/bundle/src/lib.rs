@@ -85,6 +85,11 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
             m.insert("version".into(), "*".into());
             toml::Value::from(m)
         });
+        d.insert("rayon".into(), {
+            let mut m = toml::value::Map::new();
+            m.insert("version".into(), "*".into());
+            toml::Value::from(m)
+        });
         for c in &recipe.crates {
             let mut m = toml::map::Map::new();
             m.insert(

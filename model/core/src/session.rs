@@ -188,23 +188,26 @@ impl Flow {
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
         let mut score_worker_queues = Vec::new();
-        let num_workers = 4;
+        let num_workers = 10;
         for _score_worker in 0..num_workers {
             let (tx, rx) = new_channel();
             let vars = self.vars.clone();
             let params = self.matcher_params.clone();
             let matcher_registry = matcher_registry.clone();
             let tx2 = tx2.clone();
-            rt.spawn(async move {
-                matcher_registry
-                    .score(&vars.matcher, rx, tx2, (&vars, &params))
-                    .await;
+            let rt2 = rt.clone();
+            rt.spawn_blocking(move || {
+                rt2.block_on(async move {
+                    matcher_registry
+                        .score(&vars.matcher, rx, tx2, (&vars, &params))
+                        .await;
+                });
             });
             score_worker_queues.push(tx);
         }
+
         rt.spawn(async move {
             let mut i = 0;
-            let num_workers = score_worker_queues.len();
             let start = std::time::Instant::now();
             loop {
                 match rx1.recv().await {

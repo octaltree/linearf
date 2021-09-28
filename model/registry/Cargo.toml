@@ -3,6 +3,9 @@ name = "registry"
 version = "0.1.0"
 edition = "2018"
 
+[dependencies]
+rayon = "1.5.1"
+
 [dependencies.async-trait]
 version = "*"
 [dependencies.linearf]
