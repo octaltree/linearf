@@ -12,11 +12,7 @@ pub trait SourceParams: DeserializeOwned + Serialize {}
 
 impl SourceParams for BlankParams {}
 
-#[derive(Debug)]
-pub(crate) enum Output {
-    Item(Item),
-    Chunk(Vec<Item>)
-}
+pub type Output = crate::session::Output<Item>;
 
 #[derive(Debug, Clone)]
 pub struct Transmitter {
@@ -28,14 +24,14 @@ impl Transmitter {
 
     #[inline]
     pub async fn item(&self, i: Item) {
-        if let Err(e) = self.tx.send(Output::Item(i)).await {
+        if let Err(e) = self.tx.send(Output::Item(i)) {
             log::error!("{:?}", e);
         }
     }
 
     #[inline]
     pub async fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
-        if let Err(e) = self.tx.send(Output::Chunk(xs.into())).await {
+        if let Err(e) = self.tx.send(Output::Chunk(xs.into())) {
             log::error!("{:?}", e);
         }
     }

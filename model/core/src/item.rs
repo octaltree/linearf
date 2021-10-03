@@ -9,6 +9,7 @@ pub enum MaybeUtf8 {
     Bytes(Vec<u8>)
 }
 
+// TODO: create Formatter
 #[derive(Debug)]
 pub struct Item {
     /// id must not be 0

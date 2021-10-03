@@ -12,6 +12,8 @@ pub trait MatcherParams: DeserializeOwned + Serialize {}
 
 impl MatcherParams for BlankParams {}
 
+pub type Output = crate::session::Output<(Arc<Item>, Score)>;
+
 pub trait IsMatcher {
     type Params: MatcherParams;
 }
@@ -25,6 +27,7 @@ pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
         Matcher::Simple(Arc::new(self))
     }
 
+    // TODO: remove async
     async fn score(&self, senario: (&Arc<Vars>, &Arc<P>), item: &Arc<Item>) -> Score;
 
     async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
@@ -120,8 +123,8 @@ where
     async fn score<'a>(
         &self,
         _name: &str,
-        _rx: Receiver<Arc<Item>>,
-        _tx: Sender<(Arc<Item>, Score)>,
+        _rx: Receiver<crate::source::Output>,
+        _tx: Sender<Output>,
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) {
     }

@@ -31,6 +31,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         use linearf::{Shared, New, Vars, AsyncRt, Item};
         use linearf::session::{Sender, Receiver};
         use linearf::matcher::*;
+        use linearf::source;
         use std::sync::Arc;
         use std::any::Any;
         use serde::Deserialize;
@@ -86,8 +87,8 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             async fn score<'a>(
                 &self,
                 name: &str,
-                mut rx: Receiver<Arc<Item>>,
-                tx: Sender<(Arc<Item>, Score)>,
+                mut rx: Receiver<source::Output>,
+                tx: Sender<Output>,
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
             ) {
                 match name {
@@ -162,15 +163,32 @@ fn score(a: A) -> TokenStream {
             linearf::matcher::Matcher::Simple(s) => {
                 let start = std::time::Instant::now();
                 // TODO: channel is none if buffer is empty
-                while let Some(i) = rx.recv().await {
-                    let (senario_vars, senario_matcher) = senario;
-                    if senario_matcher.is::<#params>()
-                    {
-                        let senario_matcher: &Arc<#params> =
-                            unsafe { std::mem::transmute(senario_matcher) };
-                        let score = s.score((senario_vars, senario_matcher), &i).await;
-                        if let Err(e) = tx.send((i, score)).await {
-                            log::error!("{:?}", e);
+                let (senario_vars, senario_matcher) = senario;
+                if senario_matcher.is::<#params>() {
+                    let senario_matcher: &Arc<#params> =
+                        unsafe { std::mem::transmute(senario_matcher) };
+                    while let Some(x) = rx.recv().await {
+                        match x {
+                            source::Output::Item(x) => {
+                                let x = Arc::new(x);
+                                let score = s.score((senario_vars, senario_matcher), &x).await;
+                                if let Err(e) = tx.send(Output::Item((x, score))) {
+                                    log::error!("{:?}", e);
+                                }
+                            }
+                            source::Output::Chunk(xs) => {
+                                let mut ys = Vec::with_capacity(xs.len());
+                                for x in xs {
+                                    ys.push({
+                                        let x = Arc::new(x);
+                                        let score = s.score((senario_vars, senario_matcher), &x).await;
+                                        (x, score)
+                                    });
+                                }
+                                if let Err(e) = tx.send(Output::Chunk(ys)) {
+                                    log::error!("{:?}", e);
+                                }
+                            }
                         }
                     }
                 }

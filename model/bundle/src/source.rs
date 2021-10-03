@@ -232,7 +232,7 @@ fn on_session_start(a: A) -> TokenStream {
                 }
                 if let Some(sender) = &*self.#sender.read().await {
                     let s = (senario_vars, senario_source);
-                    if let Err(e) = sender.send((tx, s)).await {
+                    if let Err(e) = sender.send((tx, s)) {
                         log::error!("{:?}", e);
                     }
                 }
@@ -269,7 +269,7 @@ fn on_flow_start(a: A) -> TokenStream {
                 let maybe_sender = self.#sender.read().await;
                 let sender = maybe_sender.as_ref().expect("FlowGenerator is not running");
                 let s = (senario_vars.clone(), senario_source.clone());
-                if let Err(e) = sender.send((tx, s)).await {
+                if let Err(e) = sender.send((tx, s)) {
                     log::error!("{:?}", e);
                 }
                 true

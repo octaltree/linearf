@@ -1,4 +1,5 @@
 use crate::{
+    matcher,
     session::{Receiver, Score},
     AsyncRt, Item, Shared
 };
@@ -20,25 +21,35 @@ impl Sorted {
         }
     }
 
-    pub(crate) fn start(&self, mut rx: Receiver<WithScore>) {
+    pub(crate) fn start(&self, mut rx: Receiver<matcher::Output>) {
         let inner = self.inner.clone();
-        let chunk_size = 5000;
+        let chunk_size = 100000;
         self.rt.spawn(async move {
             let start = std::time::Instant::now();
             loop {
+                println!("chunk");
                 let mut chunk = VecDeque::with_capacity(chunk_size);
                 let done = loop {
                     if chunk.len() >= chunk_size {
                         break false;
                     }
                     // TODO: channel is none if buffer is empty
-                    let (item, score) = match rx.recv().await {
-                        Some((i, s)) => (i, s),
+                    match rx.recv().await {
+                        Some(matcher::Output::Item(t)) => {
+                            let insert = std::time::Instant::now();
+                            try_insert(&mut chunk, t);
+                            log::debug!("insert {:?}", std::time::Instant::now() - insert);
+                        }
+                        Some(matcher::Output::Chunk(ts)) => {
+                            for t in ts {
+                                try_insert(&mut chunk, t);
+                            }
+                        }
                         None => break true
-                    };
-                    try_insert(&mut chunk, (item, score));
+                    }
                 };
                 Self::merge(&inner, chunk).await;
+                log::debug!("{}", inner.read().await.1.len());
                 if done {
                     inner.write().await.0 = true;
                     break;
@@ -51,6 +62,7 @@ impl Sorted {
 
     async fn merge(inner: &Shared<(bool, Vec<WithScore>)>, chunk: VecDeque<WithScore>) {
         let (_, xs) = &mut *inner.write().await;
+        println!("{} {}", xs.len(), chunk.len());
         let mut left = 0;
         for x in chunk {
             let ys = &xs[left..];

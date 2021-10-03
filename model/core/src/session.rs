@@ -1,16 +1,22 @@
 pub mod sorted;
 
 pub use crate::matcher::Score;
-use crate::{AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, SourceRegistry};
+use crate::{matcher, AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, SourceRegistry};
 use serde::{Deserialize, Serialize};
 use sorted::Sorted;
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::sync::mpsc;
 
-pub type Sender<T> = mpsc::Sender<T>;
-pub type Receiver<T> = mpsc::Receiver<T>;
+pub type Sender<T> = mpsc::UnboundedSender<T>;
+pub type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
-pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::channel(100) }
+pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() }
+
+#[derive(Debug)]
+pub enum Output<T> {
+    Item(T),
+    Chunk(Vec<T>)
+}
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {
@@ -182,54 +188,18 @@ impl Flow {
         rt: &AsyncRt,
         matcher_registry: Arc<M>,
         mut rx1: Receiver<crate::source::Output>,
-        tx2: Sender<(Arc<Item>, Score)>
+        tx2: Sender<matcher::Output>
     ) where
         D: serde::de::Deserializer<'a>,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let mut score_worker_queues = Vec::new();
-        let num_workers = 10;
-        for _score_worker in 0..num_workers {
-            let (tx, rx) = new_channel();
-            let vars = self.vars.clone();
-            let params = self.matcher_params.clone();
-            let matcher_registry = matcher_registry.clone();
-            let tx2 = tx2.clone();
-            let rt2 = rt.clone();
-            rt.spawn_blocking(move || {
-                rt2.block_on(async move {
-                    matcher_registry
-                        .score(&vars.matcher, rx, tx2, (&vars, &params))
-                        .await;
-                });
-            });
-            score_worker_queues.push(tx);
-        }
-
+        let vars = self.vars.clone();
+        let params = self.matcher_params.clone();
         rt.spawn(async move {
-            let mut i = 0;
             let start = std::time::Instant::now();
-            loop {
-                match rx1.recv().await {
-                    Some(crate::source::Output::Item(x)) => {
-                        let tx = &score_worker_queues[i % num_workers];
-                        if let Err(e) = tx.send(Arc::new(x)).await {
-                            log::error!("{:?}", e);
-                        }
-                        i += 1;
-                    }
-                    Some(crate::source::Output::Chunk(xs)) => {
-                        for x in xs {
-                            let tx = &score_worker_queues[i % num_workers];
-                            if let Err(e) = tx.send(Arc::new(x)).await {
-                                log::error!("{:?}", e);
-                            }
-                            i += 1;
-                        }
-                    }
-                    None => break
-                }
-            }
+            matcher_registry
+                .score(&vars.matcher, rx1, tx2, (&vars, &params))
+                .await;
             log::debug!("root matcher {:?}", std::time::Instant::now() - start);
         });
     }
