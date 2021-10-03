@@ -29,32 +29,29 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     let_matchers! {fields, new_fields, parses, reusable, score}
     quote::quote! {
         use linearf::{Shared, New, Vars, AsyncRt, Item};
-        use linearf::session::{Sender, Receiver};
         use linearf::matcher::*;
         use linearf::source;
+        use linearf::stream::*;
         use std::sync::Arc;
         use std::any::Any;
         use serde::Deserialize;
-        use async_trait::async_trait;
-
 
         pub struct Matcher {
             #(#fields)*
-            state: linearf::Shared<linearf::State>
+            state: linearf::Shared<linearf::State>,
         }
 
-        #[async_trait]
         impl<'de, D> linearf::matcher::MatcherRegistry<'de, D> for Matcher
         where
             D: serde::de::Deserializer<'de>
         {
-            fn new(state: linearf::Shared<linearf::State>) -> Self
+            fn new(state: linearf::Shared<linearf::State>, rt: AsyncRt) -> Self
             where
                 Self: Sized
             {
                 Self {
                     #(#new_fields)*
-                    state
+                    state,
                 }
             }
 
@@ -69,9 +66,10 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 }
             }
 
-            async fn reusable(
+            fn reusable(
                 &self,
                 name: &str,
+                ctx: ReusableContext<'_>,
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
             ) -> bool
@@ -84,16 +82,17 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 }
             }
 
-            async fn score<'a>(
+            fn score<'a>(
                 &self,
                 name: &str,
-                mut rx: Receiver<source::Output>,
-                tx: Sender<Output>,
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-            ) {
+                senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
+                items: impl Stream<Item = Arc<Item>> + Send + 'static
+            ) -> Pin<Box<dyn Stream<Item = WithScore>>> {
                 match name {
                     #(#score)*
-                    _ => {}
+                    _ => {
+                        Box::pin(linearf::stream::empty())
+                    }
                 }
             }
         }
@@ -110,7 +109,7 @@ fn fields(a: A) -> TokenStream {
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as New>::new(&state).into_matcher(),
+        #field: <#path as New>::new(&state, &rt).into_matcher(),
     }
 }
 
@@ -138,8 +137,7 @@ fn reusable(a: A) -> TokenStream {
                 unsafe { std::mem::transmute(prev_matcher) };
             let senario_matcher: &Arc<#params> =
                 unsafe { std::mem::transmute(senario_matcher) };
-            s.reusable(
-                (prev_vars, prev_matcher), (senario_vars, senario_matcher)).await
+            s.reusable(ctx, (prev_vars, prev_matcher), (senario_vars, senario_matcher))
         } else {
             false
         }
@@ -161,38 +159,19 @@ fn score(a: A) -> TokenStream {
     quote::quote! {
         #name => match &self.#field {
             linearf::matcher::Matcher::Simple(s) => {
-                let start = std::time::Instant::now();
                 // TODO: channel is none if buffer is empty
                 let (senario_vars, senario_matcher) = senario;
                 if senario_matcher.is::<#params>() {
-                    let senario_matcher: &Arc<#params> =
-                        unsafe { std::mem::transmute(senario_matcher) };
-                    while let Some(x) = rx.recv().await {
-                        match x {
-                            source::Output::Item(x) => {
-                                let x = Arc::new(x);
-                                let score = s.score((senario_vars, senario_matcher), &x).await;
-                                if let Err(e) = tx.send(Output::Item((x, score))) {
-                                    log::error!("{:?}", e);
-                                }
-                            }
-                            source::Output::Chunk(xs) => {
-                                let mut ys = Vec::with_capacity(xs.len());
-                                for x in xs {
-                                    ys.push({
-                                        let x = Arc::new(x);
-                                        let score = s.score((senario_vars, senario_matcher), &x).await;
-                                        (x, score)
-                                    });
-                                }
-                                if let Err(e) = tx.send(Output::Chunk(ys)) {
-                                    log::error!("{:?}", e);
-                                }
-                            }
-                        }
-                    }
+                    let (senario_matcher, _): (Arc<#params>, usize) =
+                                               unsafe { std::mem::transmute(senario_matcher) };
+                    Box::pin(items.map(move |x| {
+                        let score = s.score((senario_vars, senario_matcher), &x);
+                        (x, Arc::new(score))
+                    }))
+                } else {
+                    log::error!("mismatch params type");
+                    Box::pin(linearf::stream::empty())
                 }
-                log::debug!("matcher {:?}", std::time::Instant::now() - start);
             }
         },
     }

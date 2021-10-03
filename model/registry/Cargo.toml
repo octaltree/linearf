@@ -6,8 +6,6 @@ edition = "2018"
 [dependencies]
 rayon = "1.5.1"
 
-[dependencies.async-trait]
-version = "*"
 [dependencies.linearf]
 path = "../core"
 [dependencies.serde]

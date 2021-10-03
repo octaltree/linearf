@@ -1,3 +1,4 @@
+mod converter;
 mod matcher;
 mod source;
 
@@ -13,7 +14,9 @@ pub struct Recipe {
     #[serde(default)]
     pub sources: Vec<SourceDescriptor>,
     #[serde(default)]
-    pub matchers: Vec<MatchDescriptor>
+    pub matchers: Vec<MatchDescriptor>,
+    #[serde(default)]
+    pub converters: Vec<ConverterDescriptor>
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,9 +37,16 @@ pub struct MatchDescriptor {
     pub path: String
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ConverterDescriptor {
+    pub name: String,
+    pub path: String
+}
+
 pub fn format_lib(recipe: &Recipe) -> String {
     let source = crate::source::format(recipe);
     let matcher = crate::matcher::format(recipe);
+    let converter = crate::converter::format(recipe);
     quote::quote! (
         pub use source::Source;
         pub use matcher::Matcher;
@@ -45,6 +55,9 @@ pub fn format_lib(recipe: &Recipe) -> String {
         }
         mod matcher {
             #matcher
+        }
+        mod converter {
+            #converter
         }
     )
     .to_string()
@@ -67,11 +80,6 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
         d.insert("linearf".into(), {
             let mut m = toml::value::Map::new();
             m.insert("path".into(), "../core".into());
-            toml::Value::from(m)
-        });
-        d.insert("async-trait".into(), {
-            let mut m = toml::value::Map::new();
-            m.insert("version".into(), "*".into());
             toml::Value::from(m)
         });
         d.insert("serde".into(), {

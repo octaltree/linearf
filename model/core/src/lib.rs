@@ -1,16 +1,21 @@
+pub mod converter;
 pub mod item;
 pub mod matcher;
 pub mod session;
 pub mod source;
+pub mod stream;
 
 pub use crate::{
     item::{Item, MaybeUtf8},
     session::{Session, Vars}
 };
-pub use async_trait::async_trait;
 pub use tokio::sync::RwLock;
 
-use crate::{matcher::MatcherRegistry, source::SourceRegistry};
+use crate::{
+    matcher::MatcherRegistry,
+    session::{Flow, ReusableContext},
+    source::SourceRegistry
+};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc};
 use tokio::runtime::Handle;
@@ -29,6 +34,10 @@ pub struct SessionId(pub i32);
 )]
 #[serde(transparent)]
 pub struct FlowId(pub i32);
+
+impl FlowId {
+    const FIRST: FlowId = FlowId(1);
+}
 
 pub struct State {
     last_id: SessionId,
@@ -57,22 +66,9 @@ impl State {
         M: MatcherRegistry<'a, D> + 'static + Send + Sync,
         <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
-        let Senario {
-            linearf: vars,
-            source: source_params,
-            matcher: matcher_params
-        } = parse_params(&source, &matcher, senario)?;
-        let reusable = self
-            .reuse(
-                &source,
-                &matcher,
-                Senario {
-                    linearf: &vars,
-                    source: &source_params,
-                    matcher: &matcher_params
-                }
-            )
-            .await;
+        let senario = parse_params(&source, &matcher, senario)?;
+        let next_id = self.next_id();
+        let reusable = self.reusable(&source, &matcher, senario.as_ref(), next_id, FlowId::FIRST);
         let (id, sess) = match reusable {
             Some((sid, fid)) => {
                 // unwrap: reusable returns the id that exists
@@ -81,56 +77,68 @@ impl State {
                 (sid, s)
             }
             None => {
-                let senario = Senario {
-                    linearf: vars,
-                    source: source_params,
-                    matcher: matcher_params
-                };
                 let sess = Session::start(rt, source, matcher, senario).await;
-                let id = self.next_id();
-                (id, sess)
+                self.last_id = next_id;
+                (next_id, sess)
             }
         };
-        self.sessions.push_back((id, sess));
-        let (id, sess) = &self.sessions[self.sessions.len() - 1];
         let (fid, _) = sess.last_flow();
-        Ok((*id, fid))
+        self.sessions.push_back((id, sess));
+        Ok((id, fid))
     }
 
-    async fn reuse<'a, D, S, M>(
-        &mut self,
+    fn reusable<'a, D, S, M>(
+        &self,
         source: &Arc<S>,
         matcher: &Arc<M>,
-        senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>
+        senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
+        next_sid: SessionId,
+        next_fid: FlowId
     ) -> Option<(SessionId, FlowId)>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
+        let f = |sid: &SessionId, fid: &FlowId, flow: &Flow| {
+            let vars = flow.vars();
+            if vars.source != senario.linearf.source || vars.matcher != senario.linearf.matcher {
+                return None;
+            }
+            let ctx = ReusableContext {
+                same_session: sid == &next_sid,
+                state: self
+            };
+            if source.reusable(
+                &senario.linearf.source,
+                ctx.clone(),
+                (vars, flow.source_params()),
+                (senario.linearf, senario.source)
+            ) && matcher.reusable(
+                &senario.linearf.matcher,
+                ctx,
+                (vars, flow.matcher_params()),
+                (senario.linearf, senario.matcher)
+            ) {
+                return Some((*sid, *fid));
+            }
+            None
+        };
+        // give priority to same session
+        for (sid, sess) in self.sessions.iter().rev() {
+            if sid != &next_sid {
+                continue;
+            }
+            for (fid, flow) in sess.flows().iter().rev() {
+                if let Some(t) = f(sid, fid, flow) {
+                    return Some(t);
+                }
+            }
+        }
         for (sid, sess) in self.sessions.iter().rev() {
             for (fid, flow) in sess.flows().iter().rev() {
-                let vars = flow.vars();
-                if vars.source != senario.linearf.source || vars.matcher != senario.linearf.matcher
-                {
-                    break;
-                }
-                if source
-                    .reusable(
-                        &senario.linearf.source,
-                        (vars, flow.source_params()),
-                        (senario.linearf, senario.source)
-                    )
-                    .await
-                    && matcher
-                        .reusable(
-                            &senario.linearf.matcher,
-                            (vars, flow.matcher_params()),
-                            (senario.linearf, senario.matcher)
-                        )
-                        .await
-                {
-                    return Some((*sid, *fid));
+                if let Some(t) = f(sid, fid, flow) {
+                    return Some(t);
                 }
             }
         }
@@ -144,20 +152,39 @@ impl State {
         matcher: Arc<M>,
         id: SessionId,
         senario: Senario<Vars, D>
-    ) -> Result<FlowId, Error>
+    ) -> Result<(SessionId, FlowId), Error>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync,
         <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
-        let sess = self
-            .session_mut(id)
-            .ok_or_else(|| format!("session {} is not found", id.0))?;
-        validate_senario(sess, &senario)?;
-        let senario = parse_params(&source, &matcher, senario)?;
-        sess.tick(rt, source, matcher, senario).await;
-        Ok(sess.last_flow().0)
+        todo!()
+        //{
+        //    let sess = self
+        //        .session_mut(id)
+        //        .ok_or_else(|| format!("session {} is not found", id.0))?;
+        //    validate_senario(sess, &senario)?;
+        //}
+        // let senario = parse_params(&source, &matcher, senario)?;
+        // let reusable = self.reusable(&source, &matcher, senario.as_ref());
+        // std::mem::drop(sess);
+        // let (id, sess) = match reusable {
+        //    Some((sid, fid)) => {
+        //        // unwrap: reusable returns the id that exists
+        //        let mut s = self.remove_session(sid).unwrap();
+        //        s.resume_flow(fid).unwrap();
+        //        (sid, s)
+        //    }
+        //    None => {
+        //        let mut s = self.remove_session(id).unwrap();
+        //        let fid = s.tick(rt, source, matcher, senario).await;
+        //        (id, s)
+        //    }
+        //};
+        // let (fid, _) = sess.last_flow();
+        // self.sessions.push_back((id, sess));
+        // Ok((id, fid))
     }
 
     pub async fn resume(&mut self, id: SessionId) -> Result<FlowId, Error> {
@@ -184,10 +211,7 @@ impl State {
         }
     }
 
-    fn next_id(&mut self) -> SessionId {
-        self.last_id = SessionId(self.last_id.0 + 1);
-        self.last_id
-    }
+    fn next_id(&self) -> SessionId { SessionId(self.last_id.0 + 1) }
 
     pub fn session(&self, id: SessionId) -> Option<&Session> {
         let mut rev = self.sessions.iter().rev();
@@ -251,7 +275,7 @@ fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<
 }
 
 pub trait New {
-    fn new(_state: &Shared<State>) -> Self
+    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
     where
         Self: Sized;
 }
@@ -261,4 +285,14 @@ pub struct Senario<V, P> {
     pub linearf: V,
     pub source: P,
     pub matcher: P
+}
+
+impl<V, P> Senario<V, P> {
+    fn as_ref(&self) -> Senario<&V, &P> {
+        Senario {
+            linearf: &self.linearf,
+            source: &self.source,
+            matcher: &self.matcher
+        }
+    }
 }

@@ -1,24 +1,18 @@
-pub use crate::session::BlankParams;
-use crate::{
-    session::{Receiver, Sender, Vars},
-    source, Item, New, Shared, State
-};
-use async_trait::async_trait;
+pub use crate::session::{BlankParams, ReusableContext};
+use crate::{session::Vars, stream::Stream, AsyncRt, FlowId, Item, New, SessionId, Shared, State};
 use serde::{de::DeserializeOwned, Serialize};
-use std::{any::Any, cmp::Ordering, sync::Arc};
-use tokio::sync::RwLock;
+use std::{any::Any, cmp::Ordering, pin::Pin, sync::Arc};
 
 pub trait MatcherParams: DeserializeOwned + Serialize {}
 
 impl MatcherParams for BlankParams {}
 
-pub type Output = crate::session::Output<(Arc<Item>, Score)>;
+pub type WithScore = (Arc<Item>, Arc<Score>);
 
 pub trait IsMatcher {
     type Params: MatcherParams;
 }
 
-#[async_trait]
 pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
     fn into_matcher(self) -> Matcher<P>
     where
@@ -27,10 +21,14 @@ pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
         Matcher::Simple(Arc::new(self))
     }
 
-    // TODO: remove async
-    async fn score(&self, senario: (&Arc<Vars>, &Arc<P>), item: &Arc<Item>) -> Score;
+    fn score(&self, senario: (Arc<Vars>, Arc<P>), item: &Arc<Item>) -> Score;
 
-    async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
+    fn reusable(
+        &self,
+        ctx: ReusableContext<'_>,
+        prev: (&Arc<Vars>, &Arc<P>),
+        senario: (&Arc<Vars>, &Arc<P>)
+    ) -> bool;
 }
 
 #[derive(Clone)]
@@ -94,12 +92,11 @@ impl Ord for Score {
     }
 }
 
-#[async_trait]
 pub trait MatcherRegistry<'de, D>
 where
     D: serde::de::Deserializer<'de>
 {
-    fn new(state: Shared<State>) -> Self
+    fn new(state: Shared<State>, rt: AsyncRt) -> Self
     where
         Self: Sized;
 
@@ -111,21 +108,22 @@ where
         Ok(None)
     }
 
-    async fn reusable(
+    fn reusable(
         &self,
         _name: &str,
+        ctx: ReusableContext<'_>,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> bool {
         false
     }
 
-    async fn score<'a>(
+    fn score<'a>(
         &self,
         _name: &str,
-        _rx: Receiver<crate::source::Output>,
-        _tx: Sender<Output>,
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-    ) {
+        _senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
+        items: impl Stream<Item = Arc<Item>> + Send + 'static
+    ) -> Pin<Box<dyn Stream<Item = WithScore>>> {
+        Box::pin(crate::stream::empty())
     }
 }

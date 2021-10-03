@@ -1,28 +1,26 @@
 pub mod sorted;
 
 pub use crate::matcher::Score;
-use crate::{matcher, AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, SourceRegistry};
+use crate::{
+    matcher, AsyncRt, Error, FlowId, Item, MatcherRegistry, Senario, SourceRegistry, State
+};
 use serde::{Deserialize, Serialize};
 use sorted::Sorted;
 use std::{any::Any, collections::VecDeque, sync::Arc};
-use tokio::sync::mpsc;
-
-pub type Sender<T> = mpsc::UnboundedSender<T>;
-pub type Receiver<T> = mpsc::UnboundedReceiver<T>;
-
-pub fn new_channel<T>() -> (Sender<T>, Receiver<T>) { mpsc::unbounded_channel() }
-
-#[derive(Debug)]
-pub enum Output<T> {
-    Item(T),
-    Chunk(Vec<T>)
-}
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Vars {
     pub source: String,
     pub matcher: String,
+    #[serde(default)]
+    pub converters: Vec<String>,
     pub query: String
+}
+
+#[derive(Clone)]
+pub struct ReusableContext<'a> {
+    pub same_session: bool,
+    pub state: &'a State
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -34,6 +32,7 @@ pub enum BlankParams {
 
 pub struct Session {
     // Session must have one or more flows
+    last_id: FlowId,
     flows: VecDeque<(FlowId, Flow)>
 }
 
@@ -56,14 +55,13 @@ impl Session {
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let mut this = Self {
-            flows: Default::default()
-        };
-        let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
-            .await
-            .unwrap();
-        this.flows.push_back((FlowId(1), flow));
-        this
+        todo!()
+        // let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
+        //    .await
+        //    .unwrap();
+        // let mut flows = VecDeque::with_capacity(1);
+        // flows.push_back((FlowId::FIRST, flow));
+        // Self { flows }
     }
 
     pub async fn tick<'a, D, S, M>(
@@ -78,8 +76,9 @@ impl Session {
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let flow = Flow::start(rt, senario, source_registry, matcher_registry, false).await?;
-        None
+        // let flow = Flow::start(rt, senario, source_registry, matcher_registry, false).await?;
+        // None
+        todo!()
     }
 
     #[inline]
@@ -98,6 +97,8 @@ impl Session {
         self.flows.push_back((id, flow));
         Ok(())
     }
+
+    fn next_id(&self) -> FlowId { FlowId(self.last_id.0 + 1) }
 
     fn remove_flow(&mut self, flow: FlowId) -> Option<Flow> {
         if let Some(idx) = self
@@ -156,53 +157,53 @@ impl Flow {
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
-        let (tx1, rx1) = new_channel();
-        let (tx2, rx2) = new_channel();
-        self.sorted.start(rx2);
-        self.run_matcher(&rt, matcher_registry, rx1, tx2);
-        let run = if first {
-            source_registry
-                .on_session_start(
-                    &rt,
-                    &self.vars.source,
-                    crate::source::Transmitter::new(tx1),
-                    (self.vars.clone(), self.source_params.clone())
-                )
-                .await;
-            true
-        } else {
-            source_registry
-                .on_flow_start(
-                    &rt,
-                    &self.vars.source,
-                    crate::source::Transmitter::new(tx1),
-                    (&self.vars, &self.source_params)
-                )
-                .await
-        };
-        run.then(|| ())
+        todo!()
+        // self.sorted.start(rx2);
+        ////self.run_matcher(&rt, matcher_registry, rx1, tx2);
+        // let run = if first {
+        //    source_registry
+        //        .on_session_start(
+        //            &rt,
+        //            &self.vars.source,
+        //            crate::source::Transmitter::new(tx1),
+        //            (self.vars.clone(), self.source_params.clone()),
+        //        )
+        //        .await;
+        //    true
+        //} else {
+        //    source_registry
+        //        .on_flow_start(
+        //            &rt,
+        //            &self.vars.source,
+        //            crate::source::Transmitter::new(tx1),
+        //            (&self.vars, &self.source_params),
+        //        )
+        //        .await
+        //};
+        // run.then(|| ())
     }
 
-    fn run_matcher<'a, D, M>(
-        &self,
-        rt: &AsyncRt,
-        matcher_registry: Arc<M>,
-        mut rx1: Receiver<crate::source::Output>,
-        tx2: Sender<matcher::Output>
-    ) where
-        D: serde::de::Deserializer<'a>,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync
-    {
-        let vars = self.vars.clone();
-        let params = self.matcher_params.clone();
-        rt.spawn(async move {
-            let start = std::time::Instant::now();
-            matcher_registry
-                .score(&vars.matcher, rx1, tx2, (&vars, &params))
-                .await;
-            log::debug!("root matcher {:?}", std::time::Instant::now() - start);
-        });
-    }
+    // fn run_matcher<'a, D, M>(
+    //    &self,
+    //    rt: &AsyncRt,
+    //    matcher_registry: Arc<M>,
+    //    mut rx1: Receiver<crate::source::Output>,
+    //    tx2: Sender<matcher::Output>,
+    //) where
+    //    D: serde::de::Deserializer<'a>,
+    //    M: MatcherRegistry<'a, D> + 'static + Send + Sync,
+    //{
+    //    todo!()
+    //    // let vars = self.vars.clone();
+    //    // let params = self.matcher_params.clone();
+    //    // rt.spawn(async move {
+    //    //    let start = std::time::Instant::now();
+    //    //    matcher_registry
+    //    //        .score(&vars.matcher, rx1, tx2, (&vars, &params))
+    //    //        .await;
+    //    //    log::debug!("root matcher {:?}", std::time::Instant::now() - start);
+    //    //});
+    //}
 
     #[inline]
     pub(crate) fn vars(&self) -> &Arc<Vars> { &self.vars }

@@ -16,10 +16,10 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     let st = State::new_shared();
     let source = Arc::new(<registry::Source as SourceRegistry<
         mlua::serde::Deserializer<'_>
-    >>::new(st.clone()));
+    >>::new(st.clone(), rt.handle().clone()));
     let matcher = Arc::new(<registry::Matcher as MatcherRegistry<
         mlua::serde::Deserializer<'_>
-    >>::new(st.clone()));
+    >>::new(st.clone(), rt.handle().clone()));
     {
         lua.globals()
             .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
@@ -64,7 +64,7 @@ fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
     }
 }
 
-fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
+fn tick<'a>(lua: &'a Lua, (id, senario): (i32, LuaTable)) -> LuaResult<LuaTable<'a>> {
     let id = linearf::SessionId(id);
     let senario = senario_deserializer(senario)?;
     let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
@@ -72,15 +72,21 @@ fn tick(lua: &Lua, (id, senario): (i32, LuaTable)) -> LuaResult<i32> {
     let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
     let source: Wrapper<Arc<registry::Source>> = lua.named_registry_value(SOURCE)?;
     let matcher: Wrapper<Arc<registry::Matcher>> = lua.named_registry_value(MATCHER)?;
-    rt.block_on(async {
+    let (sid, fid) = rt.block_on(async {
         let handle = rt.handle().clone();
         let state = &mut st.write().await;
-        let id = state
+        let (sid, fid) = state
             .tick(handle, (*source).clone(), (*matcher).clone(), id, senario)
             .await
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok(id.0)
-    })
+        Ok::<_, LuaError>((sid.0, fid.0))
+    })?;
+    {
+        let t = lua.create_table()?;
+        t.set("session", sid)?;
+        t.set("flow", fid)?;
+        Ok(t)
+    }
 }
 
 fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {

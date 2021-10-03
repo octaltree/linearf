@@ -1,17 +1,13 @@
 pub mod source {
-    use linearf::{
-        async_trait,
-        source::{BlankParams, *},
-        Item, MaybeUtf8, New, Shared, State, Vars
-    };
-    use std::sync::Arc;
+    use linearf::{source::*, stream::Stream, AsyncRt, Item, MaybeUtf8, New, Shared, State, Vars};
+    use std::{pin::Pin, sync::Arc};
 
     pub struct Simple {
         _state: Shared<State>
     }
 
     impl New for Simple {
-        fn new(_state: &Shared<State>) -> Self
+        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
         where
             Self: Sized
         {
@@ -25,37 +21,34 @@ pub mod source {
         type Params = BlankParams;
     }
 
-    #[async_trait]
     impl SimpleGenerator<BlankParams> for Simple {
-        async fn generate(&self, tx: Transmitter, _senario: (&Arc<Vars>, &Arc<Self::Params>)) {
-            for i in 0..1000 {
-                tx.chunk(
-                    (0..1000)
-                        .map(|j| i + j + 1)
-                        .map(|id| Item::new(id, "", MaybeUtf8::Utf8(i.to_string())))
-                        .collect::<Vec<_>>()
-                )
-                .await;
-            }
+        fn stream(
+            &self,
+            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+        ) -> Pin<Box<dyn Stream<Item = Item>>> {
+            let s = linearf::stream::unfold(0..1000000, |mut it| async {
+                it.next().map(|i| {
+                    let id = i + 1;
+                    let item = Item::new(id, "number", MaybeUtf8::Utf8(i.to_string()));
+                    (item, it)
+                })
+            });
+            Box::pin(s)
         }
 
-        async fn reusable(
+        fn reusable(
             &self,
+            _ctx: ReusableContext<'_>,
             _prev: (&Arc<Vars>, &Arc<Self::Params>),
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> bool {
-            false
+            true
         }
     }
 }
 
 pub mod matcher {
-    use linearf::{
-        async_trait,
-        matcher::{BlankParams, *},
-        session::Vars,
-        Item, New, Shared, State
-    };
+    use linearf::{matcher::*, session::Vars, AsyncRt, Item, New, Shared, State};
     use std::sync::Arc;
 
     pub struct Substring {
@@ -63,7 +56,7 @@ pub mod matcher {
     }
 
     impl New for Substring {
-        fn new(_state: &Shared<State>) -> Self
+        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
         where
             Self: Sized
         {
@@ -77,13 +70,8 @@ pub mod matcher {
         type Params = BlankParams;
     }
 
-    #[async_trait]
     impl SimpleScorer<BlankParams> for Substring {
-        async fn score(
-            &self,
-            (vars, _): (&Arc<Vars>, &Arc<Self::Params>),
-            item: &Arc<Item>
-        ) -> Score {
+        fn score(&self, (vars, _): (Arc<Vars>, Arc<Self::Params>), item: &Arc<Item>) -> Score {
             return if item.view_for_matcing().find(&vars.query).is_some() {
                 Score::new(item.id, vec![1])
             } else {
@@ -91,12 +79,46 @@ pub mod matcher {
             };
         }
 
-        async fn reusable(
+        fn reusable(
             &self,
+            _ctx: ReusableContext<'_>,
             (prev, _): (&Arc<Vars>, &Arc<Self::Params>),
             (senario, _): (&Arc<Vars>, &Arc<Self::Params>)
         ) -> bool {
             prev.query == senario.query
+        }
+    }
+}
+
+pub mod converter {
+    use linearf::{converter::*, session::Vars, AsyncRt, Item, New, Shared, State};
+
+    struct OddEven {}
+
+    impl New for OddEven {
+        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+        where
+            Self: Sized
+        {
+            Self {}
+        }
+    }
+
+    impl SimpleConverter for OddEven {
+        fn convert(&self, item: Item) -> Item {
+            if item.r#type != "number" {
+                return item;
+            }
+            if let Ok(x) = item.view().parse::<i32>() {
+                let view = Some(if x % 2 == 0 {
+                    format!("e{}", x)
+                } else {
+                    format!("o{}", x)
+                });
+                Item { view, ..item }
+            } else {
+                item
+            }
         }
     }
 }

@@ -1,86 +1,46 @@
-pub use crate::session::BlankParams;
-use crate::{
-    session::{Receiver, Sender, Vars},
-    AsyncRt, Item, New, Shared, State
-};
-use async_trait::async_trait;
+pub use crate::session::{BlankParams, ReusableContext};
+use crate::{session::Vars, stream::Stream, AsyncRt, FlowId, Item, New, SessionId, Shared, State};
 use serde::{de::DeserializeOwned, Serialize};
-use std::{any::Any, sync::Arc};
-use tokio::sync::RwLock;
+use std::{any::Any, pin::Pin, sync::Arc};
 
 pub trait SourceParams: DeserializeOwned + Serialize {}
 
 impl SourceParams for BlankParams {}
 
-pub type Output = crate::session::Output<Item>;
-
-#[derive(Debug, Clone)]
-pub struct Transmitter {
-    tx: Sender<Output>
-}
-
-impl Transmitter {
-    pub(crate) fn new(tx: Sender<Output>) -> Self { Self { tx } }
-
-    #[inline]
-    pub async fn item(&self, i: Item) {
-        if let Err(e) = self.tx.send(Output::Item(i)) {
-            log::error!("{:?}", e);
-        }
-    }
-
-    #[inline]
-    pub async fn chunk<A: Into<Vec<Item>>>(&self, xs: A) {
-        if let Err(e) = self.tx.send(Output::Chunk(xs.into())) {
-            log::error!("{:?}", e);
-        }
-    }
-}
-
 pub trait IsSource {
     type Params: SourceParams;
 }
 
-#[async_trait]
+/// reusable and stream will be called for each flow
 pub trait SimpleGenerator<P>: New + IsSource<Params = P> {
     fn into_source(self) -> Source<P>
     where
         Self: Sized + 'static + Send + Sync
     {
-        Source::Simple(Arc::new(RwLock::new(self)))
+        Source::Simple(Arc::new(self))
     }
 
-    async fn generate(&self, tx: Transmitter, senario: (&Arc<Vars>, &Arc<P>));
+    fn stream(&self, senario: (&Arc<Vars>, &Arc<P>)) -> Pin<Box<dyn Stream<Item = Item>>>;
 
-    async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
-}
-
-#[async_trait]
-pub trait FlowGenerator<P>: New + IsSource<Params = P> {
-    fn into_source(self) -> Source<P>
-    where
-        Self: Sized + 'static + Send + Sync
-    {
-        Source::Flow(Arc::new(RwLock::new(self)))
-    }
-
-    async fn run(&mut self, args: Receiver<(Transmitter, (Arc<Vars>, Arc<P>))>);
-
-    async fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> bool;
+    /// This methods must not lock Shared<State>. you can get State from `ctx.state` instead of Shared<State>
+    fn reusable(
+        &self,
+        ctx: ReusableContext<'_>,
+        prev: (&Arc<Vars>, &Arc<P>),
+        senario: (&Arc<Vars>, &Arc<P>)
+    ) -> bool;
 }
 
 #[derive(Clone)]
 pub enum Source<P> {
-    Simple(Shared<dyn SimpleGenerator<P> + Send + Sync>),
-    Flow(Shared<dyn FlowGenerator<P> + Send + Sync>)
+    Simple(Arc<dyn SimpleGenerator<P> + Send + Sync>)
 }
 
-#[async_trait]
 pub trait SourceRegistry<'de, D>
 where
     D: serde::de::Deserializer<'de>
 {
-    fn new(state: Shared<State>) -> Self
+    fn new(state: Shared<State>, rt: AsyncRt) -> Self
     where
         Self: Sized;
 
@@ -92,9 +52,10 @@ where
         Ok(None)
     }
 
-    async fn reusable(
+    fn reusable(
         &self,
         _name: &str,
+        _ctx: ReusableContext<'_>,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> bool
@@ -104,27 +65,14 @@ where
         false
     }
 
-    async fn on_session_start(
+    fn stream(
         &self,
-        _rt: &AsyncRt,
         _name: &str,
-        _tx: Transmitter,
         _senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>)
-    ) where
-        Self: Sized
-    {
-    }
-
-    async fn on_flow_start(
-        &self,
-        _rt: &AsyncRt,
-        _name: &str,
-        _tx: Transmitter,
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-    ) -> bool
+    ) -> Pin<Box<dyn Stream<Item = Item>>>
     where
         Self: Sized
     {
-        false
+        Box::pin(crate::stream::empty())
     }
 }
