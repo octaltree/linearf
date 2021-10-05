@@ -21,14 +21,14 @@ impl FlowId {
 
 pub struct Sessions {
     last_id: SessionId,
-    sessions: VecDeque<(SessionId, Session)>,
+    sessions: VecDeque<(SessionId, Session)>
 }
 
 impl Sessions {
     pub fn new_shared() -> Shared<Self> {
         let this = Self {
             last_id: SessionId(0),
-            sessions: VecDeque::new(),
+            sessions: VecDeque::new()
         };
         Arc::new(RwLock::new(this))
     }
@@ -38,13 +38,13 @@ impl Sessions {
         rt: AsyncRt,
         source: Arc<S>,
         matcher: Arc<M>,
-        senario: Senario<Vars, D>,
+        senario: Senario<Vars, D>
     ) -> Result<(SessionId, FlowId), Error>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync,
-        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
         let senario = parse_params(&source, &matcher, senario)?;
         let next_id = self.next_id();
@@ -75,12 +75,12 @@ impl Sessions {
         matcher: &Arc<M>,
         senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
         next_sid: SessionId,
-        next_fid: FlowId,
+        next_fid: FlowId
     ) -> Option<(SessionId, FlowId)>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync,
+        M: MatcherRegistry<'a, D> + 'static + Send + Sync
     {
         let f = |sid: &SessionId, fid: &FlowId, flow: &Flow| {
             let vars = flow.vars();
@@ -88,18 +88,18 @@ impl Sessions {
                 return None;
             }
             let ctx = ReusableContext {
-                same_session: sid == &next_sid,
+                same_session: sid == &next_sid
             };
             if source.reusable(
                 &senario.linearf.source,
                 ctx.clone(),
                 (vars, flow.source_params()),
-                (senario.linearf, senario.source),
+                (senario.linearf, senario.source)
             ) && matcher.reusable(
                 &senario.linearf.matcher,
                 ctx,
                 (vars, flow.matcher_params()),
-                (senario.linearf, senario.matcher),
+                (senario.linearf, senario.matcher)
             ) {
                 return Some((*sid, *fid));
             }
@@ -132,13 +132,13 @@ impl Sessions {
         source: Arc<S>,
         matcher: Arc<M>,
         id: SessionId,
-        senario: Senario<Vars, D>,
+        senario: Senario<Vars, D>
     ) -> Result<(SessionId, FlowId), Error>
     where
         D: serde::de::Deserializer<'a>,
         S: SourceRegistry<'a, D> + 'static + Send + Sync,
         M: MatcherRegistry<'a, D> + 'static + Send + Sync,
-        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
     {
         todo!()
         //{
@@ -192,9 +192,7 @@ impl Sessions {
         }
     }
 
-    pub fn next_id(&self) -> SessionId {
-        SessionId(self.last_id.0 + 1)
-    }
+    pub fn next_id(&self) -> SessionId { SessionId(self.last_id.0 + 1) }
 
     fn use_next_id(&mut self) -> SessionId {
         self.last_id = self.next_id();
@@ -219,18 +217,18 @@ impl Sessions {
 fn parse_params<'a, D, S, M>(
     source: &Arc<S>,
     matcher: &Arc<M>,
-    senario: Senario<Vars, D>,
+    senario: Senario<Vars, D>
 ) -> Result<Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>, Error>
 where
     D: serde::de::Deserializer<'a>,
     S: SourceRegistry<'a, D> + 'static + Send + Sync,
     M: MatcherRegistry<'a, D> + 'static + Send + Sync,
-    <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
+    <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
 {
     let Senario {
         linearf: s_linearf,
         source: s_source,
-        matcher: s_matcher,
+        matcher: s_matcher
     } = senario;
     let s_linearf = Arc::new(s_linearf);
     let source_params = source
@@ -242,7 +240,7 @@ where
     Ok(Senario {
         linearf: s_linearf,
         source: source_params,
-        matcher: matcher_params,
+        matcher: matcher_params
     })
 }
 
@@ -270,7 +268,7 @@ fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<
 pub struct Senario<V, P> {
     pub linearf: V,
     pub source: P,
-    pub matcher: P,
+    pub matcher: P
 }
 
 impl<V, P> Senario<V, P> {
@@ -278,7 +276,7 @@ impl<V, P> Senario<V, P> {
         Senario {
             linearf: &self.linearf,
             source: &self.source,
-            matcher: &self.matcher,
+            matcher: &self.matcher
         }
     }
 }

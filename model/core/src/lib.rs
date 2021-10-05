@@ -57,22 +57,19 @@ impl State {
         Arc::new(RwLock::new(this))
     }
 
-    pub async fn start_session<'a, D, S, M>(
+    pub async fn start_session<'a, D, R>(
         &mut self,
-        rt: AsyncRt,
-        source: Arc<S>,
-        matcher: Arc<M>,
+        registry: &R,
         senario: Senario<Vars, D>
     ) -> Result<(SessionId, FlowId), Error>
     where
         D: serde::de::Deserializer<'a>,
-        S: SourceRegistry + 'static + Send + Sync,
-        M: MatcherRegistry + 'static + Send + Sync,
-        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+        <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
+        R: Registry
     {
-        let senario = parse_params(&source, &matcher, senario)?;
+        let senario = parse_params(registry, senario)?;
         let next_id = self.next_id();
-        let reusable = self.reusable(&source, &matcher, senario.as_ref(), next_id, FlowId::FIRST);
+        let reusable = self.reusable(registry, senario.as_ref(), next_id, FlowId::FIRST);
         let (id, sess) = match reusable {
             Some((sid, fid)) => {
                 // unwrap: reusable returns the id that exists
@@ -81,7 +78,7 @@ impl State {
                 (sid, s)
             }
             None => {
-                let sess = Session::start(rt, source, matcher, senario).await;
+                let sess = Session::start(registry, senario).await;
                 self.last_id = next_id;
                 (next_id, sess)
             }
@@ -91,17 +88,15 @@ impl State {
         Ok((id, fid))
     }
 
-    fn reusable<S, M>(
+    fn reusable<R>(
         &self,
-        source: &Arc<S>,
-        matcher: &Arc<M>,
+        registry: &R,
         senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
         next_sid: SessionId,
         next_fid: FlowId
     ) -> Option<(SessionId, FlowId)>
     where
-        S: SourceRegistry + 'static + Send + Sync,
-        M: MatcherRegistry + 'static + Send + Sync
+        R: Registry
     {
         let f = |sid: &SessionId, fid: &FlowId, flow: &Flow| {
             let vars = flow.vars();
@@ -111,12 +106,14 @@ impl State {
             let ctx = ReusableContext {
                 same_session: sid == &next_sid
             };
-            if source.reusable(
+            if crate::source::SourceRegistry::reusable(
+                registry,
                 &senario.linearf.source,
                 ctx.clone(),
                 (vars, flow.source_params()),
                 (senario.linearf, senario.source)
-            ) && matcher.reusable(
+            ) && crate::matcher::MatcherRegistry::reusable(
+                registry,
                 &senario.linearf.matcher,
                 ctx,
                 (vars, flow.matcher_params()),
@@ -226,16 +223,14 @@ impl State {
     }
 }
 
-fn parse_params<'a, D, S, M>(
-    source: &Arc<S>,
-    matcher: &Arc<M>,
+fn parse_params<'a, D, R>(
+    registry: &R,
     senario: Senario<Vars, D>
 ) -> Result<Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>, Error>
 where
     D: serde::de::Deserializer<'a>,
-    S: SourceRegistry + 'static + Send + Sync,
-    M: MatcherRegistry + 'static + Send + Sync,
-    <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static
+    <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
+    R: Registry
 {
     let Senario {
         linearf: s_linearf,
@@ -243,12 +238,12 @@ where
         matcher: s_matcher
     } = senario;
     let s_linearf = Arc::new(s_linearf);
-    let source_params = source
-        .parse(&s_linearf.source, s_source)?
-        .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
-    let matcher_params = matcher
-        .parse(&s_linearf.matcher, s_matcher)?
-        .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
+    let source_params =
+        crate::source::SourceRegistry::parse(registry, &s_linearf.source, s_source)?
+            .ok_or_else(|| format!("source \"{}\" is not found", &s_linearf.source))?;
+    let matcher_params =
+        crate::matcher::MatcherRegistry::parse(registry, &s_linearf.matcher, s_matcher)?
+            .ok_or_else(|| format!("matcher \"{}\" is not found", &s_linearf.matcher))?;
     Ok(Senario {
         linearf: s_linearf,
         source: source_params,

@@ -15,6 +15,12 @@ function M.run()
             path = "test_sources::matcher::Substring"
         }
     }
+    linearf.recipe.converters = {
+        {
+            name = "OddEven",
+            path = "test_sources::converter::OddEven"
+        }
+    }
     linearf.build()
     local view = {
         start = function(self, session)

@@ -43,16 +43,17 @@ pub struct Flow {
 }
 
 impl Session {
-    pub async fn start<S, M>(
-        rt: AsyncRt,
-        source_registry: Arc<S>,
-        matcher_registry: Arc<M>,
+    pub async fn start<R>(
+        registry: &R,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Self
     where
-        S: SourceRegistry + 'static + Send + Sync,
-        M: MatcherRegistry + 'static + Send + Sync
+        R: crate::Registry
     {
+        let stream = registry.stream(
+            &senario.linearf.source,
+            (senario.linearf.clone(), senario.source.clone())
+        );
         todo!()
         // let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
         //    .await
