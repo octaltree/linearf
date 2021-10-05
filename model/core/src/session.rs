@@ -18,9 +18,8 @@ pub struct Vars {
 }
 
 #[derive(Clone)]
-pub struct ReusableContext<'a> {
-    pub same_session: bool,
-    pub state: &'a State
+pub struct ReusableContext {
+    pub same_session: bool
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -44,16 +43,15 @@ pub struct Flow {
 }
 
 impl Session {
-    pub async fn start<'a, D, S, M>(
+    pub async fn start<S, M>(
         rt: AsyncRt,
         source_registry: Arc<S>,
         matcher_registry: Arc<M>,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Self
     where
-        D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry + 'static + Send + Sync,
+        M: MatcherRegistry + 'static + Send + Sync
     {
         todo!()
         // let flow = Flow::start(rt, senario, source_registry, matcher_registry, true)
@@ -64,7 +62,7 @@ impl Session {
         // Self { flows }
     }
 
-    pub async fn tick<'a, D, S, M>(
+    pub async fn tick<S, M>(
         &mut self,
         rt: AsyncRt,
         source_registry: Arc<S>,
@@ -72,9 +70,8 @@ impl Session {
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Option<FlowId>
     where
-        D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry + 'static + Send + Sync,
+        M: MatcherRegistry + 'static + Send + Sync
     {
         // let flow = Flow::start(rt, senario, source_registry, matcher_registry, false).await?;
         // None
@@ -117,7 +114,7 @@ impl Session {
 }
 
 impl Flow {
-    pub async fn start<'a, D, S, M>(
+    pub async fn start<S, M>(
         rt: AsyncRt,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
         source_registry: Arc<S>,
@@ -125,9 +122,8 @@ impl Flow {
         first: bool
     ) -> Option<Self>
     where
-        D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry + 'static + Send + Sync,
+        M: MatcherRegistry + 'static + Send + Sync
     {
         let Senario {
             linearf: vars,
@@ -145,7 +141,7 @@ impl Flow {
         Some(this)
     }
 
-    async fn main<'a, D, S, M>(
+    async fn main<S, M>(
         &mut self,
         rt: AsyncRt,
         source_registry: Arc<S>,
@@ -153,9 +149,8 @@ impl Flow {
         first: bool
     ) -> Option<()>
     where
-        D: serde::de::Deserializer<'a>,
-        S: SourceRegistry<'a, D> + 'static + Send + Sync,
-        M: MatcherRegistry<'a, D> + 'static + Send + Sync
+        S: SourceRegistry + 'static + Send + Sync,
+        M: MatcherRegistry + 'static + Send + Sync
     {
         todo!()
         // self.sorted.start(rx2);

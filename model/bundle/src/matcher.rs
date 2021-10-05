@@ -69,7 +69,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             fn reusable(
                 &self,
                 name: &str,
-                ctx: ReusableContext<'_>,
+                ctx: ReusableContext,
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
             ) -> bool

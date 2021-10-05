@@ -13,8 +13,12 @@ pub trait IsMatcher {
     type Params: MatcherParams;
 }
 
-pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
-    fn into_matcher(self) -> Matcher<P>
+pub trait SimpleScorer<L, R, P>: New<L, R> + IsMatcher<Params = P>
+where
+    L: crate::Linearf<R> + Send + Sync,
+    R: crate::Registry
+{
+    fn into_matcher(self) -> Matcher<L, R, P>
     where
         Self: Sized + 'static + Send + Sync
     {
@@ -25,15 +29,15 @@ pub trait SimpleScorer<P>: New + IsMatcher<Params = P> {
 
     fn reusable(
         &self,
-        ctx: ReusableContext<'_>,
+        ctx: ReusableContext,
         prev: (&Arc<Vars>, &Arc<P>),
         senario: (&Arc<Vars>, &Arc<P>)
     ) -> bool;
 }
 
 #[derive(Clone)]
-pub enum Matcher<P> {
-    Simple(Arc<dyn SimpleScorer<P> + Send + Sync>)
+pub enum Matcher<L, R, P> {
+    Simple(Arc<dyn SimpleScorer<L, R, P> + Send + Sync>)
 }
 
 /// Items will be displayed in v DESC, item_id ASC.
@@ -92,26 +96,24 @@ impl Ord for Score {
     }
 }
 
-pub trait MatcherRegistry<'de, D>
-where
-    D: serde::de::Deserializer<'de>
-{
-    fn new(state: Shared<State>, rt: AsyncRt) -> Self
-    where
-        Self: Sized;
+pub trait MatcherRegistry {
+    fn names(&self) -> &[String] { &[] }
 
-    fn parse(
+    fn parse<'de, D>(
         &self,
         _name: &str,
         _deserializer: D
-    ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
+    ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>
+    {
         Ok(None)
     }
 
     fn reusable(
         &self,
         _name: &str,
-        ctx: ReusableContext<'_>,
+        ctx: ReusableContext,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> bool {

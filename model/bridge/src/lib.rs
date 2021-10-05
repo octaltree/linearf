@@ -1,3 +1,9 @@
+#![feature(arc_new_cyclic)]
+
+mod lnf;
+mod wrapper;
+
+use crate::{lnf::Lnf, wrapper::Wrapper};
 use linearf::{matcher::MatcherRegistry, source::SourceRegistry, Senario, Shared, State, Vars};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
@@ -14,12 +20,9 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().map_err(LuaError::external)?;
     let rt = Runtime::new()?;
     let st = State::new_shared();
-    let source = Arc::new(<registry::Source as SourceRegistry<
-        mlua::serde::Deserializer<'_>
-    >>::new(st.clone(), rt.handle().clone()));
-    let matcher = Arc::new(<registry::Matcher as MatcherRegistry<
-        mlua::serde::Deserializer<'_>
-    >>::new(st.clone(), rt.handle().clone()));
+    let source = todo!();
+    let matcher = todo!();
+    let lnf = Lnf::new(st.clone(), rt.handle().clone());
     {
         lua.globals()
             .raw_set(RT, lua.create_userdata(Wrapper::new(rt))?)?;
@@ -115,20 +118,6 @@ fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<Vars, LuaDeseria
         source,
         matcher
     })
-}
-
-#[derive(Clone)]
-struct Wrapper<T>(T);
-
-impl<T> LuaUserData for Wrapper<T> {}
-
-impl<T> std::ops::Deref for Wrapper<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target { &self.0 }
-}
-
-impl<T> Wrapper<T> {
-    fn new(inner: T) -> Self { Self(inner) }
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

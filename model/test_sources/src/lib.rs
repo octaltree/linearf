@@ -1,27 +1,38 @@
 pub mod source {
-    use linearf::{source::*, stream::Stream, AsyncRt, Item, MaybeUtf8, New, Shared, State, Vars};
-    use std::{pin::Pin, sync::Arc};
+    use linearf::{
+        source::*, stream::Stream, AsyncRt, Item, Linearf, MaybeUtf8, New, Shared, State, Vars
+    };
+    use std::{
+        pin::Pin,
+        sync::{Arc, Weak}
+    };
 
-    pub struct Simple {
-        _state: Shared<State>
+    pub struct Simple<L> {
+        _linearf: Weak<L>
     }
 
-    impl New for Simple {
-        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+    impl<L, R> New<L, R> for Simple<L>
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
+        fn new(_linearf: Weak<L>) -> Self
         where
             Self: Sized
         {
-            Self {
-                _state: _state.clone()
-            }
+            Self { _linearf }
         }
     }
 
-    impl IsSource for Simple {
+    impl<L> IsSource for Simple<L> {
         type Params = BlankParams;
     }
 
-    impl SimpleGenerator<BlankParams> for Simple {
+    impl<L, R> SimpleGenerator<L, R, BlankParams> for Simple<L>
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
         fn stream(
             &self,
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
@@ -38,7 +49,7 @@ pub mod source {
 
         fn reusable(
             &self,
-            _ctx: ReusableContext<'_>,
+            _ctx: ReusableContext,
             _prev: (&Arc<Vars>, &Arc<Self::Params>),
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> bool {
@@ -48,29 +59,35 @@ pub mod source {
 }
 
 pub mod matcher {
-    use linearf::{matcher::*, session::Vars, AsyncRt, Item, New, Shared, State};
-    use std::sync::Arc;
+    use linearf::{matcher::*, session::Vars, AsyncRt, Item, Linearf, New, Shared, State};
+    use std::sync::{Arc, Weak};
 
-    pub struct Substring {
-        _state: Shared<State>
+    pub struct Substring<L> {
+        _linearf: Weak<L>
     }
 
-    impl New for Substring {
-        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+    impl<L, R> New<L, R> for Substring<L>
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
+        fn new(_linearf: Weak<L>) -> Self
         where
             Self: Sized
         {
-            Self {
-                _state: _state.clone()
-            }
+            Self { _linearf }
         }
     }
 
-    impl IsMatcher for Substring {
+    impl<L> IsMatcher for Substring<L> {
         type Params = BlankParams;
     }
 
-    impl SimpleScorer<BlankParams> for Substring {
+    impl<L, R> SimpleScorer<L, R, BlankParams> for Substring<L>
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
         fn score(&self, (vars, _): (Arc<Vars>, Arc<Self::Params>), item: &Arc<Item>) -> Score {
             return if item.view_for_matcing().find(&vars.query).is_some() {
                 Score::new(item.id, vec![1])
@@ -81,7 +98,7 @@ pub mod matcher {
 
         fn reusable(
             &self,
-            _ctx: ReusableContext<'_>,
+            _ctx: ReusableContext,
             (prev, _): (&Arc<Vars>, &Arc<Self::Params>),
             (senario, _): (&Arc<Vars>, &Arc<Self::Params>)
         ) -> bool {
@@ -91,12 +108,17 @@ pub mod matcher {
 }
 
 pub mod converter {
-    use linearf::{converter::*, session::Vars, AsyncRt, Item, New, Shared, State};
+    use linearf::{converter::*, session::Vars, AsyncRt, Item, Linearf, New, Shared, State};
+    use std::sync::Weak;
 
     struct OddEven {}
 
-    impl New for OddEven {
-        fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+    impl<L, R> New<L, R> for OddEven
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
+        fn new(_linearf: Weak<L>) -> Self
         where
             Self: Sized
         {
@@ -104,7 +126,11 @@ pub mod converter {
         }
     }
 
-    impl SimpleConverter for OddEven {
+    impl<L, R> SimpleConverter<L, R> for OddEven
+    where
+        L: linearf::Linearf<R> + Send + Sync,
+        R: linearf::Registry
+    {
         fn convert(&self, item: Item) -> Item {
             if item.r#type != "number" {
                 return item;

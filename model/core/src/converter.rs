@@ -2,8 +2,12 @@ use crate::{stream::Stream, AsyncRt, Item, New, Shared, State, Vars};
 use std::{pin::Pin, sync::Arc};
 
 /// has no `reusable` and should have referential transparency
-pub trait SimpleConverter: New {
-    fn into_converter(self) -> Converter
+pub trait SimpleConverter<L, R>: New<L, R>
+where
+    L: crate::Linearf<R> + Send + Sync,
+    R: crate::Registry
+{
+    fn into_converter(self) -> Converter<L, R>
     where
         Self: Sized + 'static + Send + Sync
     {
@@ -14,14 +18,12 @@ pub trait SimpleConverter: New {
 }
 
 #[derive(Clone)]
-pub enum Converter {
-    Simple(Arc<dyn SimpleConverter + Send + Sync>)
+pub enum Converter<L, R> {
+    Simple(Arc<dyn SimpleConverter<L, R> + Send + Sync>)
 }
 
 pub trait ConverterRegistry {
-    fn new(state: Shared<State>, rt: AsyncRt) -> Self
-    where
-        Self: Sized;
+    fn names(&self) -> &[String] { &[] }
 
     fn map_convert(
         &self,
