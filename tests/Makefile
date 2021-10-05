@@ -5,8 +5,8 @@ export THEMIS_HOME := ../tools/vim-themis
 
 .PHONY: test
 test: ../tools/vim-themis ../tests/test.vim
-	THEMIS_VIM=nvim THEMIS_ARGS="-e -s --headless -u vimrc" ../tools/vim-themis/bin/themis ../tests/test.vim
 	THEMIS_VIM=vim THEMIS_ARGS="-e -s -u vimrc" ../tools/vim-themis/bin/themis ../tests/test.vim
+	THEMIS_VIM=nvim THEMIS_ARGS="-e -s --headless -u vimrc" ../tools/vim-themis/bin/themis ../tests/test.vim
 
 .PHONY: clean
 clean:
