@@ -94,14 +94,17 @@ pub mod matcher {
 
 pub mod converter {
     use linearf::converter::*;
+    use std::marker::PhantomData;
 
-    struct OddEven {}
+    struct OddEven<L> {
+        phantom: PhantomData<L>
+    }
 
-    impl IsConverter for OddEven {
+    impl<L> IsConverter for OddEven<L> {
         type Params = Void;
     }
 
-    impl<L> NewConverter<L> for OddEven
+    impl<L> NewConverter<L> for OddEven<L>
     where
         L: linearf::Linearf + Send + Sync + 'static
     {
@@ -109,11 +112,13 @@ pub mod converter {
         where
             Self: Sized
         {
-            Converter::from_simple(Self {})
+            Converter::from_simple(Self {
+                phantom: PhantomData
+            })
         }
     }
 
-    impl SimpleConverter for OddEven {
+    impl<L> SimpleConverter for OddEven<L> {
         fn convert(&self, item: Item) -> Item {
             if item.r#type != "number" {
                 return item;

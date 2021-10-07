@@ -1,5 +1,5 @@
 pub use crate::{item::Item, Linearf, SmartString, Vars};
-pub use futures::{stream::empty, Stream};
+pub use futures::{stream::empty, Stream, StreamExt};
 pub use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub use std::{
     any::Any,

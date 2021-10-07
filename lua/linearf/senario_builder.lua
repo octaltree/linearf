@@ -7,7 +7,11 @@ local SenarioBuilder = {}
 --   * view: ViewParams,
 local DEFAULT = {
     linearf = {
-        query = ''
+        query = '',
+        converters = {},
+        cache_sec = 60,
+        cache_across_sessions = true,
+        chunk_msec = 10
     },
     source = {},
     matcher = {},

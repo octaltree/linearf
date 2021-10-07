@@ -4,7 +4,8 @@ use proc_macro2::{Ident, TokenStream};
 struct A {
     name: String,
     field: Ident,
-    path: TokenStream
+    path: TokenStream,
+    params: TokenStream
 }
 
 pub fn format(recipe: &Recipe) -> TokenStream {
@@ -12,10 +13,12 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
         let path = quote::quote! { #(#p)::* };
+        let params = quote::quote! { <#path<L> as IsConverter>::Params };
         A {
             name: s.name.clone(),
             field,
-            path
+            path,
+            params
         }
     });
     macro_rules! let_converters {
@@ -36,9 +39,9 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> Converter<L>
         where
-            L: linearf::Linearf + Send + Sync
+            L: linearf::Linearf + Send + Sync + 'static
         {
-            fn new(linearf: Weak<L>) -> Self
+            pub fn new(linearf: Weak<L>) -> Self
             {
                 Self {
                     phantom: PhantomData,
@@ -49,14 +52,14 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> ConverterRegistry for Converter<L>
         where
-            L : linearf::Linearf + Send + Sync
+            L: linearf::Linearf + Send + Sync + 'static
         {
             fn map_convert(
                 &self,
                 names: &[SmartString],
                 items: impl Stream<Item = Item> + Send + Sync + 'static,
             ) -> Result<Pin<Box<dyn Stream<Item = Item> + Send + Sync>>, MapConvertError> {
-                let cs: Vec<&linearf::converter::Converter<L>> = names.iter()
+                let cs: Vec<linearf::converter::Converter<L>> = names.iter()
                     .map(|name| -> Result<_, MapConvertError> {
                         match name {
                             #(#map_convert)*
@@ -73,6 +76,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                             linearf::converter::Converter::Simple(c) => {
                                 item = c.convert(item);
                             }
+                            linearf::converter::Converter::Reserve(_) => {}
                         }
                     }
                     item
@@ -84,22 +88,22 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 }
 
 fn fields(a: A) -> TokenStream {
-    let A { field, .. } = a;
+    let A { field, params, .. } = a;
     quote::quote! {
-        #field: linearf::converter::Converter<L>,
+        #field: linearf::converter::Converter<#params>,
     }
 }
 
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as New<L>>::new(&state, &rt).into_converter(),
+        #field: <#path as NewConverter<L>>::new(linearf.clone())
     }
 }
 
 fn map_convert(a: A) -> TokenStream {
     let A { name, field, .. } = a;
     quote::quote! {
-        #name => Ok(&self.#field),
+        #name => Ok(self.#field.clone()),
     }
 }

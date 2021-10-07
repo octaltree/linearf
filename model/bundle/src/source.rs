@@ -36,7 +36,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> Source<L>
         where
-            L: linearf::Linearf + Send + Sync
+            L: linearf::Linearf + Send + Sync + 'static
         {
             pub fn new(linearf: Weak<L>) -> Self
             where
@@ -50,7 +50,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> SourceRegistry for Source<L>
         where
-            L : linearf::Linearf + Send + Sync
+            L: linearf::Linearf + Send + Sync
         {
             fn parse<'de, D>(
                 &self,
@@ -97,14 +97,14 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 fn fields(a: A) -> TokenStream {
     let A { field, params, .. } = a;
     quote::quote! {
-        #field: linearf::source::Source<L, #params>,
+        #field: linearf::source::Source<#params>,
     }
 }
 
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path<L> as New<L>>::new(linearf.clone()).into_source(),
+        #field: <#path<L> as NewSource<L>>::new(linearf.clone())
     }
 }
 

@@ -36,9 +36,9 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> Matcher<L>
         where
-            L: linearf::Linearf + Send + Sync
+            L: linearf::Linearf + Send + Sync + 'static
         {
-            fn new(linearf: Weak<L>) -> Self
+            pub fn new(linearf: Weak<L>) -> Self
             {
                 Self {
                     #(#new_fields)*
@@ -97,14 +97,14 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 fn fields(a: A) -> TokenStream {
     let A { field, params, .. } = a;
     quote::quote! {
-        #field: linearf::matcher::Matcher<L, #params>,
+        #field: linearf::matcher::Matcher<#params>,
     }
 }
 
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path<L> as New<L>>::new(linearf.clone()).into_matcher(),
+        #field: <#path<L> as NewMatcher<L>>::new(linearf.clone()),
     }
 }
 
@@ -161,8 +161,11 @@ fn score(a: A) -> TokenStream {
                 if senario_matcher.is::<#params>() {
                     let senario_matcher: &Arc<#params> =
                         unsafe { std::mem::transmute(senario_matcher) };
+                    let s = s.clone();
+                    let senario_vars = senario_vars.clone();
+                    let senario_matcher = senario_matcher.clone();
                     Box::pin(items.map(move |x| {
-                        let score = s.score((senario_vars, senario_matcher), &x);
+                        let score = s.score((&senario_vars, &senario_matcher), &x);
                         (x, Arc::new(score))
                     }))
                 } else {
