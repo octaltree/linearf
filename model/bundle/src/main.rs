@@ -93,6 +93,12 @@ fn preprocess(
 
 fn build(features: &str) -> std::io::Result<ExitStatus> {
     Command::new("cargo")
+        .args(["fmt", "-p", "registry"])
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .ok();
+    Command::new("cargo")
         .args(["build", "--features", features, "--release", "--lib=bridge"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

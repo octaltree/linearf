@@ -51,8 +51,6 @@ pub fn format_lib(recipe: &Recipe) -> String {
         pub use source::Source;
         pub use matcher::Matcher;
         pub use converter::Converter;
-        pub use registry::Registry;
-        mod registry;
         mod source {
             #source
         }

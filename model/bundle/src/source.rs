@@ -13,7 +13,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         let field = quote::format_ident!("{}", &s.name);
         let p = s.path.split("::").map(|p| quote::format_ident!("{}", p));
         let path = quote::quote! { #(#p)::* };
-        let params = quote::quote! { <#path as IsSource>::Params };
+        let params = quote::quote! { <#path<L> as IsSource>::Params };
         A {
             name: s.name.clone(),
             field,
@@ -28,13 +28,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     }
     let_sources! {fields, new_fields, parses, reusable, stream}
     quote::quote! {
-        use linearf::{Shared, New, Vars, RwLock, AsyncRt, Item};
         use linearf::source::*;
-        use linearf::stream::*;
-        use std::sync::Arc;
-        use std::sync::Weak;
-        use std::any::Any;
-        use serde::Deserialize;
 
         pub struct Source<L> {
             #(#fields)*
@@ -42,7 +36,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 
         impl<L> Source<L>
         where
-            L: linearf::Linearf<crate::Registry>
+            L: linearf::Linearf + Send + Sync
         {
             pub fn new(linearf: Weak<L>) -> Self
             where
@@ -54,44 +48,46 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             }
         }
 
-        impl<L> linearf::source::SourceRegistry for Source<L> {
+        impl<L> SourceRegistry for Source<L>
+        where
+            L : linearf::Linearf + Send + Sync
+        {
             fn parse<'de, D>(
                 &self,
                 name: &str,
                 deserializer: D
-            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error>
+            ) -> Option<Result<Arc<dyn Any + Send + Sync>, D::Error>>
             where
                 D: serde::de::Deserializer<'de>
             {
                 match name {
                     #(#parses)*
-                    _ => Ok(None)
+                    _ => None
                 }
             }
 
             fn reusable(
                 &self,
                 name: &str,
-                ctx: ReusableContext,
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-            ) -> bool
+            ) -> Reusable
             {
                 match name {
                     #(#reusable)*
-                    _ => false
+                    _ => Reusable::None
                 }
             }
 
             fn stream(
                 &self,
                 name: &str,
-                senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
-            ) -> Pin<Box<dyn Stream<Item = Item>>>
+                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+            ) -> Pin<Box<dyn Stream<Item = Item> + Send +Sync>>
             {
                 match name {
                     #(#stream)*
-                    _ => Box::pin(linearf::stream::empty())
+                    _ => Box::pin(empty())
                 }
             }
         }
@@ -101,20 +97,23 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 fn fields(a: A) -> TokenStream {
     let A { field, params, .. } = a;
     quote::quote! {
-        #field: linearf::source::Source<L, crate::Registry, #params>,
+        #field: linearf::source::Source<L, #params>,
     }
 }
 
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as New>::new(linearf.clone()).into_source(),
+        #field: <#path<L> as New<L>>::new(linearf.clone()).into_source(),
     }
 }
 
 fn parses(A { name, params, .. }: A) -> TokenStream {
     quote::quote! {
-        #name => Ok(Some(Arc::new(#params::deserialize(deserializer)?))),
+        #name => match #params::deserialize(deserializer) {
+            Ok(x) => Some(Ok(Arc::new(x))),
+            Err(e) => Some(Err(e))
+        },
     }
 }
 
@@ -131,13 +130,12 @@ fn reusable(a: A) -> TokenStream {
         if prev_source.is::<#params>()
             && senario_source.is::<#params>()
         {
-            let prev_source: &Arc<#params> =
-                unsafe { std::mem::transmute(prev_source) };
-            let senario_source: &Arc<#params> =
-                unsafe { std::mem::transmute(senario_source) };
-            g.reusable(ctx, (prev_vars, prev_source), (senario_vars, senario_source))
+            let prev_source: &Arc<#params> = unsafe { std::mem::transmute(prev_source) };
+            let senario_source: &Arc<#params> = unsafe { std::mem::transmute(senario_source) };
+            g.reusable((prev_vars, prev_source), (senario_vars, senario_source))
         } else {
-            false
+            log::error!("mismatch source reusable params");
+            Reusable::None
         }
     };
     quote::quote! {
@@ -157,11 +155,10 @@ fn stream(a: A) -> TokenStream {
     let pre = quote::quote! {
         let (senario_vars, senario_source) = senario;
         if !senario_source.is::<#params>() {
-            log::error!("mismatch params type");
-            return Box::pin(linearf::stream::empty());
+            log::error!("mismatch source stream params");
+            return Box::pin(empty());
         }
-        let (senario_source, _): (Arc<#params>, usize) =
-            unsafe { std::mem::transmute(senario_source) };
+        let senario_source: &Arc<#params> = unsafe { std::mem::transmute(senario_source) };
     };
     quote::quote! {
         #name => match self.#field.clone() {
