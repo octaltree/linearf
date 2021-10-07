@@ -29,25 +29,27 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         use linearf::stream::*;
         use linearf::converter::*;
         use std::sync::Arc;
+        use std::sync::Weak;
         use std::any::Any;
         use std::collections::HashMap;
 
-        pub struct Converter {
+        pub struct Converter<L> {
             #(#fields)*
-            state: Shared<linearf::State>,
         }
 
-        impl linearf::converter::ConverterRegistry for Converter {
-            fn new(state: linearf::Shared<linearf::State>, rt: linearf::AsyncRt) -> Self
-            where
-                Self: Sized,
+        impl<L> Converter<L>
+        where
+            L: linearf::Linearf<crate::Registry>
+        {
+            fn new(linearf: Weak<L>) -> Self
             {
                 Self {
                     #(#new_fields)*
-                    state,
                 }
             }
+        }
 
+        impl<L> ConverterRegistry for Converter<L> {
             fn map_convert(
                 &self,
                 senario: Arc<Vars>,

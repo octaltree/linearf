@@ -33,33 +33,35 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         use linearf::source;
         use linearf::stream::*;
         use std::sync::Arc;
+        use std::sync::Weak;
         use std::any::Any;
         use serde::Deserialize;
 
-        pub struct Matcher {
+        pub struct Matcher<L> {
             #(#fields)*
-            state: linearf::Shared<linearf::State>,
         }
 
-        impl<'de, D> linearf::matcher::MatcherRegistry<'de, D> for Matcher
+        impl<L> Matcher<L>
         where
-            D: serde::de::Deserializer<'de>
+            L: linearf::Linearf<crate::Registry>,
         {
-            fn new(state: linearf::Shared<linearf::State>, rt: AsyncRt) -> Self
-            where
-                Self: Sized
+            fn new(linearf: Weak<L>) -> Self
             {
                 Self {
                     #(#new_fields)*
-                    state,
                 }
             }
+        }
 
-            fn parse(
+        impl<L> MatcherRegistry for Matcher<L> {
+            fn parse<'de, D>(
                 &self,
                 name: &str,
                 deserializer: D
-            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
+            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error>
+            where
+                D: serde::de::Deserializer<'de>
+            {
                 match name {
                     #(#parses)*
                     _ => Ok(None)
@@ -109,7 +111,7 @@ fn fields(a: A) -> TokenStream {
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as New>::new(&state, &rt).into_matcher(),
+        #field: <#path as New>::new(linearf.clone()).into_matcher(),
     }
 }
 

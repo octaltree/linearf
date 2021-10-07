@@ -2,7 +2,7 @@ use bundle::{format_cargo_toml, format_lib, Crate, Recipe, StdResult};
 use std::{
     env, fs,
     path::{Path, PathBuf},
-    process::{Command, Stdio}
+    process::{Command, ExitStatus, Stdio}
 };
 
 fn main() -> StdResult<()> {
@@ -26,9 +26,9 @@ fn main() -> StdResult<()> {
         crates.iter().map(|(_, f)| f.clone()).collect()
     )?;
     preprocess(&recipe, registry_lib, registry_toml, crates, &core)?;
-    build(&features);
+    let run = build(&features);
     stash.restore()?;
-    Ok(())
+    std::process::exit(run?.code().ok_or("Process terminated by signal")?);
 }
 
 fn input(env_reg: Result<String, env::VarError>) -> StdResult<Recipe> {
@@ -91,13 +91,12 @@ fn preprocess(
     Ok(())
 }
 
-fn build(features: &str) {
+fn build(features: &str) -> std::io::Result<ExitStatus> {
     Command::new("cargo")
         .args(["build", "--features", features, "--release", "--lib=bridge"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
-        .ok();
 }
 
 pub struct Stash {

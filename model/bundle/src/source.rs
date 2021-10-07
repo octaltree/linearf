@@ -32,33 +32,37 @@ pub fn format(recipe: &Recipe) -> TokenStream {
         use linearf::source::*;
         use linearf::stream::*;
         use std::sync::Arc;
+        use std::sync::Weak;
         use std::any::Any;
         use serde::Deserialize;
 
-        pub struct Source {
+        pub struct Source<L> {
             #(#fields)*
-            state: Shared<linearf::State>,
         }
 
-        impl<'de, D> linearf::source::SourceRegistry<'de, D> for Source
+        impl<L> Source<L>
         where
-            D: serde::de::Deserializer<'de>
+            L: linearf::Linearf<crate::Registry>
         {
-            fn new(state: linearf::Shared<linearf::State>, rt: AsyncRt) -> Self
+            pub fn new(linearf: Weak<L>) -> Self
             where
                 Self: Sized
             {
                 Self {
                     #(#new_fields)*
-                    state,
                 }
             }
+        }
 
-            fn parse(
+        impl<L> linearf::source::SourceRegistry for Source<L> {
+            fn parse<'de, D>(
                 &self,
                 name: &str,
                 deserializer: D
-            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error> {
+            ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error>
+            where
+                D: serde::de::Deserializer<'de>
+            {
                 match name {
                     #(#parses)*
                     _ => Ok(None)
@@ -72,8 +76,6 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
                 senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
             ) -> bool
-            where
-                Self: Sized
             {
                 match name {
                     #(#reusable)*
@@ -86,8 +88,6 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 name: &str,
                 senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
             ) -> Pin<Box<dyn Stream<Item = Item>>>
-            where
-                Self: Sized,
             {
                 match name {
                     #(#stream)*
@@ -101,14 +101,14 @@ pub fn format(recipe: &Recipe) -> TokenStream {
 fn fields(a: A) -> TokenStream {
     let A { field, params, .. } = a;
     quote::quote! {
-        #field: linearf::source::Source<#params>,
+        #field: linearf::source::Source<L, crate::Registry, #params>,
     }
 }
 
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as New>::new(&state, &rt).into_source(),
+        #field: <#path as New>::new(linearf.clone()).into_source(),
     }
 }
 
