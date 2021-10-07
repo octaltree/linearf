@@ -17,18 +17,45 @@ pub trait ConverterRegistry {
     }
 }
 
-#[derive(Clone)]
-pub enum Converter<L> {
-    Simple(Arc<dyn SimpleConverter<L> + Send + Sync>)
+pub enum MapConvertError {
+    ConverterNotFound(SmartString)
 }
 
-pub trait SimpleConverter<L>
-where
-    L: Linearf + Send + Sync
-{
+#[derive(Clone)]
+pub enum Converter<P> {
+    Simple(Arc<dyn SimpleConverter + Send + Sync>),
+    Reserve(std::marker::PhantomData<P>)
+}
+
+pub trait SimpleConverter {
     fn convert(&self, item: Item) -> Item;
 }
 
-pub enum MapConvertError {
-    ConverterNotFound(SmartString)
+pub trait IsConverter {
+    type Params: ConverterParams;
+}
+
+pub trait ConverterParams: DeserializeOwned + Serialize {}
+
+impl ConverterParams for BlankParams {}
+
+#[derive(Deserialize, Serialize)]
+pub enum Void {}
+
+impl ConverterParams for Void {}
+
+pub trait NewConverter<L>: IsConverter
+where
+    L: Linearf + Send + Sync + 'static
+{
+    fn new(linearf: Weak<L>) -> Converter<<Self as IsConverter>::Params>;
+}
+
+impl<P> Converter<P> {
+    pub fn from_simple<T>(x: T) -> Self
+    where
+        T: SimpleConverter + Send + Sync + 'static
+    {
+        Converter::Simple(Arc::new(x))
+    }
 }

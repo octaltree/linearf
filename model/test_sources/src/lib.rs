@@ -5,26 +5,23 @@ pub mod source {
         _linearf: Weak<L>
     }
 
-    impl<L> New<L> for Simple<L>
-    where
-        L: linearf::Linearf + Send + Sync
-    {
-        fn new(_linearf: Weak<L>) -> Self
-        where
-            Self: Sized
-        {
-            Self { _linearf }
-        }
-    }
-
     impl<L> IsSource for Simple<L> {
         type Params = BlankParams;
     }
 
-    impl<L> SimpleGenerator<L, BlankParams> for Simple<L>
+    impl<L> NewSource<L> for Simple<L>
     where
-        L: linearf::Linearf + Send + Sync
+        L: linearf::Linearf + Send + Sync + 'static
     {
+        fn new(_linearf: Weak<L>) -> Source<<Self as IsSource>::Params>
+        where
+            Self: Sized
+        {
+            Source::from_simple(Self { _linearf })
+        }
+    }
+
+    impl<L> SimpleGenerator for Simple<L> {
         fn stream(
             &self,
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
@@ -56,26 +53,23 @@ pub mod matcher {
         _linearf: Weak<L>
     }
 
-    impl<L> New<L> for Substring<L>
-    where
-        L: linearf::Linearf + Send + Sync
-    {
-        fn new(_linearf: Weak<L>) -> Self
-        where
-            Self: Sized
-        {
-            Self { _linearf }
-        }
-    }
-
     impl<L> IsMatcher for Substring<L> {
         type Params = BlankParams;
     }
 
-    impl<L> SimpleScorer<L, BlankParams> for Substring<L>
+    impl<L> NewMatcher<L> for Substring<L>
     where
-        L: linearf::Linearf + Send + Sync
+        L: linearf::Linearf + Send + Sync + 'static
     {
+        fn new(_linearf: Weak<L>) -> Matcher<<Self as IsMatcher>::Params>
+        where
+            Self: Sized
+        {
+            Matcher::from_simple(Self { _linearf })
+        }
+    }
+
+    impl<L> SimpleScorer for Substring<L> {
         fn score(&self, (vars, _): (&Arc<Vars>, &Arc<Self::Params>), item: &Arc<Item>) -> Score {
             return if item.view_for_matcing().find(&vars.query).is_some() {
                 Score::new(item.id, vec![1])
@@ -103,22 +97,23 @@ pub mod converter {
 
     struct OddEven {}
 
-    impl<L> New<L> for OddEven
+    impl IsConverter for OddEven {
+        type Params = Void;
+    }
+
+    impl<L> NewConverter<L> for OddEven
     where
-        L: linearf::Linearf + Send + Sync
+        L: linearf::Linearf + Send + Sync + 'static
     {
-        fn new(_linearf: Weak<L>) -> Self
+        fn new(_linearf: Weak<L>) -> Converter<<Self as IsConverter>::Params>
         where
             Self: Sized
         {
-            Self {}
+            Converter::from_simple(Self {})
         }
     }
 
-    impl<L> SimpleConverter<L> for OddEven
-    where
-        L: linearf::Linearf + Send + Sync
-    {
+    impl SimpleConverter for OddEven {
         fn convert(&self, item: Item) -> Item {
             if item.r#type != "number" {
                 return item;

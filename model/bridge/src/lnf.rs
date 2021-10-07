@@ -1,4 +1,4 @@
-use linearf::{source::New, *};
+use linearf::*;
 use std::sync::Arc;
 
 pub struct Lnf {

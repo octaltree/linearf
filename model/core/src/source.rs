@@ -33,23 +33,24 @@ pub trait SourceRegistry {
 }
 
 #[derive(Clone)]
-pub enum Source<L, P> {
+pub enum Source<P> {
     // Simple has no additional context: we may need information based on
     // the locking state and stack variables
-    Simple(Arc<dyn SimpleGenerator<L, P> + Send + Sync>)
+    Simple(Arc<dyn SimpleGenerator<Params = P> + Send + Sync>)
 }
 
-pub trait SimpleGenerator<L, P>: IsSource<Params = P>
-where
-    L: Linearf + Send + Sync
-{
+pub trait SimpleGenerator: IsSource {
     fn stream(
         &self,
-        senario: (&Arc<Vars>, &Arc<P>)
+        senario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
     ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>>;
 
     /// It will be called for every flow and may be reused across sessions.
-    fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> Reusable;
+    fn reusable(
+        &self,
+        prev: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>),
+        senario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
+    ) -> Reusable;
 }
 
 pub trait IsSource {
@@ -59,3 +60,19 @@ pub trait IsSource {
 pub trait SourceParams: DeserializeOwned + Serialize {}
 
 impl SourceParams for BlankParams {}
+
+pub trait NewSource<L>: IsSource
+where
+    L: Linearf + Send + Sync + 'static
+{
+    fn new(linearf: Weak<L>) -> Source<<Self as IsSource>::Params>;
+}
+
+impl<P> Source<P> {
+    pub fn from_simple<T>(x: T) -> Self
+    where
+        T: SimpleGenerator<Params = P> + Send + Sync + 'static
+    {
+        Source::Simple(Arc::new(x))
+    }
+}

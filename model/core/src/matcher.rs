@@ -1,5 +1,7 @@
+mod score;
+
 pub use super::common_interface::*;
-use std::cmp::Ordering;
+pub use score::Score;
 
 pub trait MatcherRegistry {
     fn names(&self) -> &[SmartString] { &[] }
@@ -38,19 +40,26 @@ pub trait MatcherRegistry {
     }
 }
 
+pub type WithScore = (Arc<Item>, Arc<Score>);
+
 #[derive(Clone)]
-pub enum Matcher<L, P> {
-    Simple(Arc<dyn SimpleScorer<L, P> + Send + Sync>)
+pub enum Matcher<P> {
+    Simple(Arc<dyn SimpleScorer<Params = P> + Send + Sync>)
 }
 
-pub trait SimpleScorer<L, P>: IsMatcher<Params = P>
-where
-    L: Linearf + Send + Sync
-{
-    fn score(&self, senario: (&Arc<Vars>, &Arc<P>), item: &Arc<Item>) -> Score;
+pub trait SimpleScorer: IsMatcher {
+    fn score(
+        &self,
+        senario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>),
+        item: &Arc<Item>
+    ) -> Score;
 
     /// It will be called for every flow and may be reused across sessions.
-    fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> Reusable;
+    fn reusable(
+        &self,
+        prev: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>),
+        senario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>)
+    ) -> Reusable;
 }
 
 pub trait IsMatcher {
@@ -61,56 +70,18 @@ pub trait MatcherParams: DeserializeOwned + Serialize {}
 
 impl MatcherParams for BlankParams {}
 
-/// Items will be displayed in v DESC, item_id ASC.
-/// No guarantee of order when it is equal.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Score {
-    pub item_id: u32,
-    /// If empty, the item will not be displayed
-    pub v: Vec<i16>
+pub trait NewMatcher<L>: IsMatcher
+where
+    L: Linearf + Send + Sync + 'static
+{
+    fn new(linearf: Weak<L>) -> Matcher<<Self as IsMatcher>::Params>;
 }
 
-impl Score {
-    pub fn new<V: Into<Vec<i16>>>(item_id: u32, v: V) -> Self {
-        Self {
-            item_id,
-            v: v.into()
-        }
-    }
-
-    /// If true, the item will not be displayed.
-    #[inline]
-    pub fn should_be_excluded(&self) -> bool { self.v.is_empty() }
-}
-
-impl PartialOrd for Score {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        for (a, b) in self.v.iter().zip(other.v.iter()) {
-            match a.cmp(b) {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
-                _ => {}
-            }
-        }
-        Some(match self.item_id.cmp(&other.item_id) {
-            Ordering::Less => Ordering::Greater,
-            Ordering::Greater => Ordering::Less,
-            Ordering::Equal => Ordering::Equal
-        })
+impl<P> Matcher<P> {
+    pub fn from_simple<T>(x: T) -> Self
+    where
+        T: SimpleScorer<Params = P> + Send + Sync + 'static
+    {
+        Matcher::Simple(Arc::new(x))
     }
 }
-
-impl Ord for Score {
-    fn cmp(&self, other: &Self) -> Ordering {
-        for (a, b) in self.v.iter().zip(other.v.iter()) {
-            match a.cmp(b) {
-                Ordering::Less => return Ordering::Less,
-                Ordering::Greater => return Ordering::Greater,
-                _ => {}
-            }
-        }
-        other.item_id.cmp(&self.item_id)
-    }
-}
-
-pub type WithScore = (Arc<Item>, Arc<Score>);

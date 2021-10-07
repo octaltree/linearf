@@ -7,15 +7,6 @@ pub use std::{
     sync::{Arc, Weak}
 };
 
-pub trait New<L>
-where
-    L: Linearf + Send + Sync
-{
-    fn new(_linearf: Weak<L>) -> Self
-    where
-        Self: Sized;
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Reusable {
     /// Not reusable

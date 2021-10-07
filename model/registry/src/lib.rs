@@ -6,16 +6,11 @@ pub struct Source<L> {
 
 impl<L> SourceRegistry for Source<L> {}
 
-impl<L> New<L> for Source<L>
+impl<L> Source<L>
 where
     L: Linearf + Send + Sync
 {
-    fn new(linearf: Weak<L>) -> Self
-    where
-        Self: Sized
-    {
-        Self { _linearf: linearf }
-    }
+    pub fn new(linearf: Weak<L>) -> Self { Self { _linearf: linearf } }
 }
 
 pub struct Matcher<L> {
@@ -24,16 +19,11 @@ pub struct Matcher<L> {
 
 impl<L> MatcherRegistry for Matcher<L> {}
 
-impl<L> New<L> for Matcher<L>
+impl<L> Matcher<L>
 where
     L: Linearf + Send + Sync
 {
-    fn new(linearf: Weak<L>) -> Self
-    where
-        Self: Sized
-    {
-        Self { _linearf: linearf }
-    }
+    pub fn new(linearf: Weak<L>) -> Self { Self { _linearf: linearf } }
 }
 
 pub struct Converter<L> {
@@ -42,14 +32,9 @@ pub struct Converter<L> {
 
 impl<L> ConverterRegistry for Converter<L> {}
 
-impl<L> New<L> for Converter<L>
+impl<L> Converter<L>
 where
     L: Linearf + Send + Sync
 {
-    fn new(linearf: Weak<L>) -> Self
-    where
-        Self: Sized
-    {
-        Self { _linearf: linearf }
-    }
+    pub fn new(linearf: Weak<L>) -> Self { Self { _linearf: linearf } }
 }
