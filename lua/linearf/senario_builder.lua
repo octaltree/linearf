@@ -11,7 +11,7 @@ local DEFAULT = {
         converters = {},
         cache_sec = 60,
         cache_across_sessions = true,
-        chunk_msec = 10
+        chunk_size = 32767
     },
     source = {},
     matcher = {},

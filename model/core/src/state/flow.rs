@@ -252,21 +252,21 @@ fn run_sort(
     cache: &CacheStream<WithScore>,
     vars: Arc<Vars>
 ) {
-    const CHUNK_MAX: usize = 1000000;
     let preload = cache.reload();
     let stream = cache.reload();
     rt.spawn(async move {
         pin_mut!(preload);
+        while preload.next().await.is_some() {}
+    });
+    let chunk_size = std::cmp::max(vars.chunk_size, 1);
+    rt.spawn(async move {
+        let start = Instant::now();
         pin_mut!(stream);
         let mut chunks = tokio_stream::StreamExt::filter(stream, |(_, s)| !s.should_be_excluded())
-            .ready_chunks(CHUNK_MAX);
+            .chunks(chunk_size);
         loop {
-            time::timeout(time::Duration::from_millis(vars.chunk_msec), async {
-                while preload.next().await.is_some() {}
-            })
-            .await
-            .ok();
             if let Some(mut chunk) = chunks.next().await {
+                log::debug!("{}", chunk.len());
                 chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
                 let sorted = &mut sorted.write().await;
                 sorted.1.append(&mut chunk);
@@ -277,5 +277,6 @@ fn run_sort(
         }
         let sorted = &mut sorted.write().await;
         sorted.0 = true;
+        log::debug!("{:?}", start.elapsed());
     });
 }

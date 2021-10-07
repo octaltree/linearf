@@ -23,7 +23,6 @@ pub trait MatcherRegistry {
         _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
         items: impl Stream<Item = Arc<Item>> + Send + Sync + 'static
     ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
-        use futures::StreamExt;
         Box::pin(items.map(|i| {
             let score = Arc::new(Score::new(i.id, []));
             (i, score)

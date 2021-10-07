@@ -29,8 +29,10 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     let_matchers! {fields, new_fields, parses, reusable, score}
     quote::quote! {
         use linearf::matcher::*;
+        use std::marker::PhantomData;
 
         pub struct Matcher<L> {
+            phantom: PhantomData<L>,
             #(#fields)*
         }
 
@@ -41,6 +43,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             pub fn new(linearf: Weak<L>) -> Self
             {
                 Self {
+                    phantom: PhantomData,
                     #(#new_fields)*
                 }
             }

@@ -2,6 +2,13 @@ local M = {}
 
 local linearf = require('linearf')
 
+function M.build_blank()
+    linearf.recipe.sources = {}
+    linearf.recipe.matchers = {}
+    linearf.recipe.converters = {}
+    linearf.build()
+end
+
 function M.run()
     linearf.recipe.sources = {
         {

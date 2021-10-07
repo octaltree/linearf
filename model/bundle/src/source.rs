@@ -29,8 +29,10 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     let_sources! {fields, new_fields, parses, reusable, stream}
     quote::quote! {
         use linearf::source::*;
+        use std::marker::PhantomData;
 
         pub struct Source<L> {
+            phantom: PhantomData<L>,
             #(#fields)*
         }
 
@@ -43,6 +45,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 Self: Sized
             {
                 Self {
+                    phantom: PhantomData,
                     #(#new_fields)*
                 }
             }
