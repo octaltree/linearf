@@ -302,3 +302,14 @@ impl State {
         }
     }
 }
+
+impl State {
+    pub fn resume(&mut self, id: SessionId) -> Result<FlowId, Error> {
+        let sess = self
+            .remove_session(id)
+            .ok_or_else(|| format!("session {:?} is not found", id))?;
+        let fid = sess.flows[sess.flows.len() - 1].0;
+        self.sessions.push_back((id, sess));
+        Ok(fid)
+    }
+}

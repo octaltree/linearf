@@ -6,7 +6,7 @@ use crate::{
 };
 use futures::{pin_mut, Stream, StreamExt};
 use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
-use tokio::{sync::RwLock, time};
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Flow {
@@ -264,16 +264,12 @@ fn run_sort(
         pin_mut!(stream);
         let mut chunks = tokio_stream::StreamExt::filter(stream, |(_, s)| !s.should_be_excluded())
             .chunks(chunk_size);
-        loop {
-            if let Some(mut chunk) = chunks.next().await {
-                log::debug!("{}", chunk.len());
-                chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
-                let sorted = &mut sorted.write().await;
-                sorted.1.append(&mut chunk);
-                sorted.1.sort_by(|a, b| b.1.cmp(&a.1));
-            } else {
-                break;
-            }
+        while let Some(mut chunk) = chunks.next().await {
+            log::debug!("{}", chunk.len());
+            chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+            let sorted = &mut sorted.write().await;
+            sorted.1.append(&mut chunk);
+            sorted.1.sort_by(|a, b| b.1.cmp(&a.1));
         }
         let sorted = &mut sorted.write().await;
         sorted.0 = true;

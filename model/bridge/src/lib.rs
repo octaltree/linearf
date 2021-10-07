@@ -28,7 +28,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
-    // exports.set("resume", lua.create_function(resume)?)?;
+    exports.set("resume", lua.create_function(resume)?)?;
     Ok(exports)
 }
 
@@ -73,20 +73,17 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
     }
 }
 
-// fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
-//    let id = linearf::SessionId(id);
-//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-//    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
-//    rt.block_on(async {
-//        let state = &mut st.write().await;
-//        let id = state
-//            .resume(id)
-//            .await
-//            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-//        Ok(id.0)
-//    })
-//}
+fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
+    let id = state::SessionId(id);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().write().await;
+        let id = state
+            .resume(id)
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+        Ok(id.0)
+    })
+}
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
     let vars = Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
