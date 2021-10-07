@@ -1,48 +1,55 @@
-use linearf::{converter::*, matcher::*, source::*, stream::Stream, Item, Vars};
-use std::{
-    any::Any,
-    pin::Pin,
-    sync::{Arc, Weak}
-};
+use linearf::{converter::*, matcher::*, source::*};
 
-pub struct Source {}
+pub struct Source<L> {
+    _linearf: Weak<L>
+}
 
-impl linearf::source::SourceRegistry for Source {}
+impl<L> SourceRegistry for Source<L> {}
 
-impl Source {
-    pub fn new(_linearf: Weak<dyn linearf::Linearf<Registry> + Send + Sync>) -> Self
+impl<L> New<L> for Source<L>
+where
+    L: Linearf + Send + Sync
+{
+    fn new(linearf: Weak<L>) -> Self
     where
         Self: Sized
     {
-        Self {}
+        Self { _linearf: linearf }
     }
 }
 
-pub struct Matcher {}
+pub struct Matcher<L> {
+    _linearf: Weak<L>
+}
 
-impl linearf::matcher::MatcherRegistry for Matcher {}
+impl<L> MatcherRegistry for Matcher<L> {}
 
-impl Matcher {
-    pub fn new(_linearf: Weak<dyn linearf::Linearf<Registry> + Send + Sync>) -> Self
+impl<L> New<L> for Matcher<L>
+where
+    L: Linearf + Send + Sync
+{
+    fn new(linearf: Weak<L>) -> Self
     where
         Self: Sized
     {
-        Self {}
+        Self { _linearf: linearf }
     }
 }
 
-pub struct Converter {}
+pub struct Converter<L> {
+    _linearf: Weak<L>
+}
 
-impl linearf::converter::ConverterRegistry for Converter {}
+impl<L> ConverterRegistry for Converter<L> {}
 
-impl Converter {
-    pub fn new(_linearf: Weak<dyn linearf::Linearf<Registry> + Send + Sync>) -> Self
+impl<L> New<L> for Converter<L>
+where
+    L: Linearf + Send + Sync
+{
+    fn new(linearf: Weak<L>) -> Self
     where
         Self: Sized
     {
-        Self {}
+        Self { _linearf: linearf }
     }
 }
-
-mod registry;
-pub use registry::Registry;

@@ -1,4 +1,4 @@
-use linearf::{converter::*, matcher::*, source::*, stream::Stream, Item, Vars};
+use linearf::{converter::*, matcher::*, source::*, *};
 use std::{
     any::Any,
     pin::Pin,

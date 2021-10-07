@@ -1,44 +1,65 @@
-pub use crate::session::{BlankParams, ReusableContext};
-use crate::{session::Vars, stream::Stream, AsyncRt, FlowId, Item, New, SessionId, Shared, State};
-use serde::{de::DeserializeOwned, Serialize};
-use std::{any::Any, cmp::Ordering, pin::Pin, sync::Arc};
+pub use super::common_interface::*;
+use std::cmp::Ordering;
 
-pub trait MatcherParams: DeserializeOwned + Serialize {}
+pub trait MatcherRegistry {
+    fn names(&self) -> &[SmartString] { &[] }
 
-impl MatcherParams for BlankParams {}
+    fn parse<'de, D>(
+        &self,
+        _name: &str,
+        _deserializer: D
+    ) -> Option<Result<Arc<dyn Any + Send + Sync>, D::Error>>
+    where
+        D: serde::de::Deserializer<'de>
+    {
+        None
+    }
 
-pub type WithScore = (Arc<Item>, Arc<Score>);
+    fn score(
+        &self,
+        _name: &str,
+        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        items: impl Stream<Item = Arc<Item>> + Send + Sync + 'static
+    ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
+        use futures::StreamExt;
+        Box::pin(items.map(|i| {
+            let score = Arc::new(Score::new(i.id, []));
+            (i, score)
+        }))
+    }
+
+    fn reusable(
+        &self,
+        _name: &str,
+        _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+    ) -> Reusable {
+        Reusable::Same
+    }
+}
+
+#[derive(Clone)]
+pub enum Matcher<L, P> {
+    Simple(Arc<dyn SimpleScorer<L, P> + Send + Sync>)
+}
+
+pub trait SimpleScorer<L, P>: IsMatcher<Params = P>
+where
+    L: Linearf + Send + Sync
+{
+    fn score(&self, senario: (&Arc<Vars>, &Arc<P>), item: &Arc<Item>) -> Score;
+
+    /// It will be called for every flow and may be reused across sessions.
+    fn reusable(&self, prev: (&Arc<Vars>, &Arc<P>), senario: (&Arc<Vars>, &Arc<P>)) -> Reusable;
+}
 
 pub trait IsMatcher {
     type Params: MatcherParams;
 }
 
-pub trait SimpleScorer<L, R, P>: New<L, R> + IsMatcher<Params = P>
-where
-    L: crate::Linearf<R> + Send + Sync,
-    R: crate::Registry
-{
-    fn into_matcher(self) -> Matcher<L, R, P>
-    where
-        Self: Sized + 'static + Send + Sync
-    {
-        Matcher::Simple(Arc::new(self))
-    }
+pub trait MatcherParams: DeserializeOwned + Serialize {}
 
-    fn score(&self, senario: (Arc<Vars>, Arc<P>), item: &Arc<Item>) -> Score;
-
-    fn reusable(
-        &self,
-        ctx: ReusableContext,
-        prev: (&Arc<Vars>, &Arc<P>),
-        senario: (&Arc<Vars>, &Arc<P>)
-    ) -> bool;
-}
-
-#[derive(Clone)]
-pub enum Matcher<L, R, P> {
-    Simple(Arc<dyn SimpleScorer<L, R, P> + Send + Sync>)
-}
+impl MatcherParams for BlankParams {}
 
 /// Items will be displayed in v DESC, item_id ASC.
 /// No guarantee of order when it is equal.
@@ -88,44 +109,8 @@ impl Ord for Score {
                 _ => {}
             }
         }
-        match self.item_id.cmp(&other.item_id) {
-            Ordering::Less => Ordering::Greater,
-            Ordering::Greater => Ordering::Less,
-            Ordering::Equal => Ordering::Equal
-        }
+        other.item_id.cmp(&self.item_id)
     }
 }
 
-pub trait MatcherRegistry {
-    fn names(&self) -> &[String] { &[] }
-
-    fn parse<'de, D>(
-        &self,
-        _name: &str,
-        _deserializer: D
-    ) -> Result<Option<Arc<dyn Any + Send + Sync>>, D::Error>
-    where
-        D: serde::de::Deserializer<'de>
-    {
-        Ok(None)
-    }
-
-    fn reusable(
-        &self,
-        _name: &str,
-        ctx: ReusableContext,
-        _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
-    ) -> bool {
-        false
-    }
-
-    fn score<'a>(
-        &self,
-        _name: &str,
-        _senario: (Arc<Vars>, Arc<dyn Any + Send + Sync>),
-        items: impl Stream<Item = Arc<Item>> + Send + 'static
-    ) -> Pin<Box<dyn Stream<Item = WithScore>>> {
-        Box::pin(crate::stream::empty())
-    }
-}
+pub type WithScore = (Arc<Item>, Arc<Score>);

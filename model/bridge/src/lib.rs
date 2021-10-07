@@ -4,20 +4,14 @@ mod lnf;
 mod wrapper;
 
 use crate::{lnf::Lnf, wrapper::Wrapper};
-use linearf::{
-    matcher::MatcherRegistry, source::SourceRegistry, Linearf, Senario, Shared, State, Vars
-};
+use linearf::*;
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
-use std::{cell::RefMut, sync::Arc};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 const RT: &str = "_lienarf_rt";
 const LINEARF: &str = "_linearf_linearf";
-
-const ST: &str = "_linearf_st";
-const SOURCE: &str = "_linearf_source";
-const MATCHER: &str = "_linearf_matcher";
 
 #[mlua::lua_module]
 fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
@@ -34,7 +28,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
-    exports.set("resume", lua.create_function(resume)?)?;
+    // exports.set("resume", lua.create_function(resume)?)?;
     Ok(exports)
 }
 
@@ -44,13 +38,30 @@ fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<Strin
 }
 
 fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
+    start_flow(lua, None, senario)
+}
+
+fn tick<'a>(lua: &'a Lua, (id, senario): (i32, LuaTable)) -> LuaResult<LuaTable<'a>> {
+    start_flow(lua, Some(id), senario)
+}
+
+fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
     let senario = senario_deserializer(senario)?;
+    let req = state::StartFlow {
+        id: id.map(state::SessionId),
+        senario
+    };
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let (sid, fid) = lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;
         let (sid, fid) = state
-            .start_session(lnf.registry(), senario)
-            .await
+            .start_flow(
+                lnf.runtime().clone(),
+                lnf.source(),
+                lnf.matcher(),
+                lnf.converter(),
+                req
+            )
             .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
         Ok::<_, LuaError>((sid.0, fid.0))
     })?;
@@ -62,53 +73,28 @@ fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
     }
 }
 
-fn tick<'a>(lua: &'a Lua, (id, senario): (i32, LuaTable)) -> LuaResult<LuaTable<'a>> {
-    let id = linearf::SessionId(id);
-    let senario = senario_deserializer(senario)?;
-    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
-    let source: Wrapper<Arc<registry::Source>> = lua.named_registry_value(SOURCE)?;
-    let matcher: Wrapper<Arc<registry::Matcher>> = lua.named_registry_value(MATCHER)?;
-    let (sid, fid) = rt.block_on(async {
-        let handle = rt.handle().clone();
-        let state = &mut st.write().await;
-        let (sid, fid) = state
-            .tick(handle, (*source).clone(), (*matcher).clone(), id, senario)
-            .await
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok::<_, LuaError>((sid.0, fid.0))
-    })?;
-    {
-        let t = lua.create_table()?;
-        t.set("session", sid)?;
-        t.set("flow", fid)?;
-        Ok(t)
-    }
-}
+// fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
+//    let id = linearf::SessionId(id);
+//    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
+//    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
+//    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
+//    rt.block_on(async {
+//        let state = &mut st.write().await;
+//        let id = state
+//            .resume(id)
+//            .await
+//            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+//        Ok(id.0)
+//    })
+//}
 
-fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
-    let id = linearf::SessionId(id);
-    let any: LuaAnyUserData = lua.globals().raw_get(RT)?;
-    let rt: RefMut<Wrapper<Runtime>> = any.borrow_mut()?;
-    let st: Wrapper<Shared<State>> = lua.named_registry_value(ST)?;
-    rt.block_on(async {
-        let state = &mut st.write().await;
-        let id = state
-            .resume(id)
-            .await
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok(id.0)
-    })
-}
-
-fn senario_deserializer(senario: LuaTable) -> LuaResult<Senario<Vars, LuaDeserializer>> {
-    let vars = linearf::Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
+fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
+    let vars = Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
         senario.raw_get::<_, LuaTable>("linearf")?
     )))?;
     let source = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("source")?);
     let matcher = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("matcher")?);
-    Ok(Senario {
+    Ok(state::Senario {
         linearf: vars,
         source,
         matcher

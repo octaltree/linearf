@@ -1,23 +1,37 @@
-use crate::{
-    state::{Shared, State},
-    AsyncRt,
+pub use crate::{item::Item, Linearf, SmartString, Vars};
+pub use futures::{stream::empty, Stream};
+pub use serde::{de::DeserializeOwned, Deserialize, Serialize};
+pub use std::{
+    any::Any,
+    pin::Pin,
+    sync::{Arc, Weak}
 };
-use serde::{Deserialize, Serialize};
 
-pub trait New {
-    fn new(_state: &Shared<State>, _rt: &AsyncRt) -> Self
+pub trait New<L>
+where
+    L: Linearf + Send + Sync
+{
+    fn new(_linearf: Weak<L>) -> Self
     where
         Self: Sized;
 }
 
-#[derive(Clone)]
-pub struct ReusableContext {
-    pub same_session: bool,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Reusable {
+    /// Not reusable
+    None,
+    /// This means
+    /// * Not necessarily the same
+    /// * Not change often
+    /// * Cost is large and cache is preferred
+    Cache,
+    /// It depends only on the argument and is always the same.
+    Same
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BlankParams {
     Unit(()),
-    Obj {},
+    Obj {}
 }
