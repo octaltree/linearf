@@ -6,10 +6,20 @@ local path = require('linearf.path')
 local utils = require('linearf.utils')
 local Result = require('linearf.result')
 
+local function try_init()
+    local success, mod = pcall(require, 'bridge')
+    if not success then return false end
+    M.inner = mod
+    return true
+end
+
 M = setmetatable(M, {
     __index = function(self, key)
+        if not self.inner then try_init() end
         if not self.inner then
-            return Result.Err('bridge is not initialized')
+            return function(...)
+                return Result.Err('bridge is not initialized')
+            end
         end
         return function(...)
             local result = Result.pcall(self.inner[key], ...)
@@ -76,10 +86,7 @@ end
 
 function M.init()
     path.append_bridge()
-    local success, mod = pcall(require, 'bridge')
-    if not success then return false end
-    M.inner = mod
-    return true
+    return try_init()
 end
 
 return M
