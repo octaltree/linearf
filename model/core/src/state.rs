@@ -1,7 +1,8 @@
 mod flow;
 
 use crate::{source::Reusable, AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars};
-use flow::{Flow, Reuse, StartError};
+pub use flow::Flow;
+use flow::{Reuse, StartError};
 use serde::{Deserialize, Serialize};
 use std::{any::Any, collections::VecDeque, sync::Arc, time::Instant};
 use tokio::sync::RwLock;
@@ -97,26 +98,25 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 pub struct SessionId(pub i32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct FlowId(pub i32);
+pub struct FlowId(pub usize);
 
 struct Session {
-    last_id: FlowId,
-    flows: VecDeque<(FlowId, Flow)>
+    flows: Vec<Flow>
 }
 
 impl Session {
-    fn empty() -> Self {
-        Self {
-            last_id: FlowId(0),
-            flows: VecDeque::new()
-        }
-    }
+    fn empty() -> Self { Self { flows: Vec::new() } }
 
     fn push(&mut self, flow: Flow) -> FlowId {
-        self.last_id = FlowId(self.last_id.0 + 1);
-        self.flows.push_back((self.last_id, flow));
-        self.last_id
+        self.flows.push(flow);
+        FlowId(self.flows.len() - 1)
     }
+
+    fn flows(&self) -> impl Iterator<Item = (FlowId, &Flow)> + DoubleEndedIterator {
+        self.flows.iter().enumerate().map(|(i, f)| (FlowId(i), f))
+    }
+
+    fn flow(&self, id: FlowId) -> Option<&Flow> { self.flows.get(id.0) }
 }
 
 impl State {
@@ -143,7 +143,11 @@ impl State {
 
 /// Panic: if session has no flows
 fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<(), Error> {
-    let flow = &session.flows[session.flows.len() - 1].1;
+    let flow = session
+        .flows()
+        .next_back()
+        .expect("Session must have one or more flows")
+        .1;
     let prev = &flow.senario();
     if prev.sorted_vars.source != senario.linearf.source {
         return Err(format!(
@@ -282,7 +286,7 @@ impl State {
                 {
                     let sid = self.target.0;
                     let sess = self.target.1;
-                    for &(fid, ref flow) in sess.flows.iter().rev() {
+                    for (fid, flow) in sess.flows().rev() {
                         if let Some(r) = f(flow) {
                             return Some(r.map(|_| (sid, fid, flow)));
                         }
@@ -290,7 +294,7 @@ impl State {
                 }
                 if self.senario.linearf.cache_across_sessions {
                     for &(sid, ref sess) in self.state.sessions.iter().rev() {
-                        for &(fid, ref flow) in sess.flows.iter().rev() {
+                        for (fid, flow) in sess.flows().rev() {
                             if let Some(r) = f(flow) {
                                 return Some(r.map(|_| (sid, fid, flow)));
                             }
@@ -308,8 +312,18 @@ impl State {
         let sess = self
             .remove_session(id)
             .ok_or_else(|| format!("session {:?} is not found", id))?;
-        let fid = sess.flows[sess.flows.len() - 1].0;
+        let fid = sess
+            .flows()
+            .next_back()
+            .ok_or_else(|| format!("session {:?} has no flows", id))?
+            .0;
         self.sessions.push_back((id, sess));
         Ok(fid)
+    }
+
+    pub fn get_flow(&self, s: SessionId, f: FlowId) -> Option<&Flow> {
+        let sess = self.session(s)?;
+        let flow = sess.flow(f)?;
+        Some(flow)
     }
 }

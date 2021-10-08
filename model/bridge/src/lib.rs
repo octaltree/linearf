@@ -29,6 +29,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
     exports.set("resume", lua.create_function(resume)?)?;
+    exports.set("flow_status", lua.create_function(flow_status)?)?;
     Ok(exports)
 }
 
@@ -54,7 +55,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let (sid, fid) = lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;
-        let (sid, fid) = state
+        state
             .start_flow(
                 lnf.runtime().clone(),
                 lnf.source(),
@@ -62,27 +63,14 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
                 lnf.converter(),
                 req
             )
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok::<_, LuaError>((sid.0, fid.0))
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))
     })?;
     {
         let t = lua.create_table()?;
-        t.set("session", sid)?;
-        t.set("flow", fid)?;
+        t.set("session", sid.0)?;
+        t.set("flow", fid.0)?;
         Ok(t)
     }
-}
-
-fn resume(lua: &Lua, id: i32) -> LuaResult<i32> {
-    let id = state::SessionId(id);
-    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    lnf.runtime().block_on(async {
-        let state = &mut lnf.state().write().await;
-        let id = state
-            .resume(id)
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
-        Ok(id.0)
-    })
 }
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
@@ -97,6 +85,38 @@ fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, Lua
         matcher
     })
 }
+
+fn resume(lua: &Lua, id: i32) -> LuaResult<usize> {
+    let id = state::SessionId(id);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().write().await;
+        let id = state
+            .resume(id)
+            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+        Ok(id.0)
+    })
+}
+
+fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>>> {
+    let s = state::SessionId(s);
+    let f = state::FlowId(f);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().read().await;
+        if let Some(flow) = state.get_flow(s, f) {
+            let (done, count) = flow.sorted_status().await;
+            let t = lua.create_table()?;
+            t.set("done", done)?;
+            t.set("count", count)?;
+            Ok(Some(t))
+        } else {
+            Ok(None)
+        }
+    })
+}
+
+// fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>>> {
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !(cfg!(unix) || cfg!(debug_assertions)) {

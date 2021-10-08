@@ -1,5 +1,6 @@
 pub use crate::converter::MapConvertError as StartError;
 use crate::{
+    item::Item,
     matcher::WithScore,
     state::{Senario, Shared},
     AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars
@@ -18,12 +19,12 @@ pub struct Flow {
 
 impl Flow {
     #[inline]
-    pub fn senario(&self) -> UsedSenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
+    pub(super) fn senario(&self) -> UsedSenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
         self.senario.as_ref()
     }
 
     #[inline]
-    pub fn at(&self) -> Instant { self.at }
+    pub(super) fn at(&self) -> Instant { self.at }
 
     pub(super) fn start<S, M, C>(
         rt: AsyncRt,
@@ -275,4 +276,35 @@ fn run_sort(
         sorted.0 = true;
         log::debug!("{:?}", start.elapsed());
     });
+}
+
+impl Flow {
+    pub async fn sorted(&self) -> (bool, Vec<WithScore>) {
+        let sorted = self.sorted.read().await;
+        sorted.clone()
+    }
+
+    pub async fn sorted_done(&self) -> bool {
+        let sorted = self.sorted.read().await;
+        sorted.0
+    }
+
+    pub async fn sorted_count(&self) -> usize {
+        let sorted = self.sorted.read().await;
+        sorted.1.len()
+    }
+
+    pub async fn sorted_status(&self) -> (bool, usize) {
+        let sorted = self.sorted.read().await;
+        (sorted.0, sorted.1.len())
+    }
+
+    pub async fn sorted_items(&self, start: usize, end: usize) -> Vec<Arc<Item>> {
+        let sorted = self.sorted.read().await;
+        let xs = &sorted.1;
+        xs[start..std::cmp::min(end, xs.len())]
+            .iter()
+            .map(|(i, _)| i.clone())
+            .collect::<Vec<_>>()
+    }
 }
