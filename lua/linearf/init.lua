@@ -13,6 +13,7 @@ local M = {
     context_managers = {},
     sessions = {}
 }
+M.senarios[''] = {}
 
 local utils = require('linearf.utils')
 local Session = require('linearf.session')
