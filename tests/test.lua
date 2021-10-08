@@ -14,6 +14,10 @@ function M.run()
         {
             name = "simple",
             path = "test_sources::source::Simple"
+        },
+        {
+          name = "osstr",
+          path = "test_sources::source::OsStr"
         }
     }
     linearf.recipe.matchers = {
@@ -35,14 +39,20 @@ function M.run()
     }
     linearf.init(view)
     linearf.senarios = {
-        test = {
+        simple = {
             linearf = {
                 source = 'simple',
                 matcher = 'substring'
             }
-        }
+        },
+        osstr = {
+            linearf = {
+                source = 'osstr',
+                matcher = 'substring'
+            }
+        },
     }
-    linearf.run('test')
+    linearf.run('simple')
 end
 
 return M

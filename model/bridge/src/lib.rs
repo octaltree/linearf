@@ -4,9 +4,9 @@ mod lnf;
 mod wrapper;
 
 use crate::{lnf::Lnf, wrapper::Wrapper};
-use linearf::*;
+use linearf::{item::MaybeUtf8, *};
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -30,6 +30,8 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("tick", lua.create_function(tick)?)?;
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(flow_status)?)?;
+    exports.set("flow_items", lua.create_function(flow_items)?)?;
+    // exports.set("flow_item", lua.create_function(flow_views)?)?;
     Ok(exports)
 }
 
@@ -63,7 +65,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
                 lnf.converter(),
                 req
             )
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))
+            .map_err(LuaError::external)
     })?;
     {
         let t = lua.create_table()?;
@@ -74,11 +76,11 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
 }
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
-    let vars = Vars::deserialize(LuaDeserializer::new(mlua::Value::Table(
+    let vars = Vars::deserialize(LuaDeserializer::new(LuaValue::Table(
         senario.raw_get::<_, LuaTable>("linearf")?
     )))?;
-    let source = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("source")?);
-    let matcher = LuaDeserializer::new(senario.raw_get::<_, mlua::Value>("matcher")?);
+    let source = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("source")?);
+    let matcher = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("matcher")?);
     Ok(state::Senario {
         linearf: vars,
         source,
@@ -91,9 +93,7 @@ fn resume(lua: &Lua, id: i32) -> LuaResult<usize> {
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;
-        let id = state
-            .resume(id)
-            .map_err(|b| LuaError::ExternalError(Arc::from(b)))?;
+        let id = state.resume(id).map_err(LuaError::external)?;
         Ok(id.0)
     })
 }
@@ -104,19 +104,69 @@ fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     lnf.runtime().block_on(async {
         let state = &mut lnf.state().read().await;
-        if let Some(flow) = state.get_flow(s, f) {
-            let (done, count) = flow.sorted_status().await;
-            let t = lua.create_table()?;
-            t.set("done", done)?;
-            t.set("count", count)?;
-            Ok(Some(t))
-        } else {
-            Ok(None)
-        }
+        let flow = match state.get_flow(s, f) {
+            Some(flow) => flow,
+            None => return Ok(None)
+        };
+        let (done, count) = flow.sorted_status().await;
+        let t = lua.create_table()?;
+        t.set("done", done)?;
+        t.set("count", count)?;
+        Ok(Some(t))
     })
 }
 
-// fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>>> {
+fn flow_items(
+    lua: &Lua,
+    (s, f, start, end): (i32, usize, usize, usize)
+) -> LuaResult<LuaValue<'_>> {
+    let s = state::SessionId(s);
+    let f = state::FlowId(f);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().read().await;
+        let flow = match state.get_flow(s, f) {
+            Some(flow) => flow,
+            None => {
+                let msg = format!("flow {:?} {:?} not found", s, f);
+                return Err(LuaError::external(msg));
+            }
+        };
+        let items = flow.sorted_items(start, end).await;
+        #[derive(Serialize)]
+        struct I<'a> {
+            id: u32,
+            r#type: &'a str,
+            value: LuaString<'a>,
+            // TODO: table
+            info: LuaValue<'a>,
+            view: std::borrow::Cow<'a, str>
+        }
+        let xs = items
+            .iter()
+            .map(|i| {
+                Ok(I {
+                    id: i.id,
+                    r#type: i.r#type,
+                    value: maybe_utf8_into_lua_string(lua, &i.value)?,
+                    info: lua.to_value(&i.info)?,
+                    view: i.view()
+                })
+            })
+            .collect::<LuaResult<Vec<_>>>()?;
+        let v = lua.to_value(&xs)?;
+        Ok(v)
+    })
+}
+
+fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {
+    use os_str_bytes::OsStrBytes;
+    match s {
+        MaybeUtf8::Utf8(s) => lua.create_string(s),
+        MaybeUtf8::Bytes(b) => lua.create_string(b),
+        MaybeUtf8::Os(s) => lua.create_string(&s.to_raw_bytes())
+    }
+}
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !(cfg!(unix) || cfg!(debug_assertions)) {

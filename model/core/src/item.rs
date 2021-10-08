@@ -18,7 +18,6 @@ pub struct Item {
     pub view: Option<String>,
     pub view_for_matcing: Option<String>
 }
-
 impl Item {
     pub fn new(id: u32, r#type: &'static str, value: MaybeUtf8) -> Self {
         Self {
@@ -57,3 +56,13 @@ impl Item {
         opt.unwrap_or_else(|| self.value_lossy())
     }
 }
+
+// impl AsRef<[u8]> for MaybeUtf8 {
+//    fn as_ref(&self) -> &[u8] {
+//        match self {
+//            Self::Utf8(s) => s.as_bytes(),
+//            Self::Os(s) => s.as_bytes(),
+//            Self::Bytes(b) => &b
+//        }
+//    }
+//}

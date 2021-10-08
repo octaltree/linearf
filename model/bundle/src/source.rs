@@ -107,7 +107,7 @@ fn fields(a: A) -> TokenStream {
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path<L> as NewSource<L>>::new(linearf.clone())
+        #field: <#path<L> as NewSource<L>>::new(linearf.clone()),
     }
 }
 

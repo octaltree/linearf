@@ -44,6 +44,54 @@ pub mod source {
             Reusable::Same
         }
     }
+
+    pub struct OsStr<L> {
+        _linearf: Weak<L>
+    }
+
+    impl<L> IsSource for OsStr<L> {
+        type Params = BlankParams;
+    }
+
+    impl<L> NewSource<L> for OsStr<L>
+    where
+        L: linearf::Linearf + Send + Sync + 'static
+    {
+        fn new(_linearf: Weak<L>) -> Source<<Self as IsSource>::Params>
+        where
+            Self: Sized
+        {
+            Source::from_simple(Self { _linearf })
+        }
+    }
+
+    impl<L> SimpleGenerator for OsStr<L> {
+        fn stream(
+            &self,
+            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+        ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
+            use std::convert::TryInto;
+            let d = match std::fs::read_dir("/home/octaltree/workspace/linearf/tests") {
+                Ok(d) => d,
+                Err(_) => return Box::pin(empty())
+            };
+            let it = d
+                .filter_map(|e| Some(e.ok()?.path()))
+                .enumerate()
+                .filter_map(|(i, p)| Some((i.try_into().ok()?, p)))
+                .map(|(id, p)| Item::new(id, "path", MaybeUtf8::Os(p.into_os_string())));
+            let s = futures::stream::unfold(it, |mut it| async { it.next().map(|i| (i, it)) });
+            Box::pin(s)
+        }
+
+        fn reusable(
+            &self,
+            _prev: (&Arc<Vars>, &Arc<Self::Params>),
+            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+        ) -> Reusable {
+            Reusable::Same
+        }
+    }
 }
 
 pub mod matcher {
