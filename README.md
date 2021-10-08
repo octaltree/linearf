@@ -50,8 +50,7 @@ Then build your own fuzzy finder.
 lua require('linearf').build()
 ```
 
-After initialize, you can use the global variable `linearf` and execute it.
-You can set up frequently used scenarios in advance.
+Runs with the pre-defined senario and its difference as input.
 ```vim
 lua linearf.run('', {})
 lua linearf.run('simple')
