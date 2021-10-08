@@ -297,15 +297,4 @@ impl Flow {
             .map(|(i, _)| i.clone())
             .collect::<Vec<_>>()
     }
-
-    pub async fn item(&self, id: u32) -> Option<Arc<Item>> {
-        let sorted = self.sorted.read().await;
-        // TODO: performance
-        sorted
-            .1
-            .iter()
-            .map(|(i, _)| i)
-            .find(|i| i.id == id)
-            .cloned()
-    }
 }

@@ -49,7 +49,7 @@ impl State {
                     .session(id)
                     .ok_or_else(|| format!("session {:?} is not found", id))?;
                 validate_senario(sess, &request.senario)?;
-                let sess = self.remove_session(id).unwrap();
+                let sess = self.take_session(id).unwrap();
                 (id, sess)
             }
         };
@@ -125,20 +125,18 @@ impl State {
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 
-    fn remove_session(&mut self, session: SessionId) -> Option<Session> {
-        if let Some(idx) = self
+    fn take_session(&mut self, session: SessionId) -> Option<Session> {
+        let idx = self
             .sessions
             .iter()
             .enumerate()
             .map(|(idx, (id, _))| (idx, id))
             .find(|(_, &id)| id == session)
-            .map(|(idx, _)| idx)
-        {
-            self.sessions.remove(idx).map(|(_, s)| s)
-        } else {
-            None
-        }
+            .map(|(idx, _)| idx)?;
+        self.sessions.remove(idx).map(|(_, s)| s)
     }
+
+    pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
 }
 
 /// Panic: if session has no flows
@@ -310,7 +308,7 @@ impl State {
 impl State {
     pub fn resume(&mut self, id: SessionId) -> Result<FlowId, Error> {
         let sess = self
-            .remove_session(id)
+            .take_session(id)
             .ok_or_else(|| format!("session {:?} is not found", id))?;
         let fid = sess
             .flows()

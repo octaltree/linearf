@@ -32,6 +32,7 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(flow_status)?)?;
     exports.set("flow_items", lua.create_function(flow_items)?)?;
+    exports.set("remove_session", lua.create_function(remove_session)?)?;
     Ok(exports)
 }
 
@@ -103,7 +104,7 @@ fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     lnf.runtime().block_on(async {
-        let state = &mut lnf.state().read().await;
+        let state = &lnf.state().read().await;
         let flow = match state.get_flow(s, f) {
             Some(flow) => flow,
             None => return Ok(None)
@@ -124,7 +125,7 @@ fn flow_items(
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let items = lnf.runtime().block_on(async {
-        let state = &mut lnf.state().read().await;
+        let state = &lnf.state().read().await;
         let flow = match state.get_flow(s, f) {
             Some(flow) => flow,
             None => {
@@ -162,6 +163,16 @@ fn flow_items(
             .serialize_unit_to_null(false)
     )?;
     Ok(v)
+}
+
+fn remove_session(lua: &Lua, id: i32) -> LuaResult<()> {
+    let id = state::SessionId(id);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().write().await;
+        state.remove_session(id);
+    });
+    Ok(())
 }
 
 fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {
