@@ -14,12 +14,12 @@ A fast and extensible fuzzy finder for vimmers
 ## Installation
 First, install the plugins and sources locally. If you use dein as your package
 manager, it will look like this.
-```
+```vim
 call dein#add('octaltree/linearf')
 call dein#add('octaltree/linearf-my-flavors')
 ```
 Then build your own fuzzy finder.
-```
+```vim
 lua require('linearf').recipe.sources = {}
 lua require('linearf').recipe.matchers = {}
 lua require('linearf').recipe.converters = {}
@@ -29,15 +29,15 @@ One build is required per recipe change.
 
 ## Usage
 After the build is complete, initialize it with the UI module.
-```
+```vim
 lua require('linearf').init(require('linearf-vanilla').new())
 ```
 After initialize, you can use the global variable `linearf` and execute it.
-```
+```vim
 lua linearf.run('', {})
 ```
 You can set up frequently used scenarios in advance.
-```
+```vim
 lua require('linearf').senarios = {
     \     simple = {
     \         linearf = {
