@@ -30,6 +30,7 @@ local function format_recipe(recipe)
     local crates = {}
     local sources = {}
     local matchers = {}
+    local converters = {}
     for _, x in ipairs(recipe.crates or {}) do
         table.insert(crates, utils.dict(x))
     end
@@ -39,19 +40,21 @@ local function format_recipe(recipe)
     for _, x in ipairs(recipe.matchers or {}) do
         table.insert(matchers, utils.dict(x))
     end
+    for _, x in ipairs(recipe.converters or {}) do
+        table.insert(converters, utils.dict(x))
+    end
     return vim.fn.json_encode(utils.dict({
         crates = utils.list(crates),
         sources = utils.list(sources),
-        matchers = utils.list(matchers)
+        matchers = utils.list(matchers),
+        converters = utils.list(converters)
     }))
 end
 
 function M.build(recipe)
     local features = 'mlua/' .. utils.lua_ver()
-    if type(recipe) == 'table' then
-        local json = format_recipe(recipe)
-        utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
-    end
+    local json = format_recipe(recipe)
+    utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
     utils.command('let $RUSTFLAGS = "-Awarnings"')
     local tmp = vim.fn.getcwd()
     local t = table.concat({

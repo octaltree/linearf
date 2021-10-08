@@ -3,7 +3,8 @@ local M = {
     recipe = {
         crates = {},
         sources = {},
-        matchers = {}
+        matchers = {},
+        converters = {}
     },
     senarios = {},
     -- mutables
@@ -22,6 +23,7 @@ function M.build()
 end
 
 function M.init(view)
+    _G['linearf'] = M
     M.bridge.init()
     M.view = view
 end
