@@ -33,7 +33,7 @@ function M.bridge_dest()
 end
 
 function M.bridge_name()
-    return utils.is_windows() and 'bridge.dll' or 'libbridge.so'
+    return utils.is_windows() and 'linearf_bridge.dll' or 'liblinearf_bridge.so'
 end
 
 function M.bridge_release_bin()
