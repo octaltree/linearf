@@ -16,8 +16,8 @@ function M.run()
             path = "test_sources::source::Simple"
         },
         {
-          name = "osstr",
-          path = "test_sources::source::OsStr"
+            name = "osstr",
+            path = "test_sources::source::OsStr"
         }
     }
     linearf.recipe.matchers = {
@@ -50,7 +50,7 @@ function M.run()
                 source = 'osstr',
                 matcher = 'substring'
             }
-        },
+        }
     }
     linearf.run('simple')
 end

@@ -1,6 +1,7 @@
 #![feature(arc_new_cyclic)]
 
 mod lnf;
+mod value;
 mod wrapper;
 
 use crate::{lnf::Lnf, wrapper::Wrapper};
@@ -31,7 +32,6 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(flow_status)?)?;
     exports.set("flow_items", lua.create_function(flow_items)?)?;
-    // exports.set("flow_item", lua.create_function(flow_views)?)?;
     Ok(exports)
 }
 
@@ -68,7 +68,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
             .map_err(LuaError::external)
     })?;
     {
-        let t = lua.create_table()?;
+        let t = lua.create_table_with_capacity(0, 2)?;
         t.set("session", sid.0)?;
         t.set("flow", fid.0)?;
         Ok(t)
@@ -109,7 +109,7 @@ fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>
             None => return Ok(None)
         };
         let (done, count) = flow.sorted_status().await;
-        let t = lua.create_table()?;
+        let t = lua.create_table_with_capacity(0, 2)?;
         t.set("done", done)?;
         t.set("count", count)?;
         Ok(Some(t))
@@ -123,7 +123,7 @@ fn flow_items(
     let s = state::SessionId(s);
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    lnf.runtime().block_on(async {
+    let items = lnf.runtime().block_on(async {
         let state = &mut lnf.state().read().await;
         let flow = match state.get_flow(s, f) {
             Some(flow) => flow,
@@ -132,31 +132,36 @@ fn flow_items(
                 return Err(LuaError::external(msg));
             }
         };
-        let items = flow.sorted_items(start, end).await;
-        #[derive(Serialize)]
-        struct I<'a> {
-            id: u32,
-            r#type: &'a str,
-            value: LuaString<'a>,
-            // TODO: table
-            info: LuaValue<'a>,
-            view: std::borrow::Cow<'a, str>
-        }
-        let xs = items
-            .iter()
-            .map(|i| {
-                Ok(I {
-                    id: i.id,
-                    r#type: i.r#type,
-                    value: maybe_utf8_into_lua_string(lua, &i.value)?,
-                    info: lua.to_value(&i.info)?,
-                    view: i.view()
-                })
+        Ok(flow.sorted_items(start, end).await)
+    })?;
+    #[derive(Serialize)]
+    struct I<'a> {
+        id: u32,
+        r#type: &'a str,
+        value: LuaString<'a>,
+        info: LuaValue<'a>,
+        view: std::borrow::Cow<'a, str>
+    }
+    let xs = items
+        .iter()
+        .map(|i| {
+            Ok(I {
+                id: i.id,
+                r#type: i.r#type,
+                value: maybe_utf8_into_lua_string(lua, &i.value)?,
+                info: value::convert_info(lua, &i.info)?,
+                view: i.view()
             })
-            .collect::<LuaResult<Vec<_>>>()?;
-        let v = lua.to_value(&xs)?;
-        Ok(v)
-    })
+        })
+        .collect::<LuaResult<Vec<_>>>()?;
+    let v = lua.to_value_with(
+        &xs,
+        // serialize as nil
+        mlua::SerializeOptions::new()
+            .serialize_none_to_null(false)
+            .serialize_unit_to_null(false)
+    )?;
+    Ok(v)
 }
 
 fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {

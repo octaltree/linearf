@@ -1,4 +1,4 @@
-use serde_json::{Map, Value};
+pub use serde_json::{Map, Value};
 use std::{borrow::Cow, ffi::OsString};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,13 +56,3 @@ impl Item {
         opt.unwrap_or_else(|| self.value_lossy())
     }
 }
-
-// impl AsRef<[u8]> for MaybeUtf8 {
-//    fn as_ref(&self) -> &[u8] {
-//        match self {
-//            Self::Utf8(s) => s.as_bytes(),
-//            Self::Os(s) => s.as_bytes(),
-//            Self::Bytes(b) => &b
-//        }
-//    }
-//}

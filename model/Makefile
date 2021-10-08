@@ -3,7 +3,7 @@ clean:
 	rm -rf target
 
 .PHONY: dev
-dev: format lint test doc
+dev: format lint doc
 
 .PHONY: d
 d:
