@@ -1,0 +1,74 @@
+*linearf.txt*	Fast and extensible fuzzy finder
+
+Author: octaltree <octaltree at users.noreply.github.com>
+
+CONTENTS	*linearf-contents*
+
+Installation	|linearf-install|
+Usage	|linearf-usage|
+API Reference	|linearf-reference|
+Motivation	|linearf-motivation|
+
+==============================================================================
+INSTALLATION	*linearf-install*
+
+First, install the plugins and sources locally. If you use dein as your package
+manager, it will look like this.
+>
+  call dein#add('octaltree/linearf')
+  call dein#add('octaltree/linearf-my-flavors')
+<
+Then build your own fuzzy finder.
+>
+  lua require('linearf').recipe.sources = {}
+  lua require('linearf').recipe.matchers = {}
+  lua require('linearf').recipe.converters = {}
+  lua require('linearf').build()
+<
+One build is required per recipe change.
+
+==============================================================================
+USAGE	*linearf-usage*
+
+After the build is complete, initialize it with the UI module.
+>
+  lua require('linearf').init(require('linearf-vanilla').new())
+<
+After initialize, you can use the global variable `linearf` and execute it.
+>
+  lua linearf.run('', {})
+<
+You can set up frequently used scenarios in advance.
+>
+  lua require('linearf').senarios = {
+      \     simple = {
+      \         linearf = {
+      \             source = 'simple',
+      \             matcher = 'substring'
+      \         }
+      \     },
+      \     osstr = {
+      \         linearf = {
+      \             source = 'osstr',
+      \             matcher = 'substring'
+      \         }
+      \     }
+      \ }
+  lua linearf.run('simple')
+  lua linearf.run('simple', {})
+<
+
+==============================================================================
+API REFERENCE	*linearf-reference*
+
+==============================================================================
+MOTIVATION	*linearf-motivation*
+
+There are many fuzzy finders in vim: CtrlP, LeaderF, denite, telescope, clap,
+fzf, skim, fzf-preview, candle, etc. However, there were nothing that that had
+the feel of vim and the speed of native fzf, so I decided to make one.
+
+I want to write in another language because vim script is slow, but I have to
+consider the cost of moving data to vim. After considering rpc, dynamic
+libraries, and wasm for speed and vim compability, I chose to load dynamic
+libraries written by rust via lua.

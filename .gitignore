@@ -4,3 +4,7 @@ __pycache__
 .fuse*
 .nfs*
 .ropeproject
+Cargo.lock
+target
+/tools
+tags

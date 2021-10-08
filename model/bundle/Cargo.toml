@@ -1,0 +1,11 @@
+[package]
+name = "bundle"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+proc-macro2 = "1.0.29"
+quote = "1.0.9"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.67"
+toml = "0.5.8"
