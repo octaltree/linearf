@@ -11,47 +11,49 @@ A fast and extensible fuzzy finder for vimmers
 * [cargo](https://doc.rust-lang.org/book/ch01-01-installation.html) nightly
 * +lua/dyn for vim / luajit for neovim
 
-## Installation
+## Usage
 First, install the plugins and sources locally. If you use dein as your package
 manager, it will look like this.
 ```vim
 call dein#add('octaltree/linearf')
 call dein#add('octaltree/linearf-my-flavors')
 ```
+
+Write config file
+```lua
+lua<<EOF
+local linearf = require('linearf')
+linearf.recipe.sources = {}
+linearf.recipe.matchers = {}
+linearf.recipe.converters = {}
+
+linearf.senarios = {
+    simple = {
+        linearf = {
+            source = 'simple',
+            matcher = 'substring'
+        }
+    },
+    osstr = {
+        linearf = {
+            source = 'osstr',
+            matcher = 'substring'
+        }
+    }
+}
+linearf.init(require('linearf-vanilla').new())
+EOF
+```
+
 Then build your own fuzzy finder.
 ```vim
-lua require('linearf').recipe.sources = {}
-lua require('linearf').recipe.matchers = {}
-lua require('linearf').recipe.converters = {}
 lua require('linearf').build()
 ```
-One build is required per recipe change.
 
-## Usage
-After the build is complete, initialize it with the UI module.
-```vim
-lua require('linearf').init(require('linearf-vanilla').new())
-```
 After initialize, you can use the global variable `linearf` and execute it.
-```vim
-lua linearf.run('', {})
-```
 You can set up frequently used scenarios in advance.
 ```vim
-lua require('linearf').senarios = {
-    \     simple = {
-    \         linearf = {
-    \             source = 'simple',
-    \             matcher = 'substring'
-    \         }
-    \     },
-    \     osstr = {
-    \         linearf = {
-    \             source = 'osstr',
-    \             matcher = 'substring'
-    \         }
-    \     }
-    \ }
+lua linearf.run('', {})
 lua linearf.run('simple')
 lua linearf.run('simple', {})
 ```
