@@ -21,10 +21,18 @@ pub enum MapConvertError {
     ConverterNotFound(SmartString)
 }
 
-#[derive(Clone)]
 pub enum Converter<P> {
     Simple(Arc<dyn SimpleConverter + Send + Sync>),
     Reserve(std::marker::PhantomData<P>)
+}
+
+impl<P> Clone for Converter<P> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Simple(x) => Converter::Simple(Arc::clone(x)),
+            &Self::Reserve(x) => Converter::Reserve(x)
+        }
+    }
 }
 
 pub trait SimpleConverter {

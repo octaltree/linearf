@@ -59,25 +59,18 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 names: &[SmartString],
                 items: impl Stream<Item = Item> + Send + Sync + 'static,
             ) -> Result<Pin<Box<dyn Stream<Item = Item> + Send + Sync>>, MapConvertError> {
-                let cs: Vec<linearf::converter::Converter<L>> = names.iter()
-                    .map(|name| -> Result<_, MapConvertError> {
+                let fs = names.iter()
+                    .map(|n| -> &str { &n })
+                    .map(|name| -> Result<Box<dyn Fn(Item) -> Item + Send + Sync>, MapConvertError> {
                         match name {
                             #(#map_convert)*
-                            _ => Err(MapConvertError::ConverterNotFound(name.clone()))
+                            _ => Err(MapConvertError::ConverterNotFound(SmartString::from(name)))
                         }
-                    }).try_fold(Vec::new(), |mut cs, r| {
-                        cs.push(r?);
-                        Ok(cs)
-                    })?;
-                let f = move |item: Item| -> Item {
-                    let mut item = item;
-                    for c in &cs {
-                        match c {
-                            linearf::converter::Converter::Simple(c) => {
-                                item = c.convert(item);
-                            }
-                            linearf::converter::Converter::Reserve(_) => {}
-                        }
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let f = move |mut item: Item| -> Item {
+                    for f in &fs {
+                        item = f(item);
                     }
                     item
                 };
@@ -97,13 +90,23 @@ fn fields(a: A) -> TokenStream {
 fn new_fields(a: A) -> TokenStream {
     let A { field, path, .. } = a;
     quote::quote! {
-        #field: <#path as NewConverter<L>>::new(linearf.clone())
+        #field: <#path<L> as NewConverter<L>>::new(linearf.clone())
     }
 }
 
 fn map_convert(a: A) -> TokenStream {
     let A { name, field, .. } = a;
     quote::quote! {
-        #name => Ok(self.#field.clone()),
+        #name => {
+            match &self.#field {
+                linearf::converter::Converter::Simple(c) => {
+                    let c = Arc::clone(c);
+                    Ok(Box::new(move |item| c.convert(item)))
+                }
+                linearf::converter::Converter::Reserve(_) => {
+                    Err(MapConvertError::ConverterNotFound(SmartString::from(name)))
+                }
+            }
+        }
     }
 }

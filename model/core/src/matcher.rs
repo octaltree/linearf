@@ -41,9 +41,16 @@ pub trait MatcherRegistry {
 
 pub type WithScore = (Arc<Item>, Arc<Score>);
 
-#[derive(Clone)]
 pub enum Matcher<P> {
     Simple(Arc<dyn SimpleScorer<Params = P> + Send + Sync>)
+}
+
+impl<P> Clone for Matcher<P> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Simple(x) => Self::Simple(Arc::clone(x))
+        }
+    }
 }
 
 pub trait SimpleScorer: IsMatcher {

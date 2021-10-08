@@ -144,7 +144,7 @@ pub mod converter {
     use linearf::converter::*;
     use std::marker::PhantomData;
 
-    struct OddEven<L> {
+    pub struct OddEven<L> {
         phantom: PhantomData<L>
     }
 

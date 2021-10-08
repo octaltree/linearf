@@ -32,11 +32,18 @@ pub trait SourceRegistry {
     }
 }
 
-#[derive(Clone)]
 pub enum Source<P> {
     // Simple has no additional context: we may need information based on
     // the locking state and stack variables
     Simple(Arc<dyn SimpleGenerator<Params = P> + Send + Sync>)
+}
+
+impl<P> Clone for Source<P> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Simple(x) => Self::Simple(Arc::clone(x))
+        }
+    }
 }
 
 pub trait SimpleGenerator: IsSource {
