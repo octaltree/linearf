@@ -135,8 +135,6 @@ impl State {
             .map(|(idx, _)| idx)?;
         self.sessions.remove(idx).map(|(_, s)| s)
     }
-
-    pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
 }
 
 /// Panic: if session has no flows
@@ -324,4 +322,6 @@ impl State {
         let flow = sess.flow(f)?;
         Some(flow)
     }
+
+    pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
 }
