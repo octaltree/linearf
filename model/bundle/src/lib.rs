@@ -99,7 +99,7 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
             m.insert("version".into(), "*".into());
             toml::Value::from(m)
         });
-        for c in &recipe.crates {
+        for c in dependent_crates(recipe) {
             let mut m = toml::map::Map::new();
             m.insert(
                 "path".into(),
@@ -119,4 +119,17 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
         dependencies
     };
     Ok(toml::to_string(&manifest)?)
+}
+
+fn dependent_crates(recipe: &Recipe) -> impl Iterator<Item = &Crate> {
+    use std::collections::HashSet;
+    let deps: HashSet<&str> = (recipe.sources.iter().map(|s| s.path.split("::").next()))
+        .chain(recipe.matchers.iter().map(|s| s.path.split("::").next()))
+        .chain(recipe.converters.iter().map(|s| s.path.split("::").next()))
+        .flatten()
+        .collect();
+    recipe
+        .crates
+        .iter()
+        .filter(move |c| deps.contains(&*c.name))
 }

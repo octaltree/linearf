@@ -208,11 +208,10 @@ fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaS
     }
 }
 
-fn is_related_recipe(lua: &Lua, e: LuaError) -> LuaResult<bool> { Ok(_is_related_recipe(&e)) }
+fn is_related_recipe(_lua: &Lua, e: LuaError) -> LuaResult<bool> { Ok(_is_related_recipe(&e)) }
 
 fn _is_related_recipe(e: &LuaError) -> bool {
     use state::Error::*;
-    use std::any::Any;
     let e = match e {
         LuaError::ExternalError(e) => e,
         LuaError::CallbackError { cause, .. } => return _is_related_recipe(&*cause),
@@ -224,8 +223,8 @@ fn _is_related_recipe(e: &LuaError) -> bool {
         Some(e) => e,
         None => return false
     };
-    match &e {
-        SourceNotFound(_) | MatcherNotFound(_) | ConverterNotFound(_) => true,
-        _ => false
-    }
+    matches!(
+        e,
+        SourceNotFound(_) | MatcherNotFound(_) | ConverterNotFound(_)
+    )
 }
