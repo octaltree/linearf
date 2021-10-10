@@ -4,6 +4,7 @@ use crate::{source::Reusable, AsyncRt, ConverterRegistry, MatcherRegistry, Sourc
 pub use flow::Flow;
 use flow::{Reuse, StartError};
 use serde::{Deserialize, Serialize};
+use smartstring::alias::String as SmartString;
 use std::{any::Any, collections::VecDeque, sync::Arc, time::Instant};
 use tokio::sync::RwLock;
 
@@ -11,6 +12,7 @@ pub type Shared<T> = Arc<RwLock<T>>;
 
 pub struct State {
     last_id: SessionId,
+    // accepts only sessions that has one or more flows
     sessions: VecDeque<(SessionId, Session)>
 }
 
@@ -45,11 +47,9 @@ impl State {
                 (self.last_id, Session::empty())
             }
             Some(id) => {
-                let sess = self
-                    .session(id)
-                    .ok_or_else(|| format!("session {:?} is not found", id))?;
+                let sess = self.session(id).ok_or(Error::SessionNotFound(id))?;
                 validate_senario(sess, &request.senario)?;
-                let sess = self.remove_session(id).unwrap();
+                let sess = self.take_session(id).unwrap();
                 (id, sess)
             }
         };
@@ -60,9 +60,7 @@ impl State {
         };
         let flow =
             Flow::start(rt, source, matcher, converter, reuse, senario).map_err(|e| match e {
-                StartError::ConverterNotFound(n) => {
-                    format!("converter {:?} is not found", n)
-                }
+                StartError::ConverterNotFound(n) => Error::ConverterNotFound(n)
             })?;
         let fid = target.push(flow);
         self.sessions.push_back((id, target));
@@ -92,13 +90,32 @@ impl<V, P> Senario<V, P> {
     }
 }
 
-type Error = Box<dyn std::error::Error + Send + Sync>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct SessionId(pub i32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct FlowId(pub usize);
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Source {0:?} is not found")]
+    SourceNotFound(SmartString),
+    #[error("Matcher {0:?} is not found")]
+    MatcherNotFound(SmartString),
+    #[error("Converter {0:?} is not found")]
+    ConverterNotFound(SmartString),
+    #[error("Session {0:?} is not found")]
+    SessionNotFound(SessionId),
+    #[error("Flow must have the same source in session: {0:?} != {1:?}")]
+    SenarioSource(SmartString, SmartString),
+    #[error("Flow must have the same matcher in session: {0:?} != {1:?}")]
+    SenarioMatcher(SmartString, SmartString),
+    #[error("Flow must have the same converters in session: {0:?} != {1:?}")]
+    SenarioConverters(Vec<SmartString>, Vec<SmartString>),
+    #[error("{0}")]
+    Others(Box<dyn std::error::Error + Send + Sync>)
+}
 
 struct Session {
     flows: Vec<Flow>
@@ -125,19 +142,15 @@ impl State {
         rev.find(|s| s.0 == id).map(|(_, s)| s)
     }
 
-    fn remove_session(&mut self, session: SessionId) -> Option<Session> {
-        if let Some(idx) = self
+    fn take_session(&mut self, session: SessionId) -> Option<Session> {
+        let idx = self
             .sessions
             .iter()
             .enumerate()
             .map(|(idx, (id, _))| (idx, id))
             .find(|(_, &id)| id == session)
-            .map(|(idx, _)| idx)
-        {
-            self.sessions.remove(idx).map(|(_, s)| s)
-        } else {
-            None
-        }
+            .map(|(idx, _)| idx)?;
+        self.sessions.remove(idx).map(|(_, s)| s)
     }
 }
 
@@ -150,25 +163,22 @@ fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<
         .1;
     let prev = &flow.senario();
     if prev.sorted_vars.source != senario.linearf.source {
-        return Err(format!(
-            "source {:?} != {:?}",
-            &prev.sorted_vars.source, senario.linearf.source
-        )
-        .into());
+        return Err(Error::SenarioSource(
+            prev.sorted_vars.source.clone(),
+            senario.linearf.source.clone()
+        ));
     }
     if prev.sorted_vars.source != senario.linearf.matcher {
-        return Err(format!(
-            "matcher {:?} != {:?}",
-            &prev.sorted_vars.matcher, senario.linearf.matcher
-        )
-        .into());
+        return Err(Error::SenarioMatcher(
+            prev.sorted_vars.matcher.clone(),
+            senario.linearf.matcher.clone()
+        ));
     }
     if prev.sorted_vars.converters != senario.linearf.converters {
-        return Err(format!(
-            "converters {:?} != {:?}",
-            &prev.sorted_vars.converters, senario.linearf.converters
-        )
-        .into());
+        return Err(Error::SenarioConverters(
+            prev.sorted_vars.converters.clone(),
+            senario.linearf.converters.clone()
+        ));
     }
     Ok(())
 }
@@ -192,10 +202,12 @@ where
     let s_linearf = Arc::new(s_linearf);
     let source_params = source
         .parse(&s_linearf.source, s_source)
-        .ok_or_else(|| format!("source {:?} is not found", &s_linearf.source))??;
+        .ok_or_else(|| Error::SourceNotFound(s_linearf.source.clone()))?
+        .map_err(|e| Error::Others(e.into()))?;
     let matcher_params = matcher
         .parse(&s_linearf.matcher, s_matcher)
-        .ok_or_else(|| format!("matcher {:?} is not found", &s_linearf.matcher))??;
+        .ok_or_else(|| Error::MatcherNotFound(s_linearf.matcher.clone()))?
+        .map_err(|e| Error::Others(e.into()))?;
     Ok(Senario {
         linearf: s_linearf,
         source: source_params,
@@ -309,13 +321,11 @@ impl State {
 
 impl State {
     pub fn resume(&mut self, id: SessionId) -> Result<FlowId, Error> {
-        let sess = self
-            .remove_session(id)
-            .ok_or_else(|| format!("session {:?} is not found", id))?;
+        let sess = self.take_session(id).ok_or(Error::SessionNotFound(id))?;
         let fid = sess
             .flows()
             .next_back()
-            .ok_or_else(|| format!("session {:?} has no flows", id))?
+            .expect("Session must have one or more flows")
             .0;
         self.sessions.push_back((id, sess));
         Ok(fid)
@@ -326,4 +336,6 @@ impl State {
         let flow = sess.flow(f)?;
         Some(flow)
     }
+
+    pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
 }

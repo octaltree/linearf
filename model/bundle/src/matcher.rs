@@ -159,7 +159,6 @@ fn score(a: A) -> TokenStream {
     quote::quote! {
         #name => match &self.#field {
             linearf::matcher::Matcher::Simple(s) => {
-                // TODO: channel is none if buffer is empty
                 let (senario_vars, senario_matcher) = senario;
                 if senario_matcher.is::<#params>() {
                     let senario_matcher: &Arc<#params> =

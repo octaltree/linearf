@@ -15,7 +15,7 @@ const RT: &str = "_lienarf_rt";
 const LINEARF: &str = "_linearf_linearf";
 
 #[mlua::lua_module]
-fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
+fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().map_err(LuaError::external)?;
     let rt = Runtime::new()?;
     let st = State::new_shared();
@@ -32,7 +32,32 @@ fn bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(flow_status)?)?;
     exports.set("flow_items", lua.create_function(flow_items)?)?;
+    exports.set("remove_session", lua.create_function(remove_session)?)?;
+    exports.set("is_related_recipe", lua.create_function(is_related_recipe)?)?;
     Ok(exports)
+}
+
+fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if !(cfg!(unix) || cfg!(debug_assertions)) {
+        return Ok(());
+    }
+    use log::LevelFilter;
+    use log4rs::{
+        append::file::FileAppender,
+        config::{Appender, Config, Root}
+    };
+    let p = std::env::temp_dir().join("vim_linearf.log");
+    let logfile = FileAppender::builder().build(p)?;
+    let config = Config::builder()
+        .appender(Appender::builder().build("logfile", Box::new(logfile)))
+        .build(
+            Root::builder()
+                .appender("logfile")
+                .build(LevelFilter::Trace)
+        )?;
+    log4rs::init_config(config)?;
+    log::info!("initialize");
+    Ok(())
 }
 
 fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
@@ -103,7 +128,7 @@ fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     lnf.runtime().block_on(async {
-        let state = &mut lnf.state().read().await;
+        let state = &lnf.state().read().await;
         let flow = match state.get_flow(s, f) {
             Some(flow) => flow,
             None => return Ok(None)
@@ -124,7 +149,7 @@ fn flow_items(
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let items = lnf.runtime().block_on(async {
-        let state = &mut lnf.state().read().await;
+        let state = &lnf.state().read().await;
         let flow = match state.get_flow(s, f) {
             Some(flow) => flow,
             None => {
@@ -164,6 +189,16 @@ fn flow_items(
     Ok(v)
 }
 
+fn remove_session(lua: &Lua, id: i32) -> LuaResult<()> {
+    let id = state::SessionId(id);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().write().await;
+        state.remove_session(id);
+    });
+    Ok(())
+}
+
 fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {
     use os_str_bytes::OsStrBytes;
     match s {
@@ -173,25 +208,23 @@ fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaS
     }
 }
 
-fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if !(cfg!(unix) || cfg!(debug_assertions)) {
-        return Ok(());
-    }
-    use log::LevelFilter;
-    use log4rs::{
-        append::file::FileAppender,
-        config::{Appender, Config, Root}
+fn is_related_recipe(_lua: &Lua, e: LuaError) -> LuaResult<bool> { Ok(_is_related_recipe(&e)) }
+
+fn _is_related_recipe(e: &LuaError) -> bool {
+    use state::Error::*;
+    let e = match e {
+        LuaError::ExternalError(e) => e,
+        LuaError::CallbackError { cause, .. } => return _is_related_recipe(&*cause),
+        _ => {
+            return false;
+        }
     };
-    let p = std::env::temp_dir().join("vim_linearf.log");
-    let logfile = FileAppender::builder().build(p)?;
-    let config = Config::builder()
-        .appender(Appender::builder().build("logfile", Box::new(logfile)))
-        .build(
-            Root::builder()
-                .appender("logfile")
-                .build(LevelFilter::Trace)
-        )?;
-    log4rs::init_config(config)?;
-    log::info!("initialize");
-    Ok(())
+    let e = match e.downcast_ref::<state::Error>() {
+        Some(e) => e,
+        None => return false
+    };
+    matches!(
+        e,
+        SourceNotFound(_) | MatcherNotFound(_) | ConverterNotFound(_)
+    )
 }

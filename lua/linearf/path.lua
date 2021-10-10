@@ -32,8 +32,16 @@ function M.bridge_dest()
     return M.join {M.bridge(), 'target', utils.lua_ver()}
 end
 
+function M.bridge_name_body()
+    return 'linearf_bridge'
+end
+
 function M.bridge_name()
-    return utils.is_windows() and 'bridge.dll' or 'libbridge.so'
+    if utils.is_windows() then
+        return M.bridge_name_body() .. '.dll'
+    else
+        return 'lib' .. M.bridge_name_body() .. '.so'
+    end
 end
 
 function M.bridge_release_bin()

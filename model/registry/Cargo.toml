@@ -1,13 +1,10 @@
 [package]
 name = "registry"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-rayon = "1.5.1"
-
-[dependencies.linearf]
-path = "../core"
-[dependencies.serde]
-features = ["derive"]
-version = "*"
+linearf = { path = "../core" }
+log = "*"
+rayon = "*"
+serde = { version = "*", features = ["derive"] }
