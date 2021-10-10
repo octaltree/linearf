@@ -177,7 +177,7 @@ where
             Poll::Ready(x) => x
         };
         if inner.done {
-            // TODO: I just want to recur, not pending.
+            // I just want to recur, not pending.
             this.need_write = false;
             cx.waker().wake_by_ref();
             return Poll::Pending;
@@ -199,7 +199,7 @@ where
             this.need_write = false;
             Poll::Ready(x.clone())
         } else {
-            // TODO
+            //
             this.need_write = true;
             cx.waker().wake_by_ref();
             Poll::Pending
@@ -221,7 +221,7 @@ where
             this.idx += 1;
             Poll::Ready(x.clone())
         } else {
-            // TODO
+            //
             this.need_write = true;
             cx.waker().wake_by_ref();
             Poll::Pending

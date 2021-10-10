@@ -35,11 +35,9 @@ M = setmetatable(M, {
             local result = Result.pcall(self.inner[key], ...)
             local ret = result:map_err(function(e)
                 if type(e) == 'userdata' then
-                    if self.inner.is_related_recipe(e) and M.try_build_on_error then
+                    if M.try_build_on_error and self.inner.is_related_recipe(e) then
                         M._build()
                         -- TODO: reload
-                        package.loaded['linearf.bridge'] = nil
-                        try_init()
                         -- TODO: retry
                     end
                     return self.inner.format_error(key, e)

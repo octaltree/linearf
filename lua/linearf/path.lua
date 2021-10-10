@@ -50,10 +50,10 @@ end
 
 function M.append_bridge()
     local name
-    -- TODO: mac
     if utils.is_windows() then
         name = '?.dll'
     else
+        -- mac?
         name = 'lib?.so'
     end
     local lua = M.join {M.root(), 'model', 'target', utils.lua_ver(), name}
