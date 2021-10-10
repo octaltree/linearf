@@ -25,7 +25,7 @@ end
 
 function M.init(view)
     _G['linearf'] = M
-    M.bridge.init()
+    M.bridge.init(M.build)
     M.view = view
 end
 

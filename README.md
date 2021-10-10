@@ -19,10 +19,11 @@ call dein#add('octaltree/linearf')
 call dein#add('octaltree/linearf-my-flavors')
 ```
 
-Write config file
+Paste config file
 ```lua
 lua<<EOF
 local linearf = require('linearf')
+linearf.init(require('linearf-vanilla').new())
 
 linearf.recipe.sources = {}
 linearf.recipe.matchers = {}
@@ -42,22 +43,18 @@ linearf.senarios = {
         }
     }
 }
-linearf.init(require('linearf-vanilla').new())
+
+linearf.bridge.try_build_if_not_loaded = true
+linearf.bridge.try_build_on_error = true
 EOF
 ```
-
-Then build your own fuzzy finder.
-```vim
-lua require('linearf').build()
-```
-
-Runs with the pre-defined senario and its difference as input.
+Then run with the pre-defined senario and its difference.
 ```vim
 lua linearf({})
 lua linearf('simple')
 lua linearf('simple', {})
 ```
-For more information, see help
+For more information, see `:help linearf`
 
 ## TODO
 - [x] implement logic
