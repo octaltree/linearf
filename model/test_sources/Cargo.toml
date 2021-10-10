@@ -1,10 +1,8 @@
-[dependencies]
-futures = "0.3.17"
-
-[dependencies.linearf]
-path = "../core"
-
 [package]
-edition = "2018"
+edition = "2021"
 name = "test_sources"
 version = "0.1.0"
+
+[dependencies]
+linearf = { path = "../core" }
+futures = "0.3.17"

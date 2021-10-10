@@ -114,7 +114,7 @@ pub fn format_cargo_toml(recipe: &Recipe) -> StdResult<String> {
         package: CargoPackage {
             name: "registry".into(),
             version: "0.1.0".into(),
-            edition: "2018".into()
+            edition: "2021".into()
         },
         dependencies
     };
