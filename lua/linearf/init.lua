@@ -13,11 +13,11 @@ local M = {
     context_managers = {},
     sessions = {}
 }
-M.senarios[''] = {}
 
 local utils = require('linearf.utils')
 local Session = require('linearf.session')
 local SenarioBuilder = require('linearf.senario_builder')
+local Result = require('linearf.result')
 
 function M.build()
     return M.bridge.build(M.recipe)
@@ -31,20 +31,14 @@ end
 
 local function new_senario_builder(senario_name, diff)
     local base = M.senarios[senario_name]
-    if not base then
-        local s = string.format('senario "%s" is not found', senario_name)
-        error(s)
-    end
+    if not base then base = {} end
     local c = M.context_managers[senario_name]
-    local cm
-    if type(c) == 'function' then
-        cm = c
-    else
-        cm = function()
+    if type(c) ~= 'function' then
+        c = function()
             return nil
         end
     end
-    return SenarioBuilder.new(base, cm, diff)
+    return SenarioBuilder.new(base, c, diff)
 end
 
 function M.run(senario_name, diff)
@@ -62,4 +56,35 @@ function M.resume(session_id)
     M.view:start(session_id)
 end
 
-return M
+local function signature_error()
+    local msg = table.concat({
+        '`linearf` accepts args one of following signatures',
+        'linearf(name: string)',
+        'linearf(diff: table)',
+        'linearf(name: string, diff: table)'
+    }, '\n')
+    return Result.Err(msg)
+end
+
+return setmetatable(M, {
+    __call = function(self, ...)
+        local args = {...}
+        local len = #args
+        if len == 1 then
+            local t = type(args[1])
+            if t == 'string' then
+                return linearf.run(args[1], {})
+            elseif t == 'table' then
+                return linearf.run('', args[1])
+            end
+        end
+        if len == 2 then
+            local name = args[1]
+            local diff = args[2]
+            if type(name) == 'string' and type(diff) == 'table' then
+                return linearf.run(name, diff)
+            end
+        end
+        signature_error():unwrap()
+    end
+})

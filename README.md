@@ -23,6 +23,7 @@ Write config file
 ```lua
 lua<<EOF
 local linearf = require('linearf')
+
 linearf.recipe.sources = {}
 linearf.recipe.matchers = {}
 linearf.recipe.converters = {}
@@ -52,9 +53,9 @@ lua require('linearf').build()
 
 Runs with the pre-defined senario and its difference as input.
 ```vim
-lua linearf.run('', {})
-lua linearf.run('simple')
-lua linearf.run('simple', {})
+lua linearf({})
+lua linearf('simple')
+lua linearf('simple', {})
 ```
 For more information, see help
 
