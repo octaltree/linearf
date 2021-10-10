@@ -10,8 +10,8 @@ crate-type = ["cdylib"]
 log = "0.4.14"
 log4rs = "1.0.0"
 serde = "1.0.130"
-mlua = { version = "0.6.2", features = ["module", "async", "send", "serialize"] }
-tokio = { version = "1.11.0", features = ["rt-multi-thread", "sync"] }
+mlua = { version = "0.6.5", features = ["module", "async", "send", "serialize"] }
+tokio = { version = "1.12.0", features = ["rt-multi-thread", "sync"] }
 linearf = { path = "../core" }
 registry = { path = "../registry" }
 os_str_bytes = "4.2.0"
