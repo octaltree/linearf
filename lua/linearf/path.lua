@@ -48,7 +48,7 @@ function M.bridge_release_bin()
     return M.join {M.bridge(), 'target', 'release', M.bridge_name()}
 end
 
-function M.append_bridge()
+function M.cpath()
     local name
     if utils.is_windows() then
         name = '?.dll'
@@ -58,7 +58,7 @@ function M.append_bridge()
     end
     local lua = M.join {M.root(), 'model', 'target', utils.lua_ver(), name}
     local debug = M.join {M.root(), 'model', 'target', 'debug', name}
-    package.cpath = table.concat({package.cpath, lua, debug}, ';')
+    return table.concat({lua, debug}, ';')
 end
 
 return M

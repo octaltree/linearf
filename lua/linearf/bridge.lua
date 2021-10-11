@@ -100,7 +100,9 @@ function M.build(recipe)
 end
 
 function M.init(build)
-    path.append_bridge()
+    if not string.find(package.cpath, path.cpath(), 0, true) then
+      package.cpath = table.concat({package.cpath, path.cpath()}, ';')
+    end
     M._build = build
     return try_init()
 end

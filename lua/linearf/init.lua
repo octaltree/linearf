@@ -24,6 +24,9 @@ function M.build()
 end
 
 function M.init(view)
+    if M.view then
+      M.view:close()
+    end
     _G['linearf'] = M
     M.bridge.init(M.build)
     M.view = view
