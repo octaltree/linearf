@@ -63,6 +63,8 @@ function M.value(x)
     return x
 end
 
+-- PRIVATE
+
 function M.lua_ver()
     if jit and jit.version ~= nil then return 'luajit' end
     local v = _VERSION
@@ -71,10 +73,10 @@ function M.lua_ver()
     return 'lua' .. l
 end
 
-function M.echo_error(s)
-    local msg = '[linearf] ' .. s
-    local quoted = vim.fn.string(msg)
-    M.command(string.format("echohl Error | echomsg %s | echohl None", quoted))
-end
+-- function M.echo_error(s)
+--     local msg = '[linearf] ' .. s
+--     local quoted = vim.fn.string(msg)
+--     M.command(string.format("echohl Error | echomsg %s | echohl None", quoted))
+-- end
 
 return M

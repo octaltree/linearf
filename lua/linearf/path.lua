@@ -17,6 +17,8 @@ function M.root()
     return C._root
 end
 
+-- PRIVATE
+
 function M.background_command()
     local exe = utils.is_windows() and 'linearf.exe' or 'linearf'
     return M.join {M.root(), 'core', 'target', 'release', exe}

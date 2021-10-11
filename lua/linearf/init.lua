@@ -1,15 +1,17 @@
 local M = {
+    -- reexport
+    utils = require('linearf.utils'),
+    path = require('linearf.path'),
+    bridge = require('linearf.bridge'),
     -- config
     recipe = {crates = {}, sources = {}, matchers = {}, converters = {}},
     senarios = {},
     context_managers = {},
     -- mutables
-    bridge = require('linearf.bridge'),
     view = nil,
     sessions = {}
 }
 
-local utils = require('linearf.utils')
 local Session = require('linearf.session')
 local SenarioBuilder = require('linearf.senario_builder')
 local Result = require('linearf.result')
@@ -28,8 +30,8 @@ end
 function M.init(view)
     if M.view then
         M.view:close()
-        utils.cache = {}
-        require('linearf.path').cache = {}
+        M.utils.cache = {}
+        M.path.cache = {}
     end
     _G['linearf'] = M
     M.bridge.init(M.build)
