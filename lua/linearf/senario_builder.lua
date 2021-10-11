@@ -41,9 +41,7 @@ function SenarioBuilder.new(base, context_manager, diff)
     this.context_manager = context_manager
     this.diff = diff
     this.merge = merge
-    return setmetatable(this, {
-        __index = SenarioBuilder
-    })
+    return setmetatable(this, {__index = SenarioBuilder})
 end
 
 local function foldl(f, x, xs)

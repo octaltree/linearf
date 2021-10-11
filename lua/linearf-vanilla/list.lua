@@ -6,9 +6,7 @@ local NAME = 'linearf-vanilla-list'
 
 function List.new()
     local this = {}
-    return setmetatable(this, {
-        __index = List
-    })
+    return setmetatable(this, {__index = List})
 end
 
 function List.start(self, session)

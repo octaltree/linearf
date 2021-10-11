@@ -1,16 +1,11 @@
 local M = {
     -- config
-    recipe = {
-        crates = {},
-        sources = {},
-        matchers = {},
-        converters = {}
-    },
+    recipe = {crates = {}, sources = {}, matchers = {}, converters = {}},
     senarios = {},
+    context_managers = {},
     -- mutables
     bridge = require('linearf.bridge'),
     view = nil,
-    context_managers = {},
     sessions = {}
 }
 
@@ -18,6 +13,13 @@ local utils = require('linearf.utils')
 local Session = require('linearf.session')
 local SenarioBuilder = require('linearf.senario_builder')
 local Result = require('linearf.result')
+-- init stateful
+-- bridge stateful
+-- path cache
+-- utils cache
+-- result pure type
+-- senario_builder pure type
+-- session pure type
 
 function M.build()
     return M.bridge.build(M.recipe)
@@ -25,7 +27,9 @@ end
 
 function M.init(view)
     if M.view then
-      M.view:close()
+        M.view:close()
+        utils.cache = {}
+        require('linearf.path').cache = {}
     end
     _G['linearf'] = M
     M.bridge.init(M.build)
@@ -76,16 +80,16 @@ return setmetatable(M, {
         if len == 1 then
             local t = type(args[1])
             if t == 'string' then
-                return linearf.run(args[1], {})
+                return self.run(args[1], {})
             elseif t == 'table' then
-                return linearf.run('', args[1])
+                return self.run('', args[1])
             end
         end
         if len == 2 then
             local name = args[1]
             local diff = args[2]
             if type(name) == 'string' and type(diff) == 'table' then
-                return linearf.run(name, diff)
+                return self.run(name, diff)
             end
         end
         signature_error():unwrap()

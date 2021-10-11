@@ -1,7 +1,5 @@
 local C = {}
-local M = {
-    cache = C
-}
+local M = {cache = C}
 
 function M.has(name)
     return vim.fn.has(name) == 1

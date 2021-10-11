@@ -10,9 +10,7 @@ function Session.new(bridge, id, senario, senario_builder)
     this.senario_builder = senario_builder
     this.flow_id = nil
     this.on_flow_changed = nil
-    return setmetatable(this, {
-        __index = Session
-    })
+    return setmetatable(this, {__index = Session})
 end
 
 function Session.tick(self, senario)

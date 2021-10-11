@@ -27,7 +27,7 @@ M = setmetatable(M, {
             try_init()
         end
         if not self.inner then
-            return function(...)
+            return function()
                 return Result.Err('bridge is not loaded')
             end
         end
@@ -101,7 +101,7 @@ end
 
 function M.init(build)
     if not string.find(package.cpath, path.cpath(), 0, true) then
-      package.cpath = table.concat({package.cpath, path.cpath()}, ';')
+        package.cpath = table.concat({package.cpath, path.cpath()}, ';')
     end
     M._build = build
     return try_init()

@@ -1,7 +1,5 @@
 local C = {}
-local M = {
-    cache = C
-}
+local M = {cache = C}
 
 local utils = require('linearf.utils')
 

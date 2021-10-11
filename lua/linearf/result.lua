@@ -1,21 +1,11 @@
 local Result = {}
 
 function Result.Ok(x)
-    return setmetatable({
-        ok = true,
-        value = x
-    }, {
-        __index = Result
-    })
+    return setmetatable({ok = true, value = x}, {__index = Result})
 end
 
 function Result.Err(e)
-    return setmetatable({
-        ok = false,
-        value = e
-    }, {
-        __index = Result
-    })
+    return setmetatable({ok = false, value = e}, {__index = Result})
 end
 
 function Result.pcall(f, ...)

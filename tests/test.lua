@@ -11,46 +11,24 @@ end
 
 function M.run()
     linearf.recipe.sources = {
-        {
-            name = "simple",
-            path = "test_sources::source::Simple"
-        },
-        {
-            name = "osstr",
-            path = "test_sources::source::OsStr"
-        }
+        {name = "simple", path = "test_sources::source::Simple"},
+        {name = "osstr", path = "test_sources::source::OsStr"}
     }
     linearf.recipe.matchers = {
-        {
-            name = "substring",
-            path = "test_sources::matcher::Substring"
-        }
+        {name = "substring", path = "test_sources::matcher::Substring"}
     }
     linearf.recipe.converters = {
-        {
-            name = "OddEven",
-            path = "test_sources::converter::OddEven"
-        }
+        {name = "OddEven", path = "test_sources::converter::OddEven"}
     }
     linearf.build()
     local view = {
-        start = function(self, session)
+        start = function(_self, _session)
         end
     }
     linearf.init(view)
     linearf.senarios = {
-        simple = {
-            linearf = {
-                source = 'simple',
-                matcher = 'substring'
-            }
-        },
-        osstr = {
-            linearf = {
-                source = 'osstr',
-                matcher = 'substring'
-            }
-        }
+        simple = {linearf = {source = 'simple', matcher = 'substring'}},
+        osstr = {linearf = {source = 'osstr', matcher = 'substring'}}
     }
     linearf.run('simple')
 end
