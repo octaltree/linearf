@@ -2,9 +2,18 @@
 name = "registry"
 version = "0.1.0"
 edition = "2021"
+[dependencies.linearf]
+path = "../core"
 
-[dependencies]
-linearf = { path = "../core" }
-log = "*"
-rayon = "*"
-serde = { version = "*", features = ["derive"] }
+[dependencies.log]
+version = "*"
+
+[dependencies.rayon]
+version = "*"
+
+[dependencies.serde]
+features = ["derive"]
+version = "*"
+
+[dependencies.test_sources]
+path = "/home/octaltree/workspace/lnf/model/test_sources"

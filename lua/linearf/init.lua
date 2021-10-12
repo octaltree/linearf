@@ -75,6 +75,13 @@ local function signature_error()
     return Result.Err(msg)
 end
 
+function M.unload()
+  print(vim.inspect(M.bridge.unload()))
+  package.loaded['linearf_bridge'] = nil
+  linearf.bridge.inner = false
+  collectgarbage('collect')
+end
+
 return setmetatable(M, {
     __call = function(self, ...)
         local args = {...}

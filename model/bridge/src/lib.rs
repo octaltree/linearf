@@ -34,7 +34,44 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("flow_items", lua.create_function(flow_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("is_related_recipe", lua.create_function(is_related_recipe)?)?;
+    exports.set("unload", lua.create_function(unload)?)?;
     Ok(exports)
+}
+
+extern "C" {
+    pub fn lua_touserdata(
+        L: *mut mlua::lua_State,
+        idx: std::os::raw::c_int
+    ) -> *mut std::os::raw::c_void;
+}
+
+fn unload(lua: &Lua, (): ()) -> LuaResult<()> {
+    // use std::{
+    //    mem::transmute,
+    //    os::raw::{c_int, c_void}
+    //};
+    // let place: LuaAnyUserData<'a> = lua.named_registry_value(
+    //    "LOADLIB: /home/octaltree/workspace/lnf/model/target/luajit/liblinearf_bridge.so"
+    //)?;
+    //// struct Place<'a> {
+    ////    lua: &'a Lua,
+    ////    index: c_int
+    //// }
+    //// let place: Place<'a> = unsafe { transmute(place) };
+    //// let raw = lua_touserdata(lua, place.0.index);
+    //// let raw: *mut *mut c_void = unsafe { std::mem::transmute(raw) };
+    //// place is void**
+    //#[derive(Debug, Clone)]
+    // struct Place(*mut LuaLightUserData);
+    // impl LuaUserData for Place {}
+    //// let place: Place = place.get_user_value()?;
+    // log::debug!("{:?}", place);
+    //// let place: *mut *mut c_void = place.take()?;
+    mlua::unload::unload(
+        lua,
+        "/home/octaltree/workspace/lnf/model/target/luajit/liblinearf_bridge.so"
+    )?;
+    Ok(())
 }
 
 fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

@@ -61,4 +61,8 @@ function M.cpath()
     return table.concat({lua, debug}, ';')
 end
 
+function M.bridge_full()
+  return M.join {M.root(), 'model', 'target', utils.lua_ver(), M.bridge_name()}
+end
+
 return M
