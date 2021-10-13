@@ -4,6 +4,7 @@ local M = {
     try_build_on_error = false,
     -- mutables
     inner = false, -- need non nil value
+    retry_count = 0,
     _build = function()
     end
 }
@@ -12,38 +13,67 @@ local path = require('linearf.path')
 local utils = require('linearf.utils')
 local Result = require('linearf.result')
 
-local function try_init()
-    local success, mod = pcall(require, path.bridge_name_body())
+local function try_reload()
+    local latest
+    do
+        local dir = path.bridge_dest()
+        vim.fn.mkdir(dir, 'p')
+        local files = utils.readdir(dir)
+        local timestamps = {}
+        for _, name in ipairs(files) do
+            local m = name:match('(%d+)%.[a-z]+$')
+            if m then table.insert(timestamps, tonumber(m)) end
+        end
+        table.sort(timestamps)
+        if #files == 0 then
+            return false
+        else
+            latest = timestamps[#timestamps]
+        end
+    end
+    local name = path.bridge_name_body(latest)
+    if package.loaded[name] then
+        Result.pcall(M.inner.remove_all_sessions)
+        return true
+    end
+    local success, mod = pcall(require, name)
     if not success then return false end
+    if M.inner then
+        Result.pcall(M.inner.remove_all_sessions_later)
+    end
     M.inner = mod
     return true
 end
 
 M = setmetatable(M, {
     __index = function(self, key)
-        if not self.inner then try_init() end
-        if not self.inner and M.try_build_if_not_loaded then
-            M._build()
-            try_init()
-        end
-        if not self.inner then
-            return function()
-                return Result.Err('bridge is not loaded')
-            end
+        if not self.inner then try_reload() end
+        if not self.inner and self.try_build_if_not_loaded then
+            self._build()
+            try_reload()
         end
         return function(...)
+            if not self.inner then
+                return Result.Err('bridge is not loaded')
+            end
             local result = Result.pcall(self.inner[key], ...)
-            local ret = result:map_err(function(e)
-                if type(e) == 'userdata' then
-                    if M.try_build_on_error and self.inner.is_related_recipe(e) then
-                        M._build()
-                        -- TODO: reload
-                        -- TODO: retry
-                    end
-                    return self.inner.format_error(key, e)
-                else
-                    return e
+            local args = {...}
+            local ret = result:or_else(function(err)
+                if type(err) ~= 'userdata' then
+                    return Result.Err(err)
                 end
+                local e = self.inner.inspect_error(key, err)
+                if self.try_build_on_error and e.is_related_recipe then
+                    self._build()
+                    try_reload()
+                    if self.retry_count < 1 then
+                        self.retry_count = self.retry_count + 1
+                        return self[key](utils.unpack(args))
+                    else
+                        self.retry_count = 0
+                    end
+                end
+                return Result.Err(e['message'])
             end)
             return ret
         end
@@ -81,7 +111,8 @@ function M.build(recipe)
     do -- set args
         local json = format_recipe(recipe)
         utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
-        --utils.command('let $LINEARF_BRIDGE_SUFFIX = ' .. vim.fn.string(timestamp))
+        utils.command('let $LINEARF_BRIDGE_SUFFIX = ' ..
+                          vim.fn.string(timestamp))
         utils.command('let $RUSTFLAGS = "-Awarnings"')
     end
     do -- compile
@@ -98,7 +129,8 @@ function M.build(recipe)
     do -- deploy
         local bin = path.bridge_release_bin()
         local dir = path.bridge_dest()
-        local name = path.bridge_name()
+        local name = path.bridge_name(timestamp)
+        vim.fn.delete(dir, "rf")
         vim.fn.mkdir(dir, 'p')
         vim.fn.rename(bin, path.join {dir, name})
     end
@@ -109,7 +141,7 @@ function M.init(build)
         package.cpath = table.concat({package.cpath, path.cpath()}, ';')
     end
     M._build = build
-    return try_init()
+    return try_reload()
 end
 
 return M

@@ -1,6 +1,8 @@
 local C = {}
 local M = {cache = C}
 
+M.unpack = table.unpack or unpack
+
 function M.has(name)
     return vim.fn.has(name) == 1
 end
@@ -61,6 +63,14 @@ function M.value(x)
         end
     end
     return x
+end
+
+function M.readdir(...)
+    if M.is_nvim() then return vim.fn.readdir(...) end
+    -- :h lua-list
+    local ret = {}
+    for x in vim.fn.readdir(...)() do table.insert(ret, x) end
+    return ret
 end
 
 -- PRIVATE

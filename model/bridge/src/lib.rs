@@ -26,17 +26,20 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
         lua.set_named_registry_value(LINEARF, Wrapper::new(lnf))?;
     }
     let exports = lua.create_table()?;
-    exports.set("format_error", lua.create_function(format_error)?)?;
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(flow_status)?)?;
     exports.set("flow_items", lua.create_function(flow_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
-    exports.set("is_related_recipe", lua.create_function(is_related_recipe)?)?;
+    exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(
         "remove_all_sessions_later",
         lua.create_function(remove_all_sessions_later)?
+    )?;
+    exports.set(
+        "remove_all_sessions",
+        lua.create_function(remove_all_sessions)?
     )?;
     Ok(exports)
 }
@@ -62,11 +65,6 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     log4rs::init_config(config)?;
     log::info!("initialize");
     Ok(())
-}
-
-fn format_error(_lua: &Lua, (name, e): (LuaString, LuaError)) -> LuaResult<String> {
-    log::error!("[{}] {:?}", name.to_string_lossy(), &e);
-    Ok(format!("{:?}", e))
 }
 
 fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
@@ -212,7 +210,17 @@ fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaS
     }
 }
 
-fn is_related_recipe(_lua: &Lua, e: LuaError) -> LuaResult<bool> { Ok(_is_related_recipe(&e)) }
+fn inspect_error<'a>(lua: &'a Lua, (name, e): (LuaString, LuaError)) -> LuaResult<LuaTable<'a>> {
+    log::error!("[{}] {:?}", name.to_string_lossy(), &e);
+    let related = _is_related_recipe(&e);
+    let msg = format!("{:?}", e);
+    {
+        let t = lua.create_table_with_capacity(0, 2)?;
+        t.set("message", msg)?;
+        t.set("is_related_recipe", related)?;
+        Ok(t)
+    }
+}
 
 fn _is_related_recipe(e: &LuaError) -> bool {
     use state::Error::*;
@@ -238,6 +246,15 @@ fn remove_all_sessions_later(lua: &Lua, (): ()) -> LuaResult<()> {
     let l = Arc::clone(&lnf);
     lnf.runtime().spawn(async move {
         let state = &mut l.state().write().await;
+        state.remove_all_sesions();
+    });
+    Ok(())
+}
+
+fn remove_all_sessions(lua: &Lua, (): ()) -> LuaResult<()> {
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = &mut lnf.state().write().await;
         state.remove_all_sesions();
     });
     Ok(())

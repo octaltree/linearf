@@ -32,20 +32,20 @@ function M.bridge_dest()
     return M.join {M.bridge(), 'target', utils.lua_ver()}
 end
 
-function M.bridge_name_body()
-    return 'linearf_bridge'
+function M.bridge_name_body(suffix)
+    return 'linearf_bridge' .. suffix
 end
 
-function M.bridge_name()
+function M.bridge_name(suffix)
     if utils.is_windows() then
-        return M.bridge_name_body() .. '.dll'
+        return M.bridge_name_body(suffix) .. '.dll'
     else
-        return 'lib' .. M.bridge_name_body() .. '.so'
+        return 'lib' .. M.bridge_name_body(suffix) .. '.so'
     end
 end
 
 function M.bridge_release_bin()
-    return M.join {M.bridge(), 'target', 'release', M.bridge_name()}
+    return M.join {M.bridge(), 'target', 'release', M.bridge_name('')}
 end
 
 function M.cpath()
