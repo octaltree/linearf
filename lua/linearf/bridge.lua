@@ -38,9 +38,7 @@ local function try_reload()
     end
     local success, mod = pcall(require, name)
     if not success then return false end
-    if M.inner then
-        Result.pcall(M.inner.remove_all_sessions_later)
-    end
+    if M.inner then Result.pcall(M.inner.remove_all_sessions_later) end
     M.inner = mod
     return true
 end
