@@ -1,6 +1,6 @@
 local M = {
     -- config
-    try_build_if_not_loaded = false,
+    try_build_if_not_exist = false,
     try_build_on_error = false,
     -- mutables
     inner = false, -- need non nil value
@@ -48,7 +48,7 @@ end
 M = setmetatable(M, {
     __index = function(self, key)
         if not self.inner then try_reload() end
-        if not self.inner and self.try_build_if_not_loaded then
+        if not self.inner and self.try_build_if_not_exist then
             self._build()
             try_reload()
         end
@@ -73,7 +73,7 @@ M = setmetatable(M, {
                         self.retry_count = 0
                     end
                 end
-                return Result.Err(e['message'])
+                return Result.Err(e.message)
             end)
             return ret
         end
