@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 const RT: &str = "_lienarf_rt";
 const LINEARF: &str = "_linearf_linearf";
 
-#[mlua::lua_module]
+#[macros::lua_module]
 fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     initialize_log().map_err(LuaError::external)?;
     let rt = Runtime::new()?;
@@ -34,6 +34,10 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("flow_items", lua.create_function(flow_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("is_related_recipe", lua.create_function(is_related_recipe)?)?;
+    exports.set(
+        "remove_all_sessions_later",
+        lua.create_function(remove_all_sessions_later)?
+    )?;
     Ok(exports)
 }
 
@@ -227,4 +231,14 @@ fn _is_related_recipe(e: &LuaError) -> bool {
         e,
         SourceNotFound(_) | MatcherNotFound(_) | ConverterNotFound(_)
     )
+}
+
+fn remove_all_sessions_later(lua: &Lua, (): ()) -> LuaResult<()> {
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    let l = Arc::clone(&lnf);
+    lnf.runtime().spawn(async move {
+        let state = &mut l.state().write().await;
+        state.remove_all_sesions();
+    });
+    Ok(())
 }

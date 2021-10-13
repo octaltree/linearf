@@ -1,0 +1,4 @@
+This crate is the fork of https://github.com/khvzak/mlua/tree/master/mlua_derive
+licensed under [MIT](https://github.com/khvzak/mlua/blob/master/LICENSE)
+Copyright (c) 2019-2021 A. Orlenko
+Copyright (c) 2017 rlua

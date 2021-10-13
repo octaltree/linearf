@@ -14,7 +14,11 @@ fn main() -> StdResult<()> {
         a.next()
     }
     .expect("The first argument is needed for \"features\"");
-    println!("{} {:?}", features, env_recipe.as_ref().ok());
+    println!(
+        "{} {}",
+        features,
+        env_recipe.as_deref().ok().unwrap_or("None")
+    );
     let recipe = input(env_recipe)?;
     let here = Path::new(env_dir);
     let core = here.parent().unwrap().join("core");
