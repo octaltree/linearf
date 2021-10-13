@@ -11,9 +11,33 @@ function M.join(parts)
     return table.concat(parts, M.sep())
 end
 
+-- "/a/" => {'', 'a', ''}
+-- TODO: escape
+local function split(path, sep)
+  local cs = {}
+  local i = 1
+  local len = #path
+  while true do
+    local l, r = path:find(sep, i, true)
+    if l then
+      table.insert(cs, path:sub(i, l - 1))
+      i = r + 1
+    else
+      table.insert(cs, path:sub(i))
+      break
+    end
+  end
+  return cs
+end
+
 -- has no trailing slash
 function M.root()
-    if C._root == nil then C._root = utils.g('linearf#root_dir') end
+    if C._root == nil then
+      local path = debug.getinfo(1).source:gsub('@?(.+)', '%1')
+      local cs = split(path, M.sep())
+      local root = M.join {utils.unpack(cs, 1, #cs - 3)}
+      C._root = root
+    end
     return C._root
 end
 
