@@ -44,7 +44,7 @@ linearf.senarios = {
     }
 }
 
-linearf.bridge.try_build_if_not_loaded = true
+linearf.bridge.try_build_if_not_exist = true
 linearf.bridge.try_build_on_error = true
 EOF
 ```
@@ -58,6 +58,7 @@ For more information, see `:help linearf`
 
 ## TODO
 - [x] implement logic
+- [x] runtime reloading and auto building
 - [ ] implement view and controller
 - [ ] implement linearf-my-flavors
-- [ ] Use vim as a fuzzy finder from CLI
+- [ ] use vim as a fuzzy finder from CLI

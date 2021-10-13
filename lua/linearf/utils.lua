@@ -1,7 +1,7 @@
 local C = {}
-local M = {
-    cache = C
-}
+local M = {cache = C}
+
+M.unpack = table.unpack or unpack
 
 function M.has(name)
     return vim.fn.has(name) == 1
@@ -65,6 +65,16 @@ function M.value(x)
     return x
 end
 
+function M.readdir(...)
+    if M.is_nvim() then return vim.fn.readdir(...) end
+    -- :h lua-list
+    local ret = {}
+    for x in vim.fn.readdir(...)() do table.insert(ret, x) end
+    return ret
+end
+
+-- PRIVATE
+
 function M.lua_ver()
     if jit and jit.version ~= nil then return 'luajit' end
     local v = _VERSION
@@ -73,10 +83,10 @@ function M.lua_ver()
     return 'lua' .. l
 end
 
-function M.echo_error(s)
-    local msg = '[linearf] ' .. s
-    local quoted = vim.fn.string(msg)
-    M.command(string.format("echohl Error | echomsg %s | echohl None", quoted))
-end
+-- function M.echo_error(s)
+--     local msg = '[linearf] ' .. s
+--     local quoted = vim.fn.string(msg)
+--     M.command(string.format("echohl Error | echomsg %s | echohl None", quoted))
+-- end
 
 return M

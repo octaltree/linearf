@@ -338,4 +338,6 @@ impl State {
     }
 
     pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
+
+    pub fn remove_all_sesions(&mut self) { self.sessions = VecDeque::new(); }
 }
