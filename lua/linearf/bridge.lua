@@ -77,25 +77,30 @@ local function format_recipe(recipe)
 end
 
 function M.build(recipe)
-    local features = 'mlua/' .. utils.lua_ver()
-    local json = format_recipe(recipe)
-    utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
-    utils.command('let $RUSTFLAGS = "-Awarnings"')
-    local tmp = vim.fn.getcwd()
-    local t = table.concat({
-        'cd %s; ',
-        'cargo run --bin=bundle -- %s;',
-        'cd %s;'
-    }, '')
-    local b = vim.fn.shellescape(path.bridge())
-    local sh = vim.fn.printf(t, b, features, tmp)
-    utils.command('! ' .. sh)
-    do
-        local dest = path.bridge_dest()
-        local name = path.bridge_name()
+    local timestamp = os.time(os.date("!*t"))
+    do -- set args
+        local json = format_recipe(recipe)
+        utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
+        --utils.command('let $LINEARF_BRIDGE_SUFFIX = ' .. vim.fn.string(timestamp))
+        utils.command('let $RUSTFLAGS = "-Awarnings"')
+    end
+    do -- compile
+        local features = 'mlua/' .. utils.lua_ver()
+        local cwd = vim.fn.getcwd()
+        local dir = vim.fn.shellescape(path.bridge())
+        local sh = vim.fn.printf(table.concat({
+            'cd %s; ',
+            'cargo run --bin=bundle -- %s;',
+            'cd %s;'
+        }, ''), dir, features, cwd)
+        utils.command('! ' .. sh)
+    end
+    do -- deploy
         local bin = path.bridge_release_bin()
-        vim.fn.mkdir(dest, 'p')
-        vim.fn.rename(bin, path.join {dest, name})
+        local dir = path.bridge_dest()
+        local name = path.bridge_name()
+        vim.fn.mkdir(dir, 'p')
+        vim.fn.rename(bin, path.join {dir, name})
     end
 end
 

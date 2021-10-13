@@ -57,8 +57,7 @@ function M.cpath()
         name = 'lib?.so'
     end
     local lua = M.join {M.root(), 'model', 'target', utils.lua_ver(), name}
-    local debug = M.join {M.root(), 'model', 'target', 'debug', name}
-    return table.concat({lua, debug}, ';')
+    return lua
 end
 
 return M
