@@ -4,5 +4,6 @@ members = [
   "bundle",
   "registry",
   "bridge",
-  "test_sources"
+  "test_sources",
+  "macros"
 ]

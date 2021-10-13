@@ -27,6 +27,11 @@ function Result.and_then(self, f)
     return f(self.value)
 end
 
+function Result.or_else(self, f)
+    if self.ok then return self end
+    return f(self.value)
+end
+
 function Result.unwrap(self)
     if self.ok then
         return self.value
