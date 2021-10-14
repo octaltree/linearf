@@ -2,6 +2,8 @@ local Vanilla = {}
 
 local utils = require('linearf.utils')
 
+-- REQUIRED
+
 function Vanilla.new()
     local this = {}
     this.list = require('linearf-vanilla.list').new()
@@ -13,24 +15,38 @@ function Vanilla.new()
     return setmetatable(this, {__index = Vanilla})
 end
 
-function Vanilla.start(self, session)
-    self.list:start(session)
-    self.querier:start(session)
-    self.preview:start(session)
-    if self.querier_on_start == 'insert' then
-        self.querier:set_insert()
-    elseif self.querier.querier_on_start == 'active' then
-        self.querier:set_active()
-    else
-        self.list:set_active()
-    end
+function Vanilla.flow(self, flow)
 end
 
-function Vanilla.close(self)
+function Vanilla.destruct(self)
     self.list:close()
     self.querier:close()
     self.preview:close()
 end
+
+function Vanilla.hide_all(self)
+    self.list:close()
+    self.querier:close()
+    self.preview:close()
+end
+
+-- VIEW SPECIFIC
+
+-- open preview manually
+-- hide only preview
+
+-- function Vanilla.start(self, session)
+--    self.list:start(session)
+--    self.querier:start(session)
+--    self.preview:start(session)
+--    if self.querier_on_start == 'insert' then
+--        self.querier:set_insert()
+--    elseif self.querier.querier_on_start == 'active' then
+--        self.querier:set_active()
+--    else
+--        self.list:set_active()
+--    end
+-- end
 
 -- start, open, close, switch_active, switch_deactive, update?
 
