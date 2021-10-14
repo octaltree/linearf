@@ -58,7 +58,7 @@ function M.run(senario_name, diff)
     local id = M.bridge.run(senario):unwrap()
     local sid = id.session
     local fid = id.flow
-    local flow = Flow.new(sid, fid, senario)
+    local flow = Flow.new(bridge, sid, fid, senario)
     local sess = Session.new(sid, senario_builder):insert(fid, flow)
     M._sessions[sid] = sess
     M.view:flow(flow)
@@ -77,7 +77,7 @@ function M.query(session_id, q)
     local id = M.bridge.tick(session_id, senario):unwrap()
     local sid = id.session
     local fid = id.flow
-    local flow = Flow.new(sid, fid, senario)
+    local flow = Flow.new(bridge, sid, fid, senario)
     sess:insert(fid, flow)
     M.view:flow(flow)
 end
