@@ -1,0 +1,5 @@
+linearf
+Copyright 2021 octaltree
+
+This software conntains code derived from denite (https://github.com/Shougo/denite.nvim),
+available under MIT (https://github.com/Shougo/denite.nvim/blob/master/LICENSE).

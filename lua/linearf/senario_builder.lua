@@ -11,6 +11,7 @@ local DEFAULT = {
         converters = {},
         cache_sec = 60,
         cache_across_sessions = true,
+        first_view = 255,
         chunk_size = 32767
     },
     source = {},
@@ -35,8 +36,9 @@ local function merge(a, b)
     return ret
 end
 
-function SenarioBuilder.new(base, context_manager, diff)
+function SenarioBuilder.new(view_default, base, context_manager, diff)
     local this = {}
+    this.view_default = view_default
     this.base = base
     this.context_manager = context_manager
     this.diff = diff
@@ -51,10 +53,10 @@ local function foldl(f, x, xs)
 end
 
 function SenarioBuilder.build(self)
-    local ctx
-    ctx = self.context_manager()
+    local ctx = self.context_manager()
     if type(ctx) ~= 'table' then ctx = {} end
-    return foldl(self.merge, DEFAULT, {self.base, ctx, self.diff})
+    return foldl(self.merge, DEFAULT,
+                 {{view = self.view_default}, self.base, ctx, self.diff})
 end
 
 return SenarioBuilder

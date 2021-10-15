@@ -8,13 +8,13 @@ function Querier.new()
     return setmetatable({}, {__index = Querier})
 end
 
-function Querier.start(self, session)
+function Querier.flow(self, ctx, flow)
+    self:open()
 end
 
 function Querier.open(self)
     local bufnr = vim.fn.bufadd(NAME)
-    utils.command(string.format("silent keepalt aboveleft split buffer %d",
-                                bufnr))
+    utils.command_("silent keepalt aboveleft split buffer %d", bufnr)
 end
 
 function Querier.close(self)

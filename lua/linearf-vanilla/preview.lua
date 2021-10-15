@@ -4,7 +4,7 @@ function Preview.new()
     return setmetatable({}, {__index = Preview})
 end
 
-function Preview.start(self, session)
+function Preview.flow(self, ctx, flow)
 end
 
 function Preview.open(self)

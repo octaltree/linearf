@@ -49,7 +49,7 @@ local function new_senario_builder(senario_name, diff)
             return nil
         end
     end
-    return SenarioBuilder.new(base, c, diff)
+    return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
 end
 
 function M.run(senario_name, diff)
