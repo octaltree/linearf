@@ -41,5 +41,6 @@ pub struct Vars {
     pub cache_sec: u32,
     /// Whether to reuse flows from different sessions
     pub cache_across_sessions: bool,
+    pub first_view: usize,
     pub chunk_size: usize
 }

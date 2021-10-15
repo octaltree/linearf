@@ -1,3 +1,6 @@
+mod chunks;
+mod fuse;
+
 pub use crate::converter::MapConvertError as StartError;
 use crate::{
     item::Item,
@@ -5,6 +8,7 @@ use crate::{
     state::{Senario, Shared},
     AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars
 };
+use chunks::Chunks;
 use futures::{pin_mut, Stream, StreamExt};
 use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
 use tokio::sync::RwLock;
@@ -259,12 +263,16 @@ fn run_sort(
         pin_mut!(preload);
         while preload.next().await.is_some() {}
     });
+    let first_size = std::cmp::max(vars.first_view, 1);
     let chunk_size = std::cmp::max(vars.chunk_size, 1);
     rt.spawn(async move {
         let start = Instant::now();
         pin_mut!(stream);
-        let mut chunks = tokio_stream::StreamExt::filter(stream, |(_, s)| !s.should_be_excluded())
-            .chunks(chunk_size);
+        let mut chunks = Chunks::new(
+            tokio_stream::StreamExt::filter(stream, |(_, s)| !s.should_be_excluded()),
+            first_size,
+            chunk_size
+        );
         while let Some(mut chunk) = chunks.next().await {
             log::debug!("{}", chunk.len());
             chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));

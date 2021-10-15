@@ -3,3 +3,5 @@ Copyright 2021 octaltree
 
 This software conntains code derived from denite (https://github.com/Shougo/denite.nvim),
 available under MIT (https://github.com/Shougo/denite.nvim/blob/master/LICENSE).
+This software conntains code derived from futures-util (https://github.com/rust-lang/futures-rs/tree/master/futures-util),
+available under MIT (https://github.com/rust-lang/futures-rs/blob/master/LICENSE-MIT)
