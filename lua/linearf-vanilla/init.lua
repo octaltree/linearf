@@ -28,7 +28,6 @@ function Vanilla.flow(self, ctx, flow)
     local done = self:_write_first_view(ctx, flow, buff)
     self:_ensure_open(ctx, flow, buff)
     utils.command('redraw')
-    print(done)
     if not done then self:_start_incremental(ctx, flow) end
 end
 
@@ -50,12 +49,13 @@ function Vanilla._write_first_view(self, ctx, flow, buff)
     local items
     do
         local r = flow:items(0, n)
-        if not r.ok then return end
+        if not r.ok then return false end
         items = r.value
     end
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
     vim.fn.setbufline(buff.list, 1, lines)
+    vim.fn.deletebufline(buff.list, #lines + 1, '$')
     return flow:status():map(function(t)
         return t.done and t.count <= n
     end):unwrap_or(false)

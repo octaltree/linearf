@@ -55,7 +55,10 @@ impl State {
         };
         let senario = parse_senario(source, matcher, request.senario)?;
         let reuse = match self.reusable((id, &target), source, matcher, senario.as_ref(), started) {
-            Some(r) => Ok(r.map(|(_, _, flow)| flow)),
+            Some(r) => {
+                log::debug!("reuse {:?}", r.map(|(s, f, _)| (s, f)));
+                Ok(r.map(|(_, _, flow)| flow))
+            }
             None => Err(started)
         };
         let flow =
@@ -237,25 +240,33 @@ impl State {
             (started - flow.at()).as_secs() < senario.linearf.cache_sec.into()
         };
         let source_reusable = |flow: &Flow| {
+            if flow.senario().stream_vars.source != senario.linearf.source {
+                return Reusable::None;
+            }
             source.reusable(
                 &senario.linearf.source,
                 (flow.senario().stream_vars, flow.senario().source),
                 (senario.linearf, senario.source)
             )
         };
-        let matcher_reusable = |flow: &Flow| match (
-            source_reusable(flow),
-            matcher.reusable(
-                &senario.linearf.matcher,
-                (flow.senario().sorted_vars, flow.senario().matcher),
-                (senario.linearf, senario.source)
-            )
-        ) {
-            (Reusable::Same, Reusable::Same) => Reusable::Same,
-            (Reusable::Cache, Reusable::Same) => Reusable::Cache,
-            (Reusable::Same, Reusable::Cache) => Reusable::Cache,
-            (Reusable::Cache, Reusable::Cache) => Reusable::Cache,
-            _ => Reusable::None
+        let matcher_reusable = |flow: &Flow| {
+            if flow.senario().sorted_vars.matcher != senario.linearf.matcher {
+                return Reusable::None;
+            }
+            match (
+                source_reusable(flow),
+                &&matcher.reusable(
+                    &senario.linearf.matcher,
+                    (flow.senario().sorted_vars, flow.senario().matcher),
+                    (senario.linearf, senario.source)
+                )
+            ) {
+                (Reusable::Same, Reusable::Same) => Reusable::Same,
+                (Reusable::Cache, Reusable::Same) => Reusable::Cache,
+                (Reusable::Same, Reusable::Cache) => Reusable::Cache,
+                (Reusable::Cache, Reusable::Cache) => Reusable::Cache,
+                _ => Reusable::None
+            }
         };
         let matcher_same = |flow: &Flow| -> Option<Reuse<()>> {
             let go = matcher_reusable(flow) == Reusable::Same;
@@ -279,10 +290,17 @@ impl State {
             senario
         };
         // should I find newest cache?
-        traversal.find(matcher_same)?;
-        traversal.find(matcher_cache)?;
-        traversal.find(source_same)?;
-        traversal.find(source_cache)?;
+        macro_rules! return_found {
+            ($e:expr) => {
+                if let Some(x) = $e {
+                    return Some(x);
+                }
+            };
+        }
+        return_found!(traversal.find(matcher_same, true));
+        return_found!(traversal.find(matcher_cache, senario.linearf.cache_across_sessions));
+        return_found!(traversal.find(source_same, true));
+        return_found!(traversal.find(source_cache, senario.linearf.cache_across_sessions));
         return None;
 
         struct Traversal<'a, 'b> {
@@ -293,7 +311,8 @@ impl State {
         impl<'a, 'b> Traversal<'a, 'b> {
             fn find(
                 &self,
-                f: impl Fn(&Flow) -> Option<Reuse<()>>
+                f: impl Fn(&Flow) -> Option<Reuse<()>>,
+                across: bool
             ) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>> {
                 {
                     let sid = self.target.0;
@@ -304,7 +323,7 @@ impl State {
                         }
                     }
                 }
-                if self.senario.linearf.cache_across_sessions {
+                if across {
                     for &(sid, ref sess) in self.state.sessions.iter().rev() {
                         for (fid, flow) in sess.flows().rev() {
                             if let Some(r) = f(flow) {

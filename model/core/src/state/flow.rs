@@ -91,7 +91,7 @@ impl Flow {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(super) enum Reuse<R> {
     Source(R),
     Matcher(R)

@@ -29,8 +29,7 @@ end
 local function setlocal_list_win(params)
     win_common()
     utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
-    utils.command('setlocal nomodifiable')
-    utils.command('setlocal readonly')
+    --utils.command('setlocal readonly')
 end
 
 local function buffer(name)
