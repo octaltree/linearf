@@ -1,17 +1,16 @@
 mod chunks;
 mod fuse;
 
-pub use crate::converter::MapConvertError as StartError;
+pub use crate::{converter::MapConvertError as StartError, matcher::WithScore};
 use crate::{
     item::Item,
-    matcher::WithScore,
     state::{Senario, Shared},
     AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars
 };
 use chunks::Chunks;
 use futures::{pin_mut, Stream, StreamExt};
 use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 #[derive(Clone)]
 pub struct Flow {
@@ -287,22 +286,21 @@ fn run_sort(
 }
 
 impl Flow {
-    pub async fn sorted(&self) -> (bool, Vec<WithScore>) {
-        let sorted = self.sorted.read().await;
-        sorted.clone()
+    pub fn sorted(&self) -> impl Future<Output = RwLockReadGuard<(bool, Vec<WithScore>)>> {
+        self.sorted.read()
     }
 
-    pub async fn sorted_status(&self) -> (bool, usize) {
-        let sorted = self.sorted.read().await;
-        (sorted.0, sorted.1.len())
-    }
+    // pub async fn sorted_status(&self) -> (bool, usize) {
+    //    let sorted = self.sorted().await;
+    //    (sorted.0, sorted.1.len())
+    //}
 
-    pub async fn sorted_items(&self, start: usize, end: usize) -> Vec<Arc<Item>> {
-        let sorted = self.sorted.read().await;
-        let xs = &sorted.1;
-        xs[start..std::cmp::min(end, xs.len())]
-            .iter()
-            .map(|(i, _)| i.clone())
-            .collect::<Vec<_>>()
-    }
+    // pub async fn sorted_items(&self, start: usize, end: usize) -> Vec<Arc<Item>> {
+    //    let sorted = self.sorted().await;
+    //    let xs = &sorted.1;
+    //    xs[start..std::cmp::min(end, xs.len())]
+    //        .iter()
+    //        .map(|(i, _)| i.clone())
+    //        .collect::<Vec<_>>()
+    //}
 }

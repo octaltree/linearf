@@ -12,14 +12,14 @@ function Vanilla.new()
     this.list_win = nil
     this.querier_win = nil
     this.last_flow = nil
+    this.curline = 1
     this.line = {}
     return setmetatable(this, {__index = Vanilla})
 end
 
-Vanilla.DEFAULT = {refresh_interval = 15, cursorline = true}
+Vanilla.DEFAULT = {refresh_interval = 13, cursorline = true}
 
 -- senario view params
--- this.refresh_interval = 15
 -- this.querier_on_start = 'inactive' -- 'inactive'/'active'/'insert'
 -- this.deactivate_querier_on_normal = true
 
@@ -62,6 +62,18 @@ function Vanilla._write_first_view(self, ctx, flow, buff)
 end
 
 function Vanilla._start_incremental(self, ctx, flow)
+    local options = {}
+    options['repeat'] = -1
+    vim.fn.timer_start(flow.senario.view.refresh_interval, function(timer)
+        print(self.curline)
+        local r = flow:status()
+        if not r.ok then return end
+        local status = r.value
+        if status.done then
+            print('done')
+            vim.fn.timer_stop(timer)
+        end
+    end, options)
 end
 
 -- open preview manually

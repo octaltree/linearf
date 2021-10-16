@@ -1,11 +1,11 @@
 #![feature(arc_new_cyclic)]
 
 mod lnf;
-mod value;
+mod sorted;
 mod wrapper;
 
 use crate::{lnf::Lnf, wrapper::Wrapper};
-use linearf::{item::MaybeUtf8, *};
+use linearf::*;
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -29,8 +29,8 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
     exports.set("resume", lua.create_function(resume)?)?;
-    exports.set("flow_status", lua.create_function(flow_status)?)?;
-    exports.set("flow_items", lua.create_function(flow_items)?)?;
+    // exports.set("flow_status", lua.create_function(flow_status)?)?;
+    // exports.set("flow_items", lua.create_function(flow_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(
@@ -125,72 +125,6 @@ fn resume(lua: &Lua, id: i32) -> LuaResult<usize> {
     })
 }
 
-fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<Option<LuaTable<'_>>> {
-    let s = state::SessionId(s);
-    let f = state::FlowId(f);
-    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    lnf.runtime().block_on(async {
-        let state = &lnf.state().read().await;
-        let flow = match state.get_flow(s, f) {
-            Some(flow) => flow,
-            None => return Ok(None)
-        };
-        let (done, count) = flow.sorted_status().await;
-        let t = lua.create_table_with_capacity(0, 2)?;
-        t.set("done", done)?;
-        t.set("count", count)?;
-        Ok(Some(t))
-    })
-}
-
-fn flow_items(
-    lua: &Lua,
-    (s, f, start, end): (i32, usize, usize, usize)
-) -> LuaResult<LuaValue<'_>> {
-    let s = state::SessionId(s);
-    let f = state::FlowId(f);
-    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    let items = lnf.runtime().block_on(async {
-        let state = &lnf.state().read().await;
-        let flow = match state.get_flow(s, f) {
-            Some(flow) => flow,
-            None => {
-                let msg = format!("flow {:?} {:?} not found", s, f);
-                return Err(LuaError::external(msg));
-            }
-        };
-        Ok(flow.sorted_items(start, end).await)
-    })?;
-    #[derive(Serialize)]
-    struct I<'a> {
-        id: u32,
-        r#type: &'a str,
-        value: LuaString<'a>,
-        info: LuaValue<'a>,
-        view: std::borrow::Cow<'a, str>
-    }
-    let xs = items
-        .iter()
-        .map(|i| {
-            Ok(I {
-                id: i.id,
-                r#type: i.r#type,
-                value: maybe_utf8_into_lua_string(lua, &i.value)?,
-                info: value::convert_info(lua, &i.info)?,
-                view: i.view()
-            })
-        })
-        .collect::<LuaResult<Vec<_>>>()?;
-    let v = lua.to_value_with(
-        &xs,
-        // serialize as nil
-        mlua::SerializeOptions::new()
-            .serialize_none_to_null(false)
-            .serialize_unit_to_null(false)
-    )?;
-    Ok(v)
-}
-
 fn remove_session(lua: &Lua, id: i32) -> LuaResult<()> {
     let id = state::SessionId(id);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
@@ -199,15 +133,6 @@ fn remove_session(lua: &Lua, id: i32) -> LuaResult<()> {
         state.remove_session(id);
     });
     Ok(())
-}
-
-fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {
-    use os_str_bytes::OsStrBytes;
-    match s {
-        MaybeUtf8::Utf8(s) => lua.create_string(s),
-        MaybeUtf8::Bytes(b) => lua.create_string(b),
-        MaybeUtf8::Os(s) => lua.create_string(&s.to_raw_bytes())
-    }
 }
 
 fn inspect_error<'a>(lua: &'a Lua, (name, e): (LuaString, LuaError)) -> LuaResult<LuaTable<'a>> {

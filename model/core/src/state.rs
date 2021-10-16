@@ -1,7 +1,7 @@
 mod flow;
 
 use crate::{source::Reusable, AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars};
-pub use flow::Flow;
+pub use flow::*;
 use flow::{Reuse, StartError};
 use serde::{Deserialize, Serialize};
 use smartstring::alias::String as SmartString;
@@ -286,8 +286,7 @@ impl State {
         };
         let traversal = Traversal {
             state: self,
-            target,
-            senario
+            target
         };
         // should I find newest cache?
         macro_rules! return_found {
@@ -303,12 +302,11 @@ impl State {
         return_found!(traversal.find(source_cache, senario.linearf.cache_across_sessions));
         return None;
 
-        struct Traversal<'a, 'b> {
+        struct Traversal<'a> {
             state: &'a State,
-            target: (SessionId, &'a Session),
-            senario: Senario<&'b Arc<Vars>, &'b Arc<dyn Any + Send + Sync>>
+            target: (SessionId, &'a Session)
         }
-        impl<'a, 'b> Traversal<'a, 'b> {
+        impl<'a> Traversal<'a> {
             fn find(
                 &self,
                 f: impl Fn(&Flow) -> Option<Reuse<()>>,
