@@ -15,8 +15,8 @@ function Flow.status(self)
     return self.bridge.flow_status(self.session_id, self.flow_id)
 end
 
-function Flow.items(self, ge, lt)
-    return self.bridge.flow_items(self.session_id, self.flow_id, ge, lt)
+function Flow.items(self, ranges, fields)
+    return self.bridge.flow_items(self.session_id, self.flow_id, ranges, fields)
 end
 
 return Flow

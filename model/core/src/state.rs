@@ -110,6 +110,8 @@ pub enum Error {
     ConverterNotFound(SmartString),
     #[error("Session {0:?} is not found")]
     SessionNotFound(SessionId),
+    #[error("Flow {0:?} {1:?} is not found")]
+    FlowNotFound(SessionId, FlowId),
     #[error("Flow must have the same source in session: {0:?} != {1:?}")]
     SenarioSource(SmartString, SmartString),
     #[error("Flow must have the same matcher in session: {0:?} != {1:?}")]
@@ -352,6 +354,9 @@ impl State {
         let sess = self.session(s)?;
         let flow = sess.flow(f)?;
         Some(flow)
+    }
+    pub fn try_get_flow(&self, s: SessionId, f: FlowId) -> Result<&Flow, Error> {
+        self.get_flow(s, f).ok_or(Error::FlowNotFound(s, f))
     }
 
     pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }

@@ -7,7 +7,7 @@ mod wrapper;
 use crate::{lnf::Lnf, wrapper::Wrapper};
 use linearf::*;
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -29,8 +29,8 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("run", lua.create_function(run)?)?;
     exports.set("tick", lua.create_function(tick)?)?;
     exports.set("resume", lua.create_function(resume)?)?;
-    // exports.set("flow_status", lua.create_function(flow_status)?)?;
-    // exports.set("flow_items", lua.create_function(flow_items)?)?;
+    exports.set("flow_status", lua.create_function(sorted::flow_status)?)?;
+    exports.set("flow_items", lua.create_function(sorted::flow_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(

@@ -3,103 +3,100 @@ use linearf::{
     item::{Item, MaybeUtf8},
     state,
     state::WithScore,
-    Linearf, State
+    Linearf
 };
-use mlua::{chunk, prelude::*};
-use serde::Serialize;
+use mlua::prelude::*;
+use serde::Deserialize;
 use serde_json::{Map, Value};
 use std::sync::Arc;
-use tokio::sync::RwLockReadGuard;
 
-pub fn lock_sorted<'a>(
-    lua: &'a Lua,
-    (s, f, handler): (i32, usize, LuaFunction<'a>)
-) -> LuaResult<LuaValue<'a>> {
+pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     let s = state::SessionId(s);
     let f = state::FlowId(f);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    let st = Arc::clone(lnf.state());
     lnf.runtime().block_on(async {
-        let state: RwLockReadGuard<'a, State> = st.read().await;
-        let flow = match state.get_flow(s, f) {
-            Some(flow) => flow,
-            None => {
-                let msg = format!("flow {:?} {:?} not found", s, f);
-                return Err(LuaError::external(msg));
-            }
-        };
-        lua.load(chunk! {}).eval()
-        // handler.call::<_, LuaValue<'a>>((LockSorted(flow.sorted().await),))
+        let state = lnf.state().read().await;
+        let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
+        let sorted = flow.sorted().await;
+        let (done, count) = (sorted.0, sorted.1.len());
+        std::mem::drop(sorted);
+        std::mem::drop(state);
+        let t = lua.create_table_with_capacity(0, 2)?;
+        t.set("done", done)?;
+        t.set("count", count)?;
+        Ok(t)
     })
 }
 
-pub struct LockSorted<'a>(pub(crate) RwLockReadGuard<'a, (bool, Vec<WithScore>)>);
-
-impl<'a> LuaUserData for LockSorted<'a> {}
-
-pub fn sorted_count(lua: &Lua, lock: LockSorted) -> LuaResult<usize> { Ok(lock.0 .1.len()) }
-
-pub fn sorted_done(lua: &Lua, lock: LockSorted) -> LuaResult<bool> { Ok(lock.0 .0) }
-
-/// Panic: if end > len
-pub fn sorted_items<'a>(
+pub fn flow_items<'a>(
     lua: &'a Lua,
-    (lock, start, end): (LockSorted, usize, usize)
-) -> LuaResult<LuaValue<'a>> {
-    let len = lock.0 .1.len();
-    convert_items(lua, &lock.0 .1[start..end])
+    (s, f, ranges, fields): (i32, usize, LuaValue, LuaValue)
+) -> LuaResult<LuaTable<'a>> {
+    let s = state::SessionId(s);
+    let f = state::FlowId(f);
+    let ranges: Vec<(usize, usize)> = lua.from_value(ranges)?;
+    let fields: Fields = lua.from_value(fields)?;
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = lnf.state().read().await;
+        let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
+        let sorted = flow.sorted().await;
+        let it = ranges
+            .into_iter()
+            .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
+        convert(lua, fields, it)
+    })
 }
 
-pub fn sorted_item<'a>(
+#[derive(Deserialize, Clone, Copy)]
+struct Fields {
+    #[serde(default)]
+    id: bool,
+    #[serde(default)]
+    r#type: bool,
+    #[serde(default)]
+    value: bool,
+    #[serde(default)]
+    info: bool,
+    #[serde(default)]
+    view: bool
+}
+
+fn convert<'a, 'b>(
     lua: &'a Lua,
-    (lock, id): (LockSorted, u32)
-) -> LuaResult<Option<LuaValue<'a>>> {
-    let i = match lock.0 .1.iter().find(|(i, _)| i.id == id) {
-        Some((i, _)) => i,
-        None => return Ok(None)
-    };
-    let i = convert_item(lua, i)?;
-    lua.to_value_with(
-        &i,
-        mlua::SerializeOptions::new()
-            .serialize_none_to_null(false)
-            .serialize_unit_to_null(false)
+    fields: Fields,
+    it: impl Iterator<Item = &'b [WithScore]>
+) -> LuaResult<LuaTable<'a>> {
+    lua.create_sequence_from(
+        it.map(|xs| -> LuaResult<_> {
+            lua.create_sequence_from(
+                xs.iter()
+                    .map(|(i, _)| convert_item(lua, fields, i))
+                    .collect::<Result<Vec<_>, _>>()?
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?
     )
-    .map(Some)
 }
 
-fn convert_items<'a>(lua: &'a Lua, items: &[WithScore]) -> LuaResult<LuaValue<'a>> {
-    let xs = items
-        .iter()
-        .map(|(i, _)| convert_item(lua, &*i))
-        .collect::<LuaResult<Vec<_>>>()?;
-    let v = lua.to_value_with(
-        &xs,
-        // serialize as nil
-        mlua::SerializeOptions::new()
-            .serialize_none_to_null(false)
-            .serialize_unit_to_null(false)
-    )?;
-    Ok(v)
-}
-
-#[derive(Serialize)]
-struct I<'a> {
-    id: u32,
-    r#type: &'a str,
-    value: LuaString<'a>,
-    info: LuaValue<'a>,
-    view: std::borrow::Cow<'a, str>
-}
-
-fn convert_item<'a>(lua: &'a Lua, i: &'a Item) -> LuaResult<I<'a>> {
-    Ok(I {
-        id: i.id,
-        r#type: i.r#type,
-        value: maybe_utf8_into_lua_string(lua, &i.value)?,
-        info: convert_info(lua, &i.info)?,
-        view: i.view()
-    })
+fn convert_item<'a>(lua: &'a Lua, fields: Fields, i: &Item) -> LuaResult<LuaTable<'a>> {
+    let ret = lua.create_table_with_capacity(0, 5)?;
+    if fields.id {
+        ret.set("id", i.id)?;
+    }
+    if fields.r#type {
+        ret.set("type", i.r#type)?;
+    }
+    if fields.value {
+        ret.set("value", maybe_utf8_into_lua_string(lua, &i.value)?)?;
+    }
+    if fields.info {
+        ret.set("info", convert_info(lua, &i.info)?)?;
+    }
+    if fields.view {
+        ret.set("view", i.view())?;
+    }
+    Ok(ret)
 }
 
 fn maybe_utf8_into_lua_string<'a>(lua: &'a Lua, s: &MaybeUtf8) -> LuaResult<LuaString<'a>> {

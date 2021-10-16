@@ -46,12 +46,7 @@ end
 
 function Vanilla._write_first_view(self, ctx, flow, buff)
     local n = flow.senario.linearf.first_view
-    local items
-    do
-        local r = flow:items(0, n)
-        if not r.ok then return false end
-        items = r.value
-    end
+    local items = flow:items({{0, n}}, {id = true, view = true}):unwrap()[1]
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
     vim.fn.setbufline(buff.list, 1, lines)

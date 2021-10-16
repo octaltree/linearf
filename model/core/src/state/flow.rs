@@ -3,7 +3,6 @@ mod fuse;
 
 pub use crate::{converter::MapConvertError as StartError, matcher::WithScore};
 use crate::{
-    item::Item,
     state::{Senario, Shared},
     AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars
 };

@@ -31,7 +31,8 @@ local function setlocal_list_win(params)
     utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
     -- utils.command('setlocal readonly')
 
-    utils.command("autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')")
+    utils.command(
+        "autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')")
 end
 
 local function buffer(name)
