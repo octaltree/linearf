@@ -89,6 +89,12 @@ function M.readdir(...)
     return ret
 end
 
+function M.interval(ms, f)
+    local options = {}
+    options['repeat'] = -1
+    return vim.fn.timer_start(ms, f, options)
+end
+
 -- PRIVATE
 
 function M.lua_ver()

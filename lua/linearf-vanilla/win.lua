@@ -85,7 +85,7 @@ return function(Vanilla)
         vim.fn.win_gotoid(tmp)
     end
 
-    function Vanilla._ensure_open(self, ctx, flow, buff)
+    function Vanilla._ensure_open(self, flow, buff)
         if all(is_shown, values(buff)) then return end
         if self.querier_win or self.list_win then
             self:_close_all()
