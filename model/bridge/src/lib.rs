@@ -8,7 +8,7 @@ use crate::{lnf::Lnf, wrapper::Wrapper};
 use linearf::*;
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{env, fs, path::Path, sync::Arc};
 use tokio::runtime::Runtime;
 
 const RT: &str = "_lienarf_rt";
@@ -16,7 +16,7 @@ const LINEARF: &str = "_linearf_linearf";
 
 #[macros::lua_module]
 fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
-    initialize_log().map_err(LuaError::external)?;
+    initialize().map_err(LuaError::external)?;
     let rt = Runtime::new()?;
     let st = State::new_shared();
     let lnf = Lnf::new(st, rt.handle().clone());
@@ -44,17 +44,22 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     Ok(exports)
 }
 
-fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if !(cfg!(unix) || cfg!(debug_assertions)) {
-        return Ok(());
-    }
+fn initialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let dir = env::temp_dir().join("vim_linearf");
+    fs::create_dir_all(&dir)?;
+    let log = dir.join("vim_linearf.log");
+    initialize_log(&log)?;
+    log::info!("initialize");
+    Ok(())
+}
+
+fn initialize_log(file: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use log::LevelFilter;
     use log4rs::{
         append::file::FileAppender,
         config::{Appender, Config, Root}
     };
-    let p = std::env::temp_dir().join("vim_linearf.log");
-    let logfile = FileAppender::builder().build(p)?;
+    let logfile = FileAppender::builder().build(file)?;
     let config = Config::builder()
         .appender(Appender::builder().build("logfile", Box::new(logfile)))
         .build(
@@ -63,7 +68,6 @@ fn initialize_log() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .build(LevelFilter::Trace)
         )?;
     log4rs::init_config(config)?;
-    log::info!("initialize");
     Ok(())
 }
 
