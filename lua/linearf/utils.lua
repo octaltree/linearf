@@ -95,6 +95,13 @@ function M.interval(ms, f)
     return vim.fn.timer_start(ms, f, options)
 end
 
+function M.augroup(name, xs)
+    M.command("augroup " .. name)
+    M.command("au!")
+    for _, x in ipairs(xs) do M.command(x) end
+    M.command("augroup END")
+end
+
 -- PRIVATE
 
 function M.lua_ver()

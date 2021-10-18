@@ -1,4 +1,5 @@
-local utils = require('linearf').utils
+local linearf = require('linearf')
+local utils = linearf.utils
 
 -- https://github.com/Shougo/denite.nvim/blob/master/autoload/denite/filter.vim s:init_buffer
 -- https://github.com/Shougo/denite.nvim/blob/master/rplugin/python3/denite/ui/default.py _init_buffer
@@ -20,19 +21,28 @@ local function win_common()
     utils.command('setlocal nonumber')
 end
 
-local function setlocal_querier_win(params)
+local function setlocal_querier_win(senario)
+    local params = senario.view
     win_common()
     utils.command('setlocal nocursorline')
     utils.command('resize 1')
+    print(senario.linearf.query)
+    vim.fn.setline(1, senario.linearf.query)
+
+    utils.augroup('linearf_querier', {
+        "au TextChanged,TextChangedI,TextchangedP <buffer> lua linearf.view:_query()"
+    })
 end
 
-local function setlocal_list_win(params)
+local function setlocal_list_win(senario)
+    local params = senario.view
     win_common()
     utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
     -- utils.command('setlocal readonly')
 
-    utils.command(
-        "autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')")
+    utils.augroup('linearf_list', {
+        "autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')"
+    })
 end
 
 local function buffer(name)
@@ -94,10 +104,10 @@ return function(Vanilla)
         end
         utils.command('silent keepalt botright sb ' .. self.LIST)
         self.list_win = vim.fn.win_getid()
-        setlocal_list_win(flow.senario.view)
+        setlocal_list_win(flow.senario)
         utils.command('silent keepalt aboveleft sb ' .. self.QUERIER)
         self.querier_win = vim.fn.win_getid()
-        setlocal_querier_win()
+        setlocal_querier_win(flow.senario)
     end
 
     function Vanilla._delete_all_buffers(self)
@@ -107,5 +117,10 @@ return function(Vanilla)
         local l = buffer(self.LIST)
         local q = buffer(self.QUERIER)
         return {list = l, querier = q}
+    end
+
+    function Vanilla._query(self)
+        local q = vim.fn.getline(1)
+        linearf.query(self.last_flow.session_id, q)
     end
 end

@@ -30,13 +30,14 @@ Vanilla.DEFAULT = {
 -- this.deactivate_querier_on_normal = true
 
 function Vanilla.flow(self, ctx, flow)
-    -- utils.command("let g:_linearf_time = reltime()")
-    self:_save_prev_flow()
+    utils.command("let g:_linearf_time = reltime()")
+    self:_save_prev_flow(flow)
     -- TODO: resume curline
     local buff = self:_ensure_bufexists()
     local done = self:_write_first_view(flow, buff)
     self:_ensure_open(flow, buff)
     utils.command('redraw')
+    utils.command("echomsg 'first view' .. reltimestr(reltime(g:_linearf_time))")
     if not done then self:_start_incremental(flow, buff) end
 end
 
@@ -75,7 +76,7 @@ function Vanilla._write_first_view(self, flow, buff)
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
     vim.fn.setbufline(buff.list, 1, lines)
-    vim.fn.deletebufline(buff.list, #lines + 1, '$')
+    vim.fn.deletebufline(buff.list, #lines + 1, '$') -- TODO: slow
     return flow:status():map(function(t)
         return t.done and t.count <= n
     end):unwrap_or(false)
@@ -133,7 +134,6 @@ function Vanilla._start_incremental(self, flow, buff)
             if not r.ok then return end
             range_items = r.value
         end
-        print('count' .. count)
         for i = 1, #range_items do
             local lines = {}
             for _, item in ipairs(range_items[i]) do
@@ -162,9 +162,14 @@ function Vanilla._write_last_view(self, flow, buff, count)
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
         vim.fn.setbufline(buff.list, l, lines)
+        if l == 1 then
+            utils.command(
+                "echomsg 'last first line' .. reltimestr(reltime(g:_linearf_time))")
+        end
         l = l + chunk
         if l > count then
-            -- utils.command("echomsg reltimestr(reltime(g:_linearf_time))")
+            utils.command(
+                "echomsg 'last done' .. reltimestr(reltime(g:_linearf_time))")
             vim.fn.timer_stop(timer)
         end
     end)

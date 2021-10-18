@@ -173,7 +173,7 @@ fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<
             senario.linearf.source.clone()
         ));
     }
-    if prev.sorted_vars.source != senario.linearf.matcher {
+    if prev.sorted_vars.matcher != senario.linearf.matcher {
         return Err(Error::SenarioMatcher(
             prev.sorted_vars.matcher.clone(),
             senario.linearf.matcher.clone()

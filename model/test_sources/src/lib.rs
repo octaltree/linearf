@@ -121,7 +121,7 @@ pub mod matcher {
             return if item.view_for_matcing().find(&vars.query).is_some() {
                 Score::new(item.id, vec![1])
             } else {
-                Score::new(item.id, vec![0])
+                Score::new(item.id, vec![])
             };
         }
 
