@@ -48,6 +48,30 @@ pub fn flow_items<'a>(
     })
 }
 
+// TODO: return id
+pub fn flow_view(lua: &Lua, (s, f, cur): (i32, usize, usize)) -> LuaResult<LuaString<'_>> {
+    let s = state::SessionId(s);
+    let f = state::FlowId(f);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = lnf.state().read().await;
+        let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
+        let sorted = flow.sorted().await;
+        let dir = std::env::temp_dir().join("vim_linearf");
+        let len = sorted.1.len();
+        let file = dir.join(&format!("{}_{}+", f.0, len));
+        // TODO: improve
+        let tmp = &sorted.1[0..std::cmp::min(1000, sorted.1.len())];
+        let s = tmp
+            .iter()
+            .map(|(i, _)| i.view())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&file, &s).map_err(LuaError::external)?;
+        lua.create_string(&format!("{}", file.display()))
+    })
+}
+
 #[derive(Deserialize, Clone, Copy)]
 struct Fields {
     #[serde(default)]

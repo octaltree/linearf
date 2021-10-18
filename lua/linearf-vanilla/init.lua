@@ -106,10 +106,27 @@ local function empty(n)
     return ret
 end
 
+local function load_file(path)
+  utils.command(vim.fn.printf("vs %s | setlocal buftype=nofile | q", path))
+end
+local function open_file(winid, path)
+  load_file(path)
+  utils.command(table.concat({
+    "let g:_linearf_win = win_getid()",
+    string.format("call win_gotoid(%d)", winid),
+    vim.fn.printf("buffer %s", path),
+    "setlocal buftype=nofile",
+    "setlocal nonumber",
+    "setlocal cursorline",
+    "call win_gotoid(g:_linearf_win)",
+  }, "|"))
+end
+
 function Vanilla._start_incremental(self, flow, buff)
     local params = flow.senario.view
     local count = 0
     local first = true
+    local tmp = nil
     utils.interval(params.refresh_interval, function(timer)
         if self.current ~= flow then
             vim.fn.timer_stop(timer)
@@ -126,29 +143,42 @@ function Vanilla._start_incremental(self, flow, buff)
             self:_write_last_view(flow, buff, status.count)
             return
         end
-        if count == status.count then
+        local path = flow:view(0):unwrap()
+        if self.current ~= flow then
+            vim.fn.timer_stop(timer)
             return
-        else
-            count = status.count
         end
-        local ranges = calc_ranges(self.curline - 1, count, params.rendering)
-        local range_items
-        do
-            local r = flow:items(ranges, {id = true, view = true})
-            if not r.ok then return end
-            range_items = r.value
-        end
-        for i = 1, #range_items do
-            local lines = {}
-            for _, item in ipairs(range_items[i]) do
-                table.insert(lines, item.view)
-            end
-            if self.current ~= flow then
-                vim.fn.timer_stop(timer)
-                return
-            end
-            vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
-        end
+        local tmp2 = tmp
+        open_file(self.list_win, path)
+        --if tmp2 then
+        --  utils.command_("bunload %s", tmp2) 
+        --end
+        tmp = path
+
+        --if count == status.count then
+        --    return
+        --else
+        --    count = status.count
+        --end
+        --local ranges = calc_ranges(self.curline - 1, count, params.rendering)
+        --local range_items
+        --do
+        --    local r = flow:items(ranges, {id = true, view = true})
+        --    if not r.ok then return end
+        --    range_items = r.value
+        --end
+        --for i = 1, #range_items do
+        --    local lines = {}
+        --    for _, item in ipairs(range_items[i]) do
+        --        table.insert(lines, item.view)
+        --    end
+        --    if self.current ~= flow then
+        --        vim.fn.timer_stop(timer)
+        --        return
+        --    end
+        --    vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
+        --end
+
         if first then
             utils.command(
                 "echomsg 'tmp first line' .. reltimestr(reltime(g:_linearf_time))")
@@ -160,10 +190,11 @@ end
 function Vanilla._write_last_view(self, flow, buff, count)
     local l = 1
     local chunk = flow.senario.view.chunk_size
+    self:_ensure_open(flow, buff)
     utils.interval(0, function(timer)
         local items
         do
-            local r = flow:items({{l, l + chunk}}, {id = true, view = true})
+            local r = flow:items({{l - 1, l - 1 + chunk}}, {id = true, view = true})
             if not r.ok then
                 vim.fn.timer_stop(timer)
                 return
