@@ -89,7 +89,7 @@ local function calc_ranges(cur, len, rendering)
     local a = around[1] <= first[2]
     local b = last[1] <= around[2]
     if a and b then
-        return {{first[1], last[1]}}
+        return {{first[1], last[2]}}
     elseif a then
         return {{first[2], around[2]}, last}
     elseif b then
@@ -192,19 +192,6 @@ end
 
 -- open preview manually
 -- hide only preview
-
--- function Vanilla.start(self, session)
---    self.list:start(session)
---    self.querier:start(session)
---    self.preview:start(session)
---    if self.querier_on_start == 'insert' then
---        self.querier:set_insert()
---    elseif self.querier.querier_on_start == 'active' then
---        self.querier:set_active()
---    else
---        self.list:set_active()
---    end
--- end
 
 -- start, open, close, switch_active, switch_deactive, update?
 
