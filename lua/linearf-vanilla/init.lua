@@ -12,16 +12,19 @@ function Vanilla.new()
     this.list_win = nil
     this.querier_win = nil
 
-    this.last_flow = nil
-    this.timer = nil
+    this.prev_flow = nil
+    this.current = nil
+
     this.curline = 1
     this.line = {}
     return setmetatable(this, {__index = Vanilla})
 end
 
 Vanilla.DEFAULT = {
-    refresh_interval = 13,
+    refresh_interval = 15,
     cursorline = true,
+    chunk_size = 7000,
+
     rendering = {first = 100, before = 100, after = 200, last = 100}
 }
 
@@ -30,7 +33,7 @@ Vanilla.DEFAULT = {
 -- this.deactivate_querier_on_normal = true
 
 function Vanilla.flow(self, ctx, flow)
-    utils.command("let g:_linearf_time = reltime()")
+    -- utils.command("let g:_linearf_time = reltime()")
     self:_save_prev_flow(flow)
     -- TODO: resume curline
     local buff = self:_ensure_bufexists()
@@ -55,19 +58,16 @@ end
 -- PRIVATE
 
 function Vanilla._save_prev_flow(self, flow)
-    if self.timer then
-        vim.fn.timer_stop(self.timer)
-        self.timer = nil
-    end
-    if self.last_flow then
-        local last = self.last_flow
+    self.prev_flow = self.current
+    self.current = flow
+    if self.prev_flow then
+        local last = self.prev_flow
         if not self.line[last.session_id] then
             self.line[last.session_id] = {}
         end
         self.line[last.session_id][last.flow_id] = self.curline
         -- winsaveview() ?
     end
-    self.last_flow = flow
 end
 
 function Vanilla._write_first_view(self, flow, buff)
@@ -76,7 +76,7 @@ function Vanilla._write_first_view(self, flow, buff)
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
     vim.fn.setbufline(buff.list, 1, lines)
-    vim.fn.deletebufline(buff.list, #lines + 1, '$') -- TODO: slow
+    -- vim.fn.deletebufline(buff.list, #lines + 1, '$') -- TODO: slow
     return flow:status():map(function(t)
         return t.done and t.count <= n
     end):unwrap_or(false)
@@ -109,8 +109,12 @@ end
 function Vanilla._start_incremental(self, flow, buff)
     local params = flow.senario.view
     local count = 0
-    utils.interval(15, function(timer)
-        self.timer = timer
+    local first = true
+    utils.interval(params.refresh_interval, function(timer)
+        if self.current ~= flow then
+            vim.fn.timer_stop(timer)
+            return
+        end
         local status
         do
             local r = flow:status()
@@ -139,17 +143,24 @@ function Vanilla._start_incremental(self, flow, buff)
             for _, item in ipairs(range_items[i]) do
                 table.insert(lines, item.view)
             end
+            if self.current ~= flow then
+                vim.fn.timer_stop(timer)
+                return
+            end
             vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
+        end
+        if first then
+            utils.command(
+                "echomsg 'tmp first line' .. reltimestr(reltime(g:_linearf_time))")
+            first = false
         end
     end)
 end
 
 function Vanilla._write_last_view(self, flow, buff, count)
-    local params = flow.senario.view
     local l = 1
-    local chunk = 7000
+    local chunk = flow.senario.view.chunk_size
     utils.interval(0, function(timer)
-        self.timer = timer
         local items
         do
             local r = flow:items({{l, l + chunk}}, {id = true, view = true})
@@ -161,6 +172,10 @@ function Vanilla._write_last_view(self, flow, buff, count)
         end
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
+        if self.current ~= flow then
+            vim.fn.timer_stop(timer)
+            return
+        end
         vim.fn.setbufline(buff.list, l, lines)
         if l == 1 then
             utils.command(

@@ -22,12 +22,10 @@ local function win_common()
 end
 
 local function setlocal_querier_win(senario)
-    local params = senario.view
     win_common()
     utils.command('setlocal nocursorline')
     utils.command('resize 1')
-    print(senario.linearf.query)
-    vim.fn.setline(1, senario.linearf.query)
+    -- vim.fn.setbufline(1, senario.linearf.query or '')
 
     utils.augroup('linearf_querier', {
         "au TextChanged,TextChangedI,TextchangedP <buffer> lua linearf.view:_query()"
@@ -121,6 +119,6 @@ return function(Vanilla)
 
     function Vanilla._query(self)
         local q = vim.fn.getline(1)
-        linearf.query(self.last_flow.session_id, q)
+        linearf.query(self.current.session_id, q)
     end
 end

@@ -249,6 +249,7 @@ where
     }
 }
 
+// TODO: improve
 fn run_sort(
     rt: AsyncRt,
     sorted: Shared<(bool, Vec<WithScore>)>,
@@ -266,12 +267,11 @@ fn run_sort(
     rt.spawn(async move {
         let start = Instant::now();
         pin_mut!(stream);
-        let mut chunks = Chunks::new(
-            tokio_stream::StreamExt::filter(stream, |(_, s)| !s.should_be_excluded()),
-            first_size,
-            chunk_size
-        );
+        let mut chunks = Chunks::new(stream, first_size, chunk_size);
         while let Some(mut chunk) = chunks.next().await {
+            let mut chunk = chunk
+                .drain_filter(|(_, s)| !s.should_be_excluded())
+                .collect::<Vec<_>>();
             log::debug!("{}", chunk.len());
             chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
             let sorted = &mut sorted.write().await;

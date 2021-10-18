@@ -12,7 +12,7 @@ function M.join(parts)
 end
 
 -- "/a/" => {'', 'a', ''}
--- TODO: escape
+-- escape?
 local function split(path, sep)
     local cs = {}
     local i = 1
