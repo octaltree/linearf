@@ -71,7 +71,7 @@ fn convert<'a, 'b>(
         it.map(|xs| -> LuaResult<_> {
             lua.create_sequence_from(
                 xs.iter()
-                    .map(|(i, _)| convert_item(lua, fields, i))
+                    .map(|WithScore { item: i, .. }| convert_item(lua, fields, i))
                     .collect::<Result<Vec<_>, _>>()?
             )
         })

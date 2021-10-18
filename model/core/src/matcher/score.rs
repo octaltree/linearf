@@ -26,16 +26,12 @@ impl PartialOrd for Score {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         for (a, b) in self.v.iter().zip(other.v.iter()) {
             match a.cmp(b) {
-                Ordering::Less => return Some(Ordering::Less),
-                Ordering::Greater => return Some(Ordering::Greater),
+                Ordering::Less => return Some(Ordering::Greater),
+                Ordering::Greater => return Some(Ordering::Less),
                 _ => {}
             }
         }
-        Some(match self.item_id.cmp(&other.item_id) {
-            Ordering::Less => Ordering::Greater,
-            Ordering::Greater => Ordering::Less,
-            Ordering::Equal => Ordering::Equal
-        })
+        Some(self.item_id.cmp(&other.item_id))
     }
 }
 
@@ -43,11 +39,11 @@ impl Ord for Score {
     fn cmp(&self, other: &Self) -> Ordering {
         for (a, b) in self.v.iter().zip(other.v.iter()) {
             match a.cmp(b) {
-                Ordering::Less => return Ordering::Less,
-                Ordering::Greater => return Ordering::Greater,
+                Ordering::Less => return Ordering::Greater,
+                Ordering::Greater => return Ordering::Less,
                 _ => {}
             }
         }
-        other.item_id.cmp(&self.item_id)
+        self.item_id.cmp(&other.item_id)
     }
 }

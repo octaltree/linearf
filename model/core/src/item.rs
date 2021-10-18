@@ -8,7 +8,7 @@ pub enum MaybeUtf8 {
     Bytes(Vec<u8>)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Item {
     /// id must not be 0
     pub id: u32,

@@ -25,7 +25,7 @@ pub trait MatcherRegistry {
     ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
         Box::pin(items.map(|i| {
             let score = Arc::new(Score::new(i.id, []));
-            (i, score)
+            WithScore { item: i, score }
         }))
     }
 
@@ -39,7 +39,21 @@ pub trait MatcherRegistry {
     }
 }
 
-pub type WithScore = (Arc<Item>, Arc<Score>);
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WithScore {
+    pub item: Arc<Item>,
+    pub score: Arc<Score>
+}
+
+impl PartialOrd for WithScore {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.score.partial_cmp(&other.score)
+    }
+}
+
+impl Ord for WithScore {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { self.score.cmp(&other.score) }
+}
 
 pub enum Matcher<P> {
     Simple(Arc<dyn SimpleScorer<Params = P> + Send + Sync>)

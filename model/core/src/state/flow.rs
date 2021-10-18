@@ -8,7 +8,10 @@ use crate::{
 };
 use chunks::Chunks;
 use futures::{pin_mut, Stream, StreamExt};
-use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
+use std::{
+    any::Any, collections::BinaryHeap, future::Future, pin::Pin, sync::Arc, task::Poll,
+    time::Instant
+};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 #[derive(Clone)]
@@ -51,7 +54,7 @@ impl Flow {
                 ..flow.senario.clone()
             };
             let a = flow.cache.reload();
-            let b = a.map(|(i, _)| i);
+            let b = a.map(|WithScore { item: i, .. }| i);
             let scores = matcher.score(
                 &senario.sorted_vars.matcher,
                 (&senario.sorted_vars, &senario.matcher),
@@ -270,13 +273,13 @@ fn run_sort(
         let mut chunks = Chunks::new(stream, first_size, chunk_size);
         while let Some(mut chunk) = chunks.next().await {
             let mut chunk = chunk
-                .drain_filter(|(_, s)| !s.should_be_excluded())
+                .drain_filter(|WithScore { score: s, .. }| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             log::debug!("{}", chunk.len());
-            chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+            chunk.sort_unstable();
             let sorted = &mut sorted.write().await;
             sorted.1.append(&mut chunk);
-            sorted.1.sort_by(|a, b| b.1.cmp(&a.1));
+            sorted.1.sort();
         }
         let sorted = &mut sorted.write().await;
         sorted.0 = true;

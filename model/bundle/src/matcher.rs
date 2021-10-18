@@ -168,7 +168,7 @@ fn score(a: A) -> TokenStream {
                     let senario_matcher = senario_matcher.clone();
                     Box::pin(items.map(move |x| {
                         let score = s.score((&senario_vars, &senario_matcher), &x);
-                        (x, Arc::new(score))
+                        WithScore { item: x, score: Arc::new(score) }
                     }))
                 } else {
                     log::error!("mismatch matcher score params");
