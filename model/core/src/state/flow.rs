@@ -232,6 +232,11 @@ where
             Poll::Pending
         }
     }
+
+    async fn _size_hint(&self) -> usize {
+        let inner = self.inner.read().await;
+        inner.buf.len() + inner.gen.size_hint().0
+    }
 }
 
 impl<I> Stream for CacheStream<I>
@@ -250,6 +255,8 @@ where
             self.read_impl(cx)
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) { (0, None) }
 }
 
 // TODO: improve
@@ -270,18 +277,35 @@ fn run_sort(
     rt.spawn(async move {
         let start = Instant::now();
         pin_mut!(stream);
-        let mut chunks = Chunks::new(stream, first_size, chunk_size);
-        while let Some(mut chunk) = chunks.next().await {
-            let mut chunk = chunk
-                .drain_filter(|WithScore { score: s, .. }| !s.should_be_excluded())
-                .collect::<Vec<_>>();
-            log::debug!("{}", chunk.len());
-            chunk.sort_unstable();
-            let sorted = &mut sorted.write().await;
-            sorted.1.append(&mut chunk);
-            sorted.1.sort();
+        let mut heap = BinaryHeap::with_capacity(stream._size_hint().await);
+        let mut i = 0;
+        while let Some(ws) = stream.next().await {
+            if !ws.score.should_be_excluded() {
+                heap.push(ws);
+            }
+            i += 1;
+            if i >= chunk_size {
+                i = 0;
+                let xs = heap.clone().into_sorted_vec();
+                let sorted = &mut sorted.write().await;
+                sorted.1 = xs;
+            }
         }
+
+        // let mut chunks = Chunks::new(stream, first_size, chunk_size);
+        // while let Some(mut chunk) = chunks.next().await {
+        //    let mut chunk = chunk
+        //        .drain_filter(|WithScore { score: s, .. }| !s.should_be_excluded())
+        //        .collect::<Vec<_>>();
+        //    log::debug!("{}", chunk.len());
+        //    chunk.sort_unstable();
+        //    let sorted = &mut sorted.write().await;
+        //    sorted.1.append(&mut chunk);
+        //    sorted.1.sort();
+        //}
+        let xs = heap.clone().into_sorted_vec();
         let sorted = &mut sorted.write().await;
+        sorted.1 = xs;
         sorted.0 = true;
         log::debug!("{:?}", start.elapsed());
     });
