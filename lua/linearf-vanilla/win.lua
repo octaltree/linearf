@@ -17,12 +17,12 @@ local function win_common()
     utils.command('setlocal noswapfile')
     utils.command('setlocal nowrap')
     utils.command('setlocal signcolumn=no') -- prompt?
+    utils.command('setlocal nonumber')
 end
 
 local function setlocal_querier_win(params)
     win_common()
     utils.command('setlocal nocursorline')
-    utils.command('setlocal nonumber')
     utils.command('resize 1')
 end
 

@@ -30,6 +30,7 @@ Vanilla.DEFAULT = {
 -- this.deactivate_querier_on_normal = true
 
 function Vanilla.flow(self, ctx, flow)
+    -- utils.command("let g:_linearf_time = reltime()")
     self:_save_prev_flow()
     -- TODO: resume curline
     local buff = self:_ensure_bufexists()
@@ -80,25 +81,6 @@ function Vanilla._write_first_view(self, flow, buff)
     end):unwrap_or(false)
 end
 
-function Vanilla._start_incremental(self, flow, buff)
-    utils.interval(15, function(timer)
-        self.timer = timer
-        local status
-        do
-            local r = flow:status()
-            if not r.ok then return end
-            status = r.value
-        end
-        if status.done then
-            vim.fn.timer_stop(timer)
-            self:_write_last_view(flow, buff)
-            return
-        end
-        self:_write_tmp_view(flow, buff, status.count)
-        -- draw around cursor
-    end)
-end
-
 local function calc_ranges(cur, len, rendering)
     local first = {0, rendering.first}
     local around = {cur - rendering.before, cur + rendering.after + 1}
@@ -119,34 +101,72 @@ end
 local function empty(n)
     local s = ''
     local ret = {}
-    for i = 1, n do table.insert(ret, s) end
+    for _ = 1, n do table.insert(ret, s) end
     return ret
 end
 
-function Vanilla._write_tmp_view(self, flow, buff, count)
-  local params = flow.senario.view
-  local ranges = calc_ranges(self.curline - 1, count, params.rendering)
-  local range_items
-  do
-    local r = flow:items(ranges, {id = true, view = true})
-    if not r.ok then return end
-    range_items = r.value
-  end
-  print('count' .. count)
-  for i = 1, #range_items do
-    local lines = {}
-    for _, item in ipairs(range_items[i]) do
-      table.insert(lines, item.view)
-    end
-    print(ranges[i][1] + 1)
-    vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
-  end
+function Vanilla._start_incremental(self, flow, buff)
+    local params = flow.senario.view
+    local count = 0
+    utils.interval(15, function(timer)
+        self.timer = timer
+        local status
+        do
+            local r = flow:status()
+            if not r.ok then return end
+            status = r.value
+        end
+        if status.done then
+            vim.fn.timer_stop(timer)
+            self:_write_last_view(flow, buff, status.count)
+            return
+        end
+        if count == status.count then
+            return
+        else
+            count = status.count
+        end
+        local ranges = calc_ranges(self.curline - 1, count, params.rendering)
+        local range_items
+        do
+            local r = flow:items(ranges, {id = true, view = true})
+            if not r.ok then return end
+            range_items = r.value
+        end
+        print('count' .. count)
+        for i = 1, #range_items do
+            local lines = {}
+            for _, item in ipairs(range_items[i]) do
+                table.insert(lines, item.view)
+            end
+            vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
+        end
+    end)
 end
 
-function Vanilla._write_last_view(self, flow, buff)
+function Vanilla._write_last_view(self, flow, buff, count)
     local params = flow.senario.view
+    local l = 1
+    local chunk = 7000
     utils.interval(0, function(timer)
-        vim.fn.timer_stop(timer)
+        self.timer = timer
+        local items
+        do
+            local r = flow:items({{l, l + chunk}}, {id = true, view = true})
+            if not r.ok then
+                vim.fn.timer_stop(timer)
+                return
+            end
+            items = r.value[1]
+        end
+        local lines = {}
+        for _, item in ipairs(items) do table.insert(lines, item.view) end
+        vim.fn.setbufline(buff.list, l, lines)
+        l = l + chunk
+        if l > count then
+            -- utils.command("echomsg reltimestr(reltime(g:_linearf_time))")
+            vim.fn.timer_stop(timer)
+        end
     end)
 end
 
