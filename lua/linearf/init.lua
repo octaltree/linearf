@@ -11,7 +11,6 @@ local M = {
     view = nil,
     _sessions = {}
 }
-
 local Session = require('linearf.session')
 local Flow = require('linearf.flow')
 local SenarioBuilder = require('linearf.senario_builder')

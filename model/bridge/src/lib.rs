@@ -8,7 +8,11 @@ use crate::{lnf::Lnf, wrapper::Wrapper};
 use linearf::*;
 use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
 use serde::Deserialize;
-use std::{env, fs, path::Path, sync::Arc};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc
+};
 use tokio::runtime::Runtime;
 
 const RT: &str = "_lienarf_rt";
@@ -32,6 +36,7 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("flow_status", lua.create_function(sorted::flow_status)?)?;
     exports.set("flow_items", lua.create_function(sorted::flow_items)?)?;
     exports.set("flow_view", lua.create_function(sorted::flow_view)?)?;
+    exports.set("pid", lua.create_function(sorted::pid)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(
@@ -42,11 +47,14 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
         "remove_all_sessions",
         lua.create_function(remove_all_sessions)?
     )?;
+    exports.set("clean_dir", lua.create_function(clean_dir)?)?;
     Ok(exports)
 }
 
+pub(crate) fn dir() -> PathBuf { std::env::temp_dir().join("vim_linearf") }
+
 fn initialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let dir = env::temp_dir().join("vim_linearf");
+    let dir = dir();
     fs::create_dir_all(&dir)?;
     let log = dir.join("vim_linearf.log");
     initialize_log(&log)?;
@@ -188,5 +196,10 @@ fn remove_all_sessions(lua: &Lua, (): ()) -> LuaResult<()> {
         let state = &mut lnf.state().write().await;
         state.remove_all_sesions();
     });
+    Ok(())
+}
+
+fn clean_dir(lua: &Lua, (): ()) -> LuaResult<()> {
+    fs::remove_dir_all(dir()).map_err(LuaError::external)?;
     Ok(())
 }

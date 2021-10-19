@@ -24,7 +24,7 @@ pub struct Flow {
 
 impl Flow {
     #[inline]
-    pub(super) fn senario(&self) -> UsedSenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
+    pub fn senario(&self) -> UsedSenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
         self.senario.as_ref()
     }
 

@@ -74,15 +74,15 @@ function Vanilla._write_first_view(self, flow, buff)
     local n = flow.senario.linearf.first_view
     local status
     do
-      local r = flow:status()
-      if not r.ok then return false end
-      status = r.value
+        local r = flow:status()
+        if not r.ok then return false end
+        status = r.value
     end
     local items
     do
-      local r = flow:items({{0, n}}, {id = true, view = true})
-      if not r.ok then return false end
-      items = r.value[1]
+        local r = flow:items({{0, n}}, {id = true, view = true})
+        if not r.ok then return false end
+        items = r.value[1]
     end
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
@@ -116,19 +116,19 @@ local function empty(n)
 end
 
 local function load_file(path)
-  utils.command(vim.fn.printf("vs %s | setlocal buftype=nofile | q", path))
+    utils.command(vim.fn.printf("vs %s | setlocal buftype=nofile | q", path))
 end
 local function open_file(winid, path)
-  load_file(path)
-  utils.command(table.concat({
-    "let g:_linearf_win = win_getid()",
-    string.format("call win_gotoid(%d)", winid),
-    vim.fn.printf("buffer %s", path),
-    "setlocal buftype=nofile",
-    "setlocal nonumber",
-    "setlocal cursorline",
-    "call win_gotoid(g:_linearf_win)",
-  }, "|"))
+    load_file(path)
+    utils.command(table.concat({
+        "let g:_linearf_win = win_getid()",
+        string.format("call win_gotoid(%d)", winid),
+        vim.fn.printf("buffer %s", path),
+        "setlocal buftype=nofile",
+        "setlocal nonumber",
+        "setlocal cursorline",
+        "call win_gotoid(g:_linearf_win)"
+    }, "|"))
 end
 
 function Vanilla._start_incremental(self, flow, buff)
@@ -159,24 +159,24 @@ function Vanilla._start_incremental(self, flow, buff)
         end
         local tmp2 = tmp
         open_file(self.list_win, path)
-        --if tmp2 then
-        --  utils.command_("bunload %s", tmp2) 
-        --end
+        -- if tmp2 then
+        --  utils.command_("bunload %s", tmp2)
+        -- end
         tmp = path
 
-        --if count == status.count then
+        -- if count == status.count then
         --    return
-        --else
+        -- else
         --    count = status.count
-        --end
-        --local ranges = calc_ranges(self.curline - 1, count, params.rendering)
-        --local range_items
-        --do
+        -- end
+        -- local ranges = calc_ranges(self.curline - 1, count, params.rendering)
+        -- local range_items
+        -- do
         --    local r = flow:items(ranges, {id = true, view = true})
         --    if not r.ok then return end
         --    range_items = r.value
-        --end
-        --for i = 1, #range_items do
+        -- end
+        -- for i = 1, #range_items do
         --    local lines = {}
         --    for _, item in ipairs(range_items[i]) do
         --        table.insert(lines, item.view)
@@ -186,7 +186,7 @@ function Vanilla._start_incremental(self, flow, buff)
         --        return
         --    end
         --    vim.fn.setbufline(buff.list, ranges[i][1] + 1, lines)
-        --end
+        -- end
 
         if first then
             utils.command(
@@ -203,7 +203,8 @@ function Vanilla._write_last_view(self, flow, buff, count)
     utils.interval(0, function(timer)
         local items
         do
-            local r = flow:items({{l - 1, l - 1 + chunk}}, {id = true, view = true})
+            local r = flow:items({{l - 1, l - 1 + chunk}},
+                                 {id = true, view = true})
             if not r.ok then
                 vim.fn.timer_stop(timer)
                 return

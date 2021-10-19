@@ -8,7 +8,7 @@ use linearf::{
 use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use std::sync::Arc;
+use std::{fs, sync::Arc};
 
 pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     let s = state::SessionId(s);
@@ -56,11 +56,23 @@ pub fn flow_items<'a>(
     })
 }
 
+fn _pid() -> u32 { std::process::id() }
+
+pub fn pid(_lua: &Lua, (): ()) -> LuaResult<u32> { Ok(_pid()) }
+
 // TODO: return id
-pub fn flow_view(lua: &Lua, (s, f, cur): (i32, usize, usize)) -> LuaResult<LuaString<'_>> {
+pub fn flow_view<'a>(
+    lua: &'a Lua,
+    //(s, f, ranges, fields): (i32, usize, LuaValue, LuaValue)
+    (s, f, cur): (i32, usize, u32)
+) -> LuaResult<LuaString<'a>> {
     let s = state::SessionId(s);
     let f = state::FlowId(f);
+    // let ranges: Vec<(usize, usize)> = lua.from_value(ranges)?;
+    // let fields: Fields = lua.from_value(fields)?;
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    let dir = crate::dir().join(_pid().to_string()).join(s.0.to_string());
+    fs::create_dir_all(&dir).map_err(LuaError::external)?;
     lnf.runtime().block_on(async {
         let state = lnf.state().read().await;
         let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
@@ -69,9 +81,14 @@ pub fn flow_view(lua: &Lua, (s, f, cur): (i32, usize, usize)) -> LuaResult<LuaSt
             .await
             .ok_or(state::Error::FlowDisposed(s, f))
             .map_err(LuaError::external)?;
-        let dir = std::env::temp_dir().join("vim_linearf");
+        let done = sorted.0;
         let len = sorted.1.len();
-        let file = dir.join(&format!("{}_{}+", f.0, len));
+        let file = dir.join(&format!(
+            "{}_{}{}",
+            flow.senario().sorted_vars.query,
+            len,
+            if done { "" } else { "+" }
+        ));
         // TODO: improve
         let tmp = &sorted.1[0..std::cmp::min(1000, sorted.1.len())];
         let s = tmp

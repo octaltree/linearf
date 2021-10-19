@@ -102,6 +102,11 @@ function M.augroup(name, xs)
     M.command("augroup END")
 end
 
+function M.pid()
+    if C._pid == nil then C._pid = vim.fn.getpid() end
+    return C._pid
+end
+
 -- PRIVATE
 
 function M.lua_ver()
