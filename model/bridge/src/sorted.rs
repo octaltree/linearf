@@ -8,7 +8,7 @@ use linearf::{
 use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use std::{fs, sync::Arc};
+use std::{fs, path::Path, sync::Arc};
 
 pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     let s = state::SessionId(s);
@@ -63,13 +63,12 @@ pub fn pid(_lua: &Lua, (): ()) -> LuaResult<u32> { Ok(_pid()) }
 // TODO: return id
 pub fn flow_view<'a>(
     lua: &'a Lua,
-    //(s, f, ranges, fields): (i32, usize, LuaValue, LuaValue)
-    (s, f, cur): (i32, usize, u32)
-) -> LuaResult<LuaString<'a>> {
+    (s, f, ranges, fields): (i32, usize, LuaValue, LuaValue)
+) -> LuaResult<LuaTable<'a>> {
     let s = state::SessionId(s);
     let f = state::FlowId(f);
-    // let ranges: Vec<(usize, usize)> = lua.from_value(ranges)?;
-    // let fields: Fields = lua.from_value(fields)?;
+    let ranges: Vec<(usize, usize)> = lua.from_value(ranges)?;
+    let fields: Fields = lua.from_value(fields)?;
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let dir = crate::dir().join(_pid().to_string()).join(s.0.to_string());
     fs::create_dir_all(&dir).map_err(LuaError::external)?;
@@ -89,15 +88,19 @@ pub fn flow_view<'a>(
             len,
             if done { "" } else { "+" }
         ));
-        // TODO: improve
-        let tmp = &sorted.1[0..std::cmp::min(1000, sorted.1.len())];
-        let s = tmp
-            .iter()
-            .map(|(i, _)| i.view())
-            .collect::<Vec<_>>()
-            .join("\n");
-        std::fs::write(&file, &s).map_err(LuaError::external)?;
-        lua.create_string(&format!("{}", file.display()))
+        write_file(&file, &sorted.1, &ranges).map_err(LuaError::external)?;
+        let range_items = {
+            let it = ranges
+                .into_iter()
+                .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
+            convert(lua, fields, it)?
+        };
+        {
+            let t = lua.create_table_with_capacity(0, 2)?;
+            t.set("path", file.display().to_string())?;
+            t.set("range_items", range_items)?;
+            Ok(t)
+        }
     })
 }
 
@@ -200,4 +203,24 @@ fn convert_map<'a>(lua: &'a Lua, m: &Map<String, Value>) -> LuaResult<LuaValue<'
         .map(|(k, v)| Ok((lua.create_string(k)?, convert_value(lua, v)?)))
         .collect::<LuaResult<Vec<_>>>()?;
     Ok(LuaValue::Table(lua.create_table_from(kvs)?))
+}
+
+fn write_file(
+    path: &Path,
+    items: &[WithScore],
+    ranges: &[(usize, usize)]
+) -> Result<(), std::io::Error> {
+    use std::borrow::Cow;
+    let mut lines = (0..items.len())
+        .map(|_| Cow::Borrowed(""))
+        .collect::<Vec<_>>();
+    for &(s, e) in ranges {
+        for i in s..std::cmp::min(items.len(), e) {
+            lines[i] = items[i].0.view();
+        }
+    }
+    let mut buf = lines.join("\n");
+    buf.push('\n');
+    fs::write(path, buf)?;
+    Ok(())
 }

@@ -312,7 +312,7 @@ fn run_sort(
                 .drain_filter(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
-            chunk.sort_unstable_by(|a, b| a.1.cmp(&a.1));
+            chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
             let sorted = &mut sorted.write().await;
             sorted.1.append(&mut chunk);
             sorted.1.sort_by(|a, b| a.1.cmp(&b.1));
