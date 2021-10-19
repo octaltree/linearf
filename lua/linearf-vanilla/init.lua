@@ -72,14 +72,23 @@ end
 
 function Vanilla._write_first_view(self, flow, buff)
     local n = flow.senario.linearf.first_view
-    local items = flow:items({{0, n}}, {id = true, view = true}):unwrap()[1]
+    local status
+    do
+      local r = flow:status()
+      if not r.ok then return false end
+      status = r.value
+    end
+    local items
+    do
+      local r = flow:items({{0, n}}, {id = true, view = true})
+      if not r.ok then return false end
+      items = r.value[1]
+    end
     local lines = {}
     for _, item in ipairs(items) do table.insert(lines, item.view) end
     vim.fn.setbufline(buff.list, 1, lines)
     -- vim.fn.deletebufline(buff.list, #lines + 1, '$') -- TODO: slow
-    return flow:status():map(function(t)
-        return t.done and t.count <= n
-    end):unwrap_or(false)
+    return status.done and status.count <= n
 end
 
 local function calc_ranges(cur, len, rendering)

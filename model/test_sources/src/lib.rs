@@ -70,7 +70,7 @@ pub mod source {
             &self,
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
-            let d = match std::fs::read_dir("/home/octaltree/workspace/linearf/tests") {
+            let d = match std::fs::read_dir("/home") {
                 Ok(d) => d,
                 Err(_) => return Box::pin(empty())
             };
