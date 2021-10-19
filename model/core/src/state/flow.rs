@@ -311,11 +311,11 @@ fn run_sort(
             let mut chunk = chunk
                 .drain_filter(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
-            log::debug!("{}", chunk.len());
-            chunk.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+            // log::debug!("{}", chunk.len());
+            chunk.sort_unstable_by(|a, b| a.1.cmp(&a.1));
             let sorted = &mut sorted.write().await;
             sorted.1.append(&mut chunk);
-            sorted.1.sort_by(|a, b| b.1.cmp(&a.1));
+            sorted.1.sort_by(|a, b| a.1.cmp(&b.1));
         }
         let sorted = &mut sorted.write().await;
         sorted.0 = true;
