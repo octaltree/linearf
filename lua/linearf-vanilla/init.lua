@@ -21,8 +21,10 @@ function Vanilla.new()
 end
 
 Vanilla.DEFAULT = {
-    refresh_interval = 15,
     cursorline = true,
+
+    refresh_interval = 15,
+    view_size = 1000,
     chunk_size = 7000,
 
     rendering = {first = 100, before = 100, after = 200, last = 100}
@@ -57,6 +59,8 @@ end
 
 -- PRIVATE
 
+local FIELDS = {id = true, view = true}
+
 function Vanilla._save_prev_flow(self, flow)
     self.prev_flow = self.current
     self.current = flow
@@ -80,7 +84,7 @@ function Vanilla._write_first_view(self, flow, buff)
     end
     local items
     do
-        local r = flow:items({{0, n}}, {id = true, view = true})
+        local r = flow:items({{0, n}}, FIELDS)
         if not r.ok then return false end
         items = r.value[1]
     end
@@ -152,7 +156,11 @@ function Vanilla._start_incremental(self, flow, buff)
             self:_write_last_view(flow, buff, status.count)
             return
         end
-        local path = flow:view(0):unwrap()
+        local path, items
+        do
+            local r = flow:view(params.view_size, FIELDS)
+            path = r.value.path
+        end
         if self.current ~= flow then
             vim.fn.timer_stop(timer)
             return
@@ -172,7 +180,7 @@ function Vanilla._start_incremental(self, flow, buff)
         -- local ranges = calc_ranges(self.curline - 1, count, params.rendering)
         -- local range_items
         -- do
-        --    local r = flow:items(ranges, {id = true, view = true})
+        --    local r = flow:items(ranges, FIELDS)
         --    if not r.ok then return end
         --    range_items = r.value
         -- end
@@ -203,8 +211,7 @@ function Vanilla._write_last_view(self, flow, buff, count)
     utils.interval(0, function(timer)
         local items
         do
-            local r = flow:items({{l - 1, l - 1 + chunk}},
-                                 {id = true, view = true})
+            local r = flow:items({{l - 1, l - 1 + chunk}}, FIELDS)
             if not r.ok then
                 vim.fn.timer_stop(timer)
                 return

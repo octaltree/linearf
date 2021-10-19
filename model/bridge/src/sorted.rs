@@ -60,16 +60,13 @@ fn _pid() -> u32 { std::process::id() }
 
 pub fn pid(_lua: &Lua, (): ()) -> LuaResult<u32> { Ok(_pid()) }
 
-// TODO: return id
 pub fn flow_view<'a>(
     lua: &'a Lua,
-    //(s, f, ranges, fields): (i32, usize, LuaValue, LuaValue)
-    (s, f, cur): (i32, usize, u32)
-) -> LuaResult<LuaString<'a>> {
+    (s, f, len, fields): (i32, usize, u32, LuaValue)
+) -> LuaResult<LuaTable<'a>> {
     let s = state::SessionId(s);
     let f = state::FlowId(f);
-    // let ranges: Vec<(usize, usize)> = lua.from_value(ranges)?;
-    // let fields: Fields = lua.from_value(fields)?;
+    let fields: Fields = lua.from_value(fields)?;
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let dir = crate::dir().join(_pid().to_string()).join(s.0.to_string());
     fs::create_dir_all(&dir).map_err(LuaError::external)?;
@@ -89,15 +86,28 @@ pub fn flow_view<'a>(
             len,
             if done { "" } else { "+" }
         ));
-        // TODO: improve
-        let tmp = &sorted.1[0..std::cmp::min(1000, sorted.1.len())];
-        let s = tmp
+        let items = &sorted.1[0..std::cmp::min(len, sorted.1.len())];
+        let mut s = items
             .iter()
             .map(|(i, _)| i.view())
             .collect::<Vec<_>>()
             .join("\n");
-        std::fs::write(&file, &s).map_err(LuaError::external)?;
-        lua.create_string(&format!("{}", file.display()))
+        s.push('\n');
+        fs::write(&file, &s).map_err(LuaError::external)?;
+        {
+            let t = lua.create_table_with_capacity(0, 2)?;
+            t.set("path", file.display().to_string())?;
+            t.set(
+                "items",
+                lua.create_sequence_from(
+                    items
+                        .iter()
+                        .map(|(i, _)| convert_item(lua, fields, i))
+                        .collect::<Result<Vec<_>, _>>()?
+                )?
+            )?;
+            Ok(t)
+        }
     })
 }
 

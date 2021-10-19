@@ -199,7 +199,7 @@ fn remove_all_sessions(lua: &Lua, (): ()) -> LuaResult<()> {
     Ok(())
 }
 
-fn clean_dir(lua: &Lua, (): ()) -> LuaResult<()> {
+fn clean_dir(_lua: &Lua, (): ()) -> LuaResult<()> {
     fs::remove_dir_all(dir()).map_err(LuaError::external)?;
     Ok(())
 }
