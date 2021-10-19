@@ -62,7 +62,7 @@ pub fn pid(_lua: &Lua, (): ()) -> LuaResult<u32> { Ok(_pid()) }
 
 pub fn flow_view<'a>(
     lua: &'a Lua,
-    (s, f, len, fields): (i32, usize, u32, LuaValue)
+    (s, f, size, fields): (i32, usize, usize, LuaValue)
 ) -> LuaResult<LuaTable<'a>> {
     let s = state::SessionId(s);
     let f = state::FlowId(f);
@@ -86,7 +86,7 @@ pub fn flow_view<'a>(
             len,
             if done { "" } else { "+" }
         ));
-        let items = &sorted.1[0..std::cmp::min(len, sorted.1.len())];
+        let items = &sorted.1[0..std::cmp::min(len, size)];
         let mut s = items
             .iter()
             .map(|(i, _)| i.view())
@@ -132,11 +132,20 @@ fn convert<'a, 'b>(
 ) -> LuaResult<LuaTable<'a>> {
     lua.create_sequence_from(
         it.map(|xs| -> LuaResult<_> {
-            lua.create_sequence_from(
-                xs.iter()
-                    .map(|(i, _)| convert_item(lua, fields, i))
-                    .collect::<Result<Vec<_>, _>>()?
-            )
+            let t = lua.create_table_with_capacity(xs.len().try_into().unwrap(), 0)?;
+            for (i, (item, _)) in xs.iter().enumerate() {
+                t.raw_insert(
+                    (i + 1).try_into().unwrap(),
+                    convert_item(lua, fields, item)?
+                )?;
+            }
+            Ok(t)
+            // lua stack overflow
+            // lua.create_sequence_from(
+            //    xs.iter()
+            //        .map(|(i, _)| convert_item(lua, fields, i))
+            //        .collect::<Result<Vec<_>, _>>()?
+            //)
         })
         .collect::<Result<Vec<_>, _>>()?
     )
