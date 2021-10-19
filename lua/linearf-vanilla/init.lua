@@ -206,8 +206,16 @@ end
 
 function Vanilla._write_last_view(self, flow, buff, count)
     local l = 1
+    local params = flow.senario.view
     local chunk = flow.senario.view.chunk_size
-    self:_ensure_open(flow, buff)
+    local path, items
+    do
+        local r = flow:view(params.view_size, FIELDS)
+        path = r.value.path
+    end
+    open_file(self.list_win, path)
+    l = l + params.view_size
+    local b = vim.fn.bufnr(path)
     utils.interval(0, function(timer)
         local items
         do
@@ -224,7 +232,7 @@ function Vanilla._write_last_view(self, flow, buff, count)
             vim.fn.timer_stop(timer)
             return
         end
-        vim.fn.setbufline(buff.list, l, lines)
+        vim.fn.setbufline(b, l, lines)
         if l == 1 then
             utils.command(
                 "echomsg 'last first line' .. reltimestr(reltime(g:_linearf_time))")

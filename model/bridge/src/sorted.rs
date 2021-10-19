@@ -95,17 +95,11 @@ pub fn flow_view<'a>(
         s.push('\n');
         fs::write(&file, &s).map_err(LuaError::external)?;
         {
-            let t = lua.create_table_with_capacity(0, 2)?;
+            let t = lua.create_table_with_capacity(0, 4)?;
             t.set("path", file.display().to_string())?;
-            t.set(
-                "items",
-                lua.create_sequence_from(
-                    items
-                        .iter()
-                        .map(|(i, _)| convert_item(lua, fields, i))
-                        .collect::<Result<Vec<_>, _>>()?
-                )?
-            )?;
+            t.set("items", convert_items(lua, fields, items)?)?;
+            t.set("done", done)?;
+            t.set("count", len)?;
             Ok(t)
         }
     })
@@ -125,29 +119,31 @@ struct Fields {
     view: bool
 }
 
+fn convert_items<'a>(lua: &'a Lua, fields: Fields, xs: &[WithScore]) -> LuaResult<LuaTable<'a>> {
+    let t = lua.create_table_with_capacity(xs.len().try_into().unwrap(), 0)?;
+    for (i, (item, _)) in xs.iter().enumerate() {
+        t.raw_insert(
+            (i + 1).try_into().unwrap(),
+            convert_item(lua, fields, item)?
+        )?;
+    }
+    Ok(t)
+    // lua stack overflow 7999slots
+    // lua.create_sequence_from(
+    //    xs.iter()
+    //        .map(|(i, _)| convert_item(lua, fields, i))
+    //        .collect::<Result<Vec<_>, _>>()?
+    //)
+}
+
 fn convert<'a, 'b>(
     lua: &'a Lua,
     fields: Fields,
     it: impl Iterator<Item = &'b [WithScore]>
 ) -> LuaResult<LuaTable<'a>> {
     lua.create_sequence_from(
-        it.map(|xs| -> LuaResult<_> {
-            let t = lua.create_table_with_capacity(xs.len().try_into().unwrap(), 0)?;
-            for (i, (item, _)) in xs.iter().enumerate() {
-                t.raw_insert(
-                    (i + 1).try_into().unwrap(),
-                    convert_item(lua, fields, item)?
-                )?;
-            }
-            Ok(t)
-            // lua stack overflow
-            // lua.create_sequence_from(
-            //    xs.iter()
-            //        .map(|(i, _)| convert_item(lua, fields, i))
-            //        .collect::<Result<Vec<_>, _>>()?
-            //)
-        })
-        .collect::<Result<Vec<_>, _>>()?
+        it.map(|xs| -> LuaResult<_> { convert_items(lua, fields, xs) })
+            .collect::<Result<Vec<_>, _>>()?
     )
 }
 
