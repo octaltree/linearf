@@ -17,7 +17,11 @@ pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     lnf.runtime().block_on(async {
         let state = lnf.state().read().await;
         let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
-        let sorted = flow.sorted().await;
+        let sorted = flow
+            .sorted()
+            .await
+            .ok_or(state::Error::FlowDisposed(s, f))
+            .map_err(LuaError::external)?;
         let (done, count) = (sorted.0, sorted.1.len());
         std::mem::drop(sorted);
         std::mem::drop(state);
@@ -40,7 +44,11 @@ pub fn flow_items<'a>(
     lnf.runtime().block_on(async {
         let state = lnf.state().read().await;
         let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
-        let sorted = flow.sorted().await;
+        let sorted = flow
+            .sorted()
+            .await
+            .ok_or(state::Error::FlowDisposed(s, f))
+            .map_err(LuaError::external)?;
         let it = ranges
             .into_iter()
             .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
@@ -56,7 +64,11 @@ pub fn flow_view(lua: &Lua, (s, f, cur): (i32, usize, usize)) -> LuaResult<LuaSt
     lnf.runtime().block_on(async {
         let state = lnf.state().read().await;
         let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
-        let sorted = flow.sorted().await;
+        let sorted = flow
+            .sorted()
+            .await
+            .ok_or(state::Error::FlowDisposed(s, f))
+            .map_err(LuaError::external)?;
         let dir = std::env::temp_dir().join("vim_linearf");
         let len = sorted.1.len();
         let file = dir.join(&format!("{}_{}+", f.0, len));

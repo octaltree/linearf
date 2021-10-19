@@ -97,6 +97,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
                 lnf.converter(),
                 req
             )
+            .await
             .map_err(LuaError::external)
     })?;
     {

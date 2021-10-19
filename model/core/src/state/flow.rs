@@ -9,14 +9,17 @@ use crate::{
 use chunks::Chunks;
 use futures::{pin_mut, Stream, StreamExt};
 use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::{
+    sync::{RwLock, RwLockReadGuard},
+    task::JoinHandle
+};
 
-#[derive(Clone)]
 pub struct Flow {
     at: Instant,
     senario: UsedSenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
     cache: CacheStream<WithScore>,
-    sorted: Shared<(bool, Vec<WithScore>)>
+    sorted: Option<Shared<(bool, Vec<WithScore>)>>,
+    handles: Vec<JoinHandle<()>>
 }
 
 impl Flow {
@@ -33,7 +36,7 @@ impl Flow {
         source: &S,
         matcher: &M,
         converter: &C,
-        reuse: Result<Reuse<&Flow>, Instant>,
+        reuse: Result<Reuse<&mut Flow>, Instant>,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Result<Self, StartError>
     where
@@ -41,51 +44,70 @@ impl Flow {
         M: MatcherRegistry,
         C: ConverterRegistry
     {
-        if let Ok(Reuse::Matcher(flow)) = reuse {
-            return Ok(flow.clone());
-        }
-        let (at, scores, senario) = if let Ok(Reuse::Source(flow)) = reuse {
-            let senario = UsedSenario {
-                matcher: senario.matcher,
-                sorted_vars: senario.linearf,
-                ..flow.senario.clone()
-            };
-            let a = flow.cache.reload();
-            let b = a.map(|(i, _)| i);
-            let scores = matcher.score(
-                &senario.sorted_vars.matcher,
-                (&senario.sorted_vars, &senario.matcher),
-                b
-            );
-            (flow.at, scores, senario)
-        } else if let Err(started) = reuse {
-            let v = &senario.linearf;
-            let a = source.stream(&v.source, (v, &senario.source));
-            let b = converter.map_convert(&v.converters, a)?;
-            let c = b.map(Arc::new);
-            let scores = matcher.score(&v.matcher, (v, &senario.matcher), c);
-            (
-                started,
-                scores,
-                UsedSenario {
-                    source: senario.source,
-                    stream_vars: v.clone(),
+        let (at, senario, cache) = match reuse {
+            Ok(Reuse::Matcher(flow)) if flow.sorted.is_some() => {
+                let sorted = flow.sorted.take();
+                let handles = std::mem::take(&mut flow.handles);
+                return Ok(Flow {
+                    at: flow.at,
+                    senario: flow.senario.clone(),
+                    cache: flow.cache.clone(),
+                    sorted,
+                    handles
+                });
+            }
+            Ok(Reuse::Matcher(flow)) => (flow.at, flow.senario.clone(), flow.cache.clone()),
+            Ok(Reuse::Source(flow)) => {
+                let senario = UsedSenario {
                     matcher: senario.matcher,
-                    sorted_vars: senario.linearf
-                }
-            )
-        } else {
-            unreachable!()
+                    sorted_vars: senario.linearf,
+                    ..flow.senario.clone()
+                };
+                let a = flow.cache.reload();
+                let b = a.map(|(i, _)| i);
+                let scores = matcher.score(
+                    &senario.sorted_vars.matcher,
+                    (&senario.sorted_vars, &senario.matcher),
+                    b
+                );
+                let cache = CacheStream::new(scores);
+                (flow.at, senario, cache)
+            }
+            Err(started) => {
+                let v = &senario.linearf;
+                let a = source.stream(&v.source, (v, &senario.source));
+                let b = converter.map_convert(&v.converters, a)?;
+                let c = b.map(Arc::new);
+                let scores = matcher.score(&v.matcher, (v, &senario.matcher), c);
+                let cache = CacheStream::new(scores);
+                (
+                    started,
+                    UsedSenario {
+                        source: senario.source,
+                        stream_vars: v.clone(),
+                        matcher: senario.matcher,
+                        sorted_vars: senario.linearf
+                    },
+                    cache
+                )
+            }
         };
-        let cache = CacheStream::new(scores);
         let sorted = Arc::default();
-        run_sort(rt, Arc::clone(&sorted), &cache, senario.sorted_vars.clone());
+        let handles = run_sort(rt, Arc::clone(&sorted), &cache, senario.sorted_vars.clone());
         Ok(Flow {
             at,
             senario,
             cache,
-            sorted
+            sorted: Some(sorted),
+            handles
         })
+    }
+
+    pub(super) fn dispose(&mut self) {
+        for h in &self.handles {
+            h.abort()
+        }
+        self.sorted = None;
     }
 }
 
@@ -96,15 +118,31 @@ pub(super) enum Reuse<R> {
 }
 
 impl<T> Reuse<T> {
-    pub(super) fn map<U>(self, f: impl Fn(T) -> U) -> Reuse<U> {
+    pub(super) fn map<U>(self, f: impl FnOnce(T) -> U) -> Reuse<U> {
         match self {
             Reuse::Matcher(x) => Reuse::Matcher(f(x)),
             Reuse::Source(x) => Reuse::Source(f(x))
         }
     }
+
+    pub(super) fn as_ref(&self) -> Reuse<&T> {
+        match self {
+            Reuse::Matcher(ref x) => Reuse::Matcher(x),
+            Reuse::Source(ref x) => Reuse::Source(x)
+        }
+    }
 }
 
-#[derive(Clone, Copy)]
+impl<T> Reuse<Option<T>> {
+    pub(super) fn optional(self) -> Option<Reuse<T>> {
+        match self {
+            Reuse::Matcher(x) => x.map(Reuse::Matcher),
+            Reuse::Source(x) => x.map(Reuse::Source)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct UsedSenario<V, P> {
     pub source: P,
     pub stream_vars: V,
@@ -255,16 +293,17 @@ fn run_sort(
     sorted: Shared<(bool, Vec<WithScore>)>,
     cache: &CacheStream<WithScore>,
     vars: Arc<Vars>
-) {
+) -> Vec<JoinHandle<()>> {
     let preload = cache.reload();
     let stream = cache.reload();
-    rt.spawn(async move {
+    let mut ret = Vec::with_capacity(2);
+    ret.push(rt.spawn(async move {
         pin_mut!(preload);
         while preload.next().await.is_some() {}
-    });
+    }));
     let first_size = std::cmp::max(vars.first_view, 1);
     let chunk_size = std::cmp::max(vars.chunk_size, 1);
-    rt.spawn(async move {
+    ret.push(rt.spawn(async move {
         let start = Instant::now();
         pin_mut!(stream);
         let mut chunks = Chunks::new(stream, first_size, chunk_size);
@@ -281,12 +320,13 @@ fn run_sort(
         let sorted = &mut sorted.write().await;
         sorted.0 = true;
         log::debug!("{:?}", start.elapsed());
-    });
+    }));
+    ret
 }
 
 impl Flow {
-    pub fn sorted(&self) -> impl Future<Output = RwLockReadGuard<(bool, Vec<WithScore>)>> {
-        self.sorted.read()
+    pub async fn sorted(&self) -> Option<RwLockReadGuard<'_, (bool, Vec<WithScore>)>> {
+        Some(self.sorted.as_ref()?.read().await)
     }
 
     // pub async fn sorted_status(&self) -> (bool, usize) {
