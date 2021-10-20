@@ -22,12 +22,14 @@ pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
             .await
             .ok_or(state::Error::FlowDisposed(s, f))
             .map_err(LuaError::external)?;
-        let (done, count) = (sorted.0, sorted.1.len());
+        let (done, hit_count, source_count) =
+            (sorted.done, sorted.items.len(), sorted.source_count);
         std::mem::drop(sorted);
         std::mem::drop(state);
         let t = lua.create_table_with_capacity(0, 2)?;
         t.set("done", done)?;
-        t.set("count", count)?;
+        t.set("count", hit_count)?;
+        t.set("source_count", source_count)?;
         Ok(t)
     })
 }
@@ -51,11 +53,12 @@ pub fn flow_items<'a>(
             .map_err(LuaError::external)?;
         let it = ranges
             .into_iter()
-            .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
+            .map(|(s, e)| &sorted.items[s..std::cmp::min(e, sorted.items.len())]);
         {
             let t = convert(lua, fields, it)?;
-            t.set("done", sorted.0)?;
-            t.set("count", sorted.1.len())?;
+            t.set("done", sorted.done)?;
+            t.set("count", sorted.items.len())?;
+            t.set("source_count", sorted.source_count)?;
             Ok(t)
         }
     })

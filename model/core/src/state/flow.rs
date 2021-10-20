@@ -18,8 +18,15 @@ pub struct Flow {
     at: Instant,
     senario: UsedSenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
     cache: CacheStream<WithScore>,
-    sorted: Option<Shared<(bool, Vec<WithScore>)>>,
+    sorted: Option<Shared<Sorted>>,
     handles: Vec<JoinHandle<()>>
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Sorted {
+    pub done: bool,
+    pub items: Vec<WithScore>,
+    pub source_count: usize
 }
 
 impl Flow {
@@ -290,7 +297,7 @@ where
 // TODO: improve
 fn run_sort(
     rt: AsyncRt,
-    sorted: Shared<(bool, Vec<WithScore>)>,
+    sorted: Shared<Sorted>,
     cache: &CacheStream<WithScore>,
     vars: Arc<Vars>
 ) -> Vec<JoinHandle<()>> {
@@ -308,38 +315,26 @@ fn run_sort(
         pin_mut!(stream);
         let mut chunks = Chunks::new(stream, first_size, chunk_size);
         while let Some(mut chunk) = chunks.next().await {
+            let orig_size = chunk.len();
             let mut chunk = chunk
                 .drain_filter(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
             chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
             let sorted = &mut sorted.write().await;
-            sorted.1.append(&mut chunk);
-            sorted.1.sort_by(|a, b| a.1.cmp(&b.1));
+            sorted.source_count += orig_size;
+            sorted.items.append(&mut chunk);
+            sorted.items.sort_by(|a, b| a.1.cmp(&b.1));
         }
         let sorted = &mut sorted.write().await;
-        sorted.0 = true;
+        sorted.done = true;
         log::debug!("{:?}", start.elapsed());
     }));
     ret
 }
 
 impl Flow {
-    pub async fn sorted(&self) -> Option<RwLockReadGuard<'_, (bool, Vec<WithScore>)>> {
+    pub async fn sorted(&self) -> Option<RwLockReadGuard<'_, Sorted>> {
         Some(self.sorted.as_ref()?.read().await)
     }
-
-    // pub async fn sorted_status(&self) -> (bool, usize) {
-    //    let sorted = self.sorted().await;
-    //    (sorted.0, sorted.1.len())
-    //}
-
-    // pub async fn sorted_items(&self, start: usize, end: usize) -> Vec<Arc<Item>> {
-    //    let sorted = self.sorted().await;
-    //    let xs = &sorted.1;
-    //    xs[start..std::cmp::min(end, xs.len())]
-    //        .iter()
-    //        .map(|(i, _)| i.clone())
-    //        .collect::<Vec<_>>()
-    //}
 }

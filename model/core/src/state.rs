@@ -242,7 +242,7 @@ where
 async fn dispose_slow_flows(session: &mut Session) {
     for flow in &mut session.flows {
         let dispose = if let Some(sorted) = flow.sorted().await {
-            !sorted.0
+            !sorted.done
         } else {
             false
         };

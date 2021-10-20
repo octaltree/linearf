@@ -110,8 +110,8 @@ do -- PRIVATE
         end
     end
 
-    local function title(query, count, done)
-        return string.format('"%s" %s%s', query, count, done and '' or '+')
+    local function title(query, count, source_count, done)
+        return string.format('"%s" %s/%s%s', query, count, source_count, done and '' or '+')
     end
 
     local function _first_view_size(flow, resume_view)
@@ -127,16 +127,17 @@ do -- PRIVATE
             vim.fn.setbufline(buff.querier, 1, flow.senario.linearf.query)
         end
         local size = _first_view_size(flow, resume_view)
-        local items, done, count, last
+        local items, done, count, source_count, last
         do
             local r = flow:items({{0, size}}, FIELDS)
             if not r.ok then return buff, false, false end
             done = r.value.done
             count = r.value.count
+            source_count = r.value.source_count
             items = r.value[1]
             last = done and count <= size
         end
-        buff.list[1] = nofile.new(title(vars.query, count, last))
+        buff.list[1] = nofile.new(title(vars.query, count, source_count, last))
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
         vim.fn.setbufline(buff.list[1], 1, lines)
@@ -300,12 +301,13 @@ do -- PRIVATE
                 vim.fn.timer_stop(timer)
                 return
             end
-            local items, done, count
+            local items, done, count, source_count
             do
                 local r = flow:items({{0, senario.view.view_size}}, FIELDS)
                 if not r.ok then return end
                 done = r.value.done
                 count = r.value.count
+                source_count = r.value.source_count
                 items = r.value[1]
             end
             do -- skip flicker
@@ -325,7 +327,7 @@ do -- PRIVATE
             end
             do -- write
                 local b =
-                    nofile.named(title(senario.linearf.query, count, done))
+                    nofile.named(title(senario.linearf.query, count, source_count, done))
                 vim.fn.setbufline(b, 1, lines)
                 table.insert(buff.list, b)
                 if self.current ~= flow then

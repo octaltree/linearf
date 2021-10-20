@@ -15,6 +15,7 @@ local M = {
     }),
     senarios = Dim.new(),
     context_managers = Dim.new(),
+    actions = Dim.new(),
     _debug = true,
     -- mutables
     view = nil,
