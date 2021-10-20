@@ -8,7 +8,7 @@ use linearf::{
 use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use std::{fs, sync::Arc};
+use std::sync::Arc;
 
 pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     let s = state::SessionId(s);
@@ -56,55 +56,6 @@ pub fn flow_items<'a>(
             let t = convert(lua, fields, it)?;
             t.set("done", sorted.0)?;
             t.set("count", sorted.1.len())?;
-            Ok(t)
-        }
-    })
-}
-
-fn _pid() -> u32 { std::process::id() }
-
-pub fn pid(_lua: &Lua, (): ()) -> LuaResult<u32> { Ok(_pid()) }
-
-pub fn flow_view<'a>(
-    lua: &'a Lua,
-    (s, f, size, fields): (i32, usize, usize, LuaValue)
-) -> LuaResult<LuaTable<'a>> {
-    let s = state::SessionId(s);
-    let f = state::FlowId(f);
-    let fields: Fields = lua.from_value(fields)?;
-    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
-    let dir = crate::dir().join(_pid().to_string()).join(s.0.to_string());
-    fs::create_dir_all(&dir).map_err(LuaError::external)?;
-    lnf.runtime().block_on(async {
-        let state = lnf.state().read().await;
-        let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
-        let sorted = flow
-            .sorted()
-            .await
-            .ok_or(state::Error::FlowDisposed(s, f))
-            .map_err(LuaError::external)?;
-        let done = sorted.0;
-        let len = sorted.1.len();
-        let file = dir.join(&format!(
-            "{}_{}{}",
-            flow.senario().sorted_vars.query,
-            len,
-            if done { "" } else { "+" }
-        ));
-        let items = &sorted.1[0..std::cmp::min(len, size)];
-        let mut s = items
-            .iter()
-            .map(|(i, _)| i.view())
-            .collect::<Vec<_>>()
-            .join("\n");
-        s.push('\n');
-        fs::write(&file, &s).map_err(LuaError::external)?;
-        {
-            let t = lua.create_table_with_capacity(0, 4)?;
-            t.set("path", file.display().to_string())?;
-            t.set("items", convert_items(lua, fields, items)?)?;
-            t.set("done", done)?;
-            t.set("count", len)?;
             Ok(t)
         }
     })

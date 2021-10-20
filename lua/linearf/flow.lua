@@ -19,8 +19,4 @@ function Flow.items(self, ranges, fields)
     return self.bridge.flow_items(self.session_id, self.flow_id, ranges, fields)
 end
 
-function Flow.view(self, len, fields)
-    return self.bridge.flow_view(self.session_id, self.flow_id, len, fields)
-end
-
 return Flow
