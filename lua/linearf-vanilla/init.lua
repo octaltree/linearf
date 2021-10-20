@@ -294,6 +294,7 @@ do -- PRIVATE
             vim.fn.win_gotoid(cur)
         end
         local pre = nil
+        local lazy = 10
         utils.interval(senario.view.refresh_interval, function(timer)
             if self.current ~= flow then
                 vim.fn.timer_stop(timer)
@@ -307,9 +308,11 @@ do -- PRIVATE
                 count = r.value.count
                 items = r.value[1]
             end
-            if count == 0 and not done then
-                -- skip flicker
-                return
+            do -- skip flicker
+                if lazy > 0 and count < senario.linearf.first_view and not done then
+                    lazy = lazy - 1
+                    return
+                end
             end
             if pre == count and not done then
                 return
