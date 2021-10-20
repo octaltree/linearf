@@ -109,6 +109,10 @@ do -- PRIVATE
         end
     end
 
+    local function title(query, count, done)
+        return string.format('"%s" %s%s', query, count, done and '' or '+')
+    end
+
     function Vanilla._first_view(self, ctx, flow)
         local vars = flow.senario.linearf
         local buff = {list = {}}
@@ -126,9 +130,7 @@ do -- PRIVATE
             items = r.value[1]
             last = done and count <= size
         end
-        local name = string.format("%s_%s%s", vars.query, count,
-                                   last and '' or '+')
-        buff.list[1] = nofile.new(name)
+        buff.list[1] = nofile.new(title(vars.query, count, last))
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
         vim.fn.setbufline(buff.list[1], 1, lines)
@@ -139,19 +141,6 @@ do -- PRIVATE
         local ret = true
         for _, x in ipairs(xs) do if not f(x) then ret = false end end
         return ret
-    end
-
-    local function is_shown(bufnr)
-        if utils.is_nvim() then
-            for _, x in ipairs(vim.fn.tabpagebuflist()) do
-                if x == bufnr then return true end
-            end
-        else
-            for x in vim.fn.tabpagebuflist()() do
-                if x == bufnr then return true end
-            end
-        end
-        return false
     end
 
     local function win_exists(winid)
@@ -191,11 +180,10 @@ do -- PRIVATE
         utils.command('setlocal nonumber')
     end
 
-    local function setlocal_querier_win(ctx, senario)
+    local function setlocal_querier_win(ctx, _senario)
         win_common()
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
-        -- vim.fn.setbufline(1, senario.linearf.query or '')
 
         local first_changedtick = ctx.refresh
         linearf.view._querier_on_changed = function()
@@ -216,6 +204,7 @@ do -- PRIVATE
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
         -- utils.command('setlocal readonly')
 
+        -- TODO
         -- winsave
         -- utils.augroup('linearf_list', {
         --    "autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')"
@@ -315,11 +304,13 @@ do -- PRIVATE
             else
                 pre = count
             end
-            local name = string.format("%s_%s%s", senario.linearf.query, count, done and '' or '+')
             local lines = {}
-            for _, item in ipairs(items) do table.insert(lines, item.view) end
+            for _, item in ipairs(items) do
+                table.insert(lines, item.view)
+            end
             do -- write
-                local b = nofile.named(name)
+                local b =
+                    nofile.named(title(senario.linearf.query, count, done))
                 vim.fn.setbufline(b, 1, lines)
                 table.insert(buff.list, b)
                 if self.current ~= flow then
@@ -356,7 +347,9 @@ do -- PRIVATE
                 items = r.value[1]
             end
             local lines = {}
-            for _, item in ipairs(items) do table.insert(lines, item.view) end
+            for _, item in ipairs(items) do
+                table.insert(lines, item.view)
+            end
             vim.fn.setbufline(b, l, lines)
             l = l + #items
             if l > count then
