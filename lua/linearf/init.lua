@@ -1,16 +1,24 @@
+local Dim = require('linearf.dim')
 local M = {
     -- reexport
     utils = require('linearf.utils'),
     path = require('linearf.path'),
     bridge = require('linearf.bridge'),
+    -- Dim = Dim,
+    -- Result = require('linearf.result'),
     -- config
-    recipe = {crates = {}, sources = {}, matchers = {}, converters = {}},
-    senarios = {},
-    context_managers = {},
+    recipe = Dim.from({
+        crates = {},
+        sources = {},
+        matchers = {},
+        converters = {}
+    }),
+    senarios = Dim.new(),
+    context_managers = Dim.new(),
     _debug = true,
     -- mutables
     view = nil,
-    _sessions = {}
+    _sessions = Dim.new()
 }
 local Session = require('linearf.session')
 local Flow = require('linearf.flow')
@@ -23,6 +31,7 @@ local SenarioBuilder = require('linearf.senario_builder')
 -- session type
 -- flow type
 -- senario_builder type
+-- dim type
 
 function M.build()
     return M.bridge.build(M.recipe)
@@ -33,7 +42,7 @@ function M.init(view)
         M.view:destruct()
         M.utils.cache = {}
         M.path.cache = {}
-        M._sessions = {}
+        M._sessions = Dim.new()
     end
     _G['linearf'] = M
     M.bridge.init(M.build)
@@ -61,7 +70,7 @@ function M.run(senario_name, diff)
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
     local sess = Session.new(sid, senario_builder):insert(fid, flow)
-    M._sessions[sid] = sess
+    M._sessions:set(sid, sess)
     M.view:flow({awake = 'session'}, flow)
 end
 
@@ -86,12 +95,13 @@ end
 
 local function expect_flow(sid, fid)
     local sess = expect_session(sid)
-    local flow = sess.flows[fid]
+    local flow = sess.flow[fid]
     if not flow then error(string.format("flow %d is not found", fid)) end
     return flow
 end
 
 function M.resume(session_id)
+    if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local fid = M.bridge.resume(session_id):unwrap()
     local flow = expect_flow(session_id, fid)
     M.view:flow({awake = 'resume'}, flow)

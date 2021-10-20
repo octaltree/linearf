@@ -1,5 +1,6 @@
 local Vanilla = {}
 
+local Dim = require('linearf.dim')
 local linearf = require('linearf')
 local utils = linearf.utils
 
@@ -17,8 +18,8 @@ do -- REQUIRED
         this.prev_flow = nil
         this.current = nil
 
-        this.curline = 1
-        this.line = {}
+        this.curview = nil
+        this.session_view = Dim.new()
         return setmetatable(this, {__index = Vanilla})
     end
 
@@ -38,12 +39,11 @@ do -- REQUIRED
     function Vanilla.flow(self, ctx, flow)
         ctx.refresh = ctx.awake == 'session' or ctx.awake == 'resume'
         self:_save_prev_flow(flow)
-        local buff, done, skip = self:_first_view(ctx, flow)
-        self:_ensure_open(ctx, flow.senario, buff, skip)
-        if ctx.awake == 'session' then
-            self:_set_cursor(flow.senario)
-            utils.command("redraw")
-        end
+        local resume_view = self:_resume_view(ctx, flow)
+        local buff, done, skip = self:_first_view(ctx, flow, resume_view)
+        self:_ensure_open(ctx, flow, buff, skip)
+        self:_set_cursor(ctx, flow, resume_view)
+        if ctx.refresh then utils.command("redraw") end
         time('first view')
         if not done then self:_start_incremental(flow, buff) end
     end
@@ -65,14 +65,15 @@ do -- PRIVATE
     function Vanilla._save_prev_flow(self, flow)
         self.prev_flow = self.current
         self.current = flow
-        if self.prev_flow then
-            local last = self.prev_flow
-            if not self.line[last.session_id] then
-                self.line[last.session_id] = {}
-            end
-            self.line[last.session_id][last.flow_id] = self.curline
-            -- winsaveview() ?
+    end
+
+    function Vanilla._resume_view(self, ctx, flow)
+        local resume_view
+        do
+            local v = self.session_view:get(flow.session_id, flow.flow_id)
+            if ctx.awake == 'resume' and v then resume_view = v end
         end
+        return resume_view
     end
 
     local nofile = {}
@@ -113,14 +114,19 @@ do -- PRIVATE
         return string.format('"%s" %s%s', query, count, done and '' or '+')
     end
 
-    function Vanilla._first_view(self, ctx, flow)
+    local function _first_view_size(flow, resume_view)
+        local default = flow.senario.linearf.first_view
+        return (resume_view or {}).lnum or default
+    end
+
+    function Vanilla._first_view(self, ctx, flow, resume_view)
         local vars = flow.senario.linearf
         local buff = {list = {}}
         buff.querier = nofile.named(self.QUERIER)
         if ctx.refresh then
             vim.fn.setbufline(buff.querier, 1, flow.senario.linearf.query)
         end
-        local size = vars.first_view
+        local size = _first_view_size(flow, resume_view)
         local items, done, count, last
         do
             local r = flow:items({{0, size}}, FIELDS)
@@ -180,7 +186,7 @@ do -- PRIVATE
         utils.command('setlocal nonumber')
     end
 
-    local function setlocal_querier_win(ctx, _senario)
+    local function setlocal_querier_win(ctx)
         win_common()
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
@@ -198,35 +204,35 @@ do -- PRIVATE
         })
     end
 
-    local function setlocal_list_win(senario)
+    local function setlocal_list_win(flow)
+        local senario = flow.senario
         local params = senario.view
         win_common()
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
-        -- utils.command('setlocal readonly')
 
-        -- TODO
-        -- winsave
-        -- utils.augroup('linearf_list', {
-        --    "autocmd CursorMoved <buffer> lua linearf.view.curline = vim.fn.line('.')"
-        -- })
+        utils.augroup('linearf_list', {
+            string.format(
+                "autocmd CursorMoved <buffer> lua linearf.view.session_view:set(%s, %s, vim.fn.winsaveview())",
+                flow.session_id, flow.flow_id)
+        })
     end
 
     local function current_tab()
         return utils.eval("win_id2tabwin(win_getid())[0]")
     end
 
-    function Vanilla._ensure_open(self, ctx, senario, buff, skip)
+    function Vanilla._ensure_open(self, ctx, flow, buff, skip)
         local list = buff.list[1]
         local querier = buff.querier
         local function set_buffer()
-            if not skip then
+            if list and not skip then
                 vim.fn.win_gotoid(self.list_win)
                 utils.command("buffer " .. list)
-                setlocal_list_win(senario)
+                setlocal_list_win(flow)
             end
             vim.fn.win_gotoid(self.querier_win)
             utils.command("buffer " .. querier)
-            setlocal_querier_win(ctx, senario)
+            setlocal_querier_win(ctx)
         end
         if ctx.refresh then
             local tab = current_tab()
@@ -251,20 +257,26 @@ do -- PRIVATE
         end
         utils.command('silent keepalt botright sb ' .. list)
         self.list_win = vim.fn.win_getid()
-        setlocal_list_win(senario)
+        setlocal_list_win(flow)
         utils.command('silent keepalt aboveleft sb ' .. querier)
         self.querier_win = vim.fn.win_getid()
-        setlocal_querier_win(ctx, senario)
+        setlocal_querier_win(ctx)
     end
 
-    function Vanilla._set_cursor(self, senario)
-        local status = senario.view.querier_on_start
-        if status == 'active' or status == 'insert' then
-            vim.fn.win_gotoid(self.querier_win)
-        else
+    function Vanilla._set_cursor(self, ctx, flow, resume_view)
+        local senario = flow.senario
+        if ctx.awake == 'session' then
+            local status = senario.view.querier_on_start
+            if status == 'active' or status == 'insert' then
+                vim.fn.win_gotoid(self.querier_win)
+            else
+                vim.fn.win_gotoid(self.list_win)
+            end
+            if status == 'insert' then utils.command("startinsert!") end
+        elseif ctx.awake == 'resume' then
             vim.fn.win_gotoid(self.list_win)
+            if resume_view then vim.fn.winrestview(resume_view) end
         end
-        if status == 'insert' then utils.command("startinsert!") end
     end
 
     function Vanilla._start_incremental(self, flow, buff)
@@ -278,7 +290,7 @@ do -- PRIVATE
             local page = vim.fn.winsaveview()
             utils.command('buffer ' .. b)
             vim.fn.winrestview(page)
-            setlocal_list_win(senario)
+            setlocal_list_win(flow)
             vim.fn.win_gotoid(cur)
         end
         local pre = nil
