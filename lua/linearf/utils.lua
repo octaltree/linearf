@@ -25,6 +25,14 @@ function M.g(name)
     end
 end
 
+function M.eval(s)
+    if M.is_nvim() then
+        return vim.api.nvim_eval(s)
+    else
+        return vim.eval(s)
+    end
+end
+
 function M.call(f, ...)
     return vim.call(f, ...)
 end
@@ -34,6 +42,14 @@ function M.command(s)
         return vim.api.nvim_command(s)
     else
         return vim.command(s)
+    end
+end
+
+function M.command_(...)
+    if M.is_nvim() then
+        return vim.api.nvim_command(string.format(...))
+    else
+        return vim.command(string.format(...))
     end
 end
 
@@ -73,6 +89,29 @@ function M.readdir(...)
     return ret
 end
 
+function M.interval(ms, f)
+    local options = {}
+    options['repeat'] = -1
+    return vim.fn.timer_start(ms, f, options)
+end
+
+function M.augroup(name, xs)
+    M.command("augroup " .. name)
+    M.command("au!")
+    for _, x in ipairs(xs) do M.command(x) end
+    M.command("augroup END")
+end
+
+function M.win_id2tabwin(winid)
+    if M.is_nvim() then
+        return vim.fn.win_id2tabwin(winid)
+    else
+        local ret = {}
+        for x in vim.fn.win_id2tabwin(winid)() do table.insert(ret, x) end
+        return ret
+    end
+end
+
 -- PRIVATE
 
 function M.lua_ver()
@@ -82,11 +121,5 @@ function M.lua_ver()
     local l = v:sub(i + 1, #v):gsub('[^%d]', '')
     return 'lua' .. l
 end
-
--- function M.echo_error(s)
---     local msg = '[linearf] ' .. s
---     local quoted = vim.fn.string(msg)
---     M.command(string.format("echohl Error | echomsg %s | echohl None", quoted))
--- end
 
 return M

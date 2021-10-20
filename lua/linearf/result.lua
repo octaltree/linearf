@@ -17,6 +17,11 @@ function Result.pcall(f, ...)
     end
 end
 
+function Result.map(self, f)
+    if not self.ok then return self end
+    return Result.Ok(f(self.value))
+end
+
 function Result.map_err(self, f)
     if self.ok then return self end
     return Result.Err(f(self.value))
@@ -37,6 +42,14 @@ function Result.unwrap(self)
         return self.value
     else
         error(self.value)
+    end
+end
+
+function Result.unwrap_or(self, x)
+    if self.ok then
+        return self.value
+    else
+        return x
     end
 end
 

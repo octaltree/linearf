@@ -70,8 +70,7 @@ pub mod source {
             &self,
             _senario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
-            use std::convert::TryInto;
-            let d = match std::fs::read_dir("/home/octaltree/workspace/linearf/tests") {
+            let d = match std::fs::read_dir("/home") {
                 Ok(d) => d,
                 Err(_) => return Box::pin(empty())
             };
@@ -122,7 +121,7 @@ pub mod matcher {
             return if item.view_for_matcing().find(&vars.query).is_some() {
                 Score::new(item.id, vec![1])
             } else {
-                Score::new(item.id, vec![0])
+                Score::new(item.id, vec![])
             };
         }
 

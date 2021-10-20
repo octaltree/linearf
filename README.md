@@ -59,6 +59,6 @@ For more information, see `:help linearf`
 ## TODO
 - [x] implement logic
 - [x] runtime reloading and auto building
-- [ ] implement view and controller
+- [ ] implement view
 - [ ] implement linearf-my-flavors
 - [ ] use vim as a fuzzy finder from CLI

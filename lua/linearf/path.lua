@@ -12,31 +12,30 @@ function M.join(parts)
 end
 
 -- "/a/" => {'', 'a', ''}
--- TODO: escape
+-- escape?
 local function split(path, sep)
-  local cs = {}
-  local i = 1
-  local len = #path
-  while true do
-    local l, r = path:find(sep, i, true)
-    if l then
-      table.insert(cs, path:sub(i, l - 1))
-      i = r + 1
-    else
-      table.insert(cs, path:sub(i))
-      break
+    local cs = {}
+    local i = 1
+    while true do
+        local l, r = path:find(sep, i, true)
+        if l then
+            table.insert(cs, path:sub(i, l - 1))
+            i = r + 1
+        else
+            table.insert(cs, path:sub(i))
+            break
+        end
     end
-  end
-  return cs
+    return cs
 end
 
 -- has no trailing slash
 function M.root()
     if C._root == nil then
-      local path = debug.getinfo(1).source:gsub('@?(.+)', '%1')
-      local cs = split(path, M.sep())
-      local root = M.join {utils.unpack(cs, 1, #cs - 3)}
-      C._root = root
+        local path = debug.getinfo(1).source:gsub('@?(.+)', '%1')
+        local cs = split(path, M.sep())
+        local root = M.join {utils.unpack(cs, 1, #cs - 3)}
+        C._root = root
     end
     return C._root
 end

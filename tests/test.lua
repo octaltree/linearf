@@ -22,7 +22,7 @@ function M.run()
     }
     linearf.build()
     local view = {
-        start = function(_self, _session)
+        flow = function(_self, _ctx, _flow)
         end
     }
     linearf.init(view)

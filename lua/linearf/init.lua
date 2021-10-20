@@ -7,21 +7,22 @@ local M = {
     recipe = {crates = {}, sources = {}, matchers = {}, converters = {}},
     senarios = {},
     context_managers = {},
+    _debug = true,
     -- mutables
     view = nil,
-    sessions = {}
+    _sessions = {}
 }
-
 local Session = require('linearf.session')
+local Flow = require('linearf.flow')
 local SenarioBuilder = require('linearf.senario_builder')
-local Result = require('linearf.result')
 -- init stateful
 -- bridge stateful
 -- path cache
 -- utils cache
 -- result pure type
--- senario_builder pure type
--- session pure type
+-- session type
+-- flow type
+-- senario_builder type
 
 function M.build()
     return M.bridge.build(M.recipe)
@@ -29,9 +30,10 @@ end
 
 function M.init(view)
     if M.view then
-        M.view:close()
+        M.view:destruct()
         M.utils.cache = {}
         M.path.cache = {}
+        M._sessions = {}
     end
     _G['linearf'] = M
     M.bridge.init(M.build)
@@ -47,32 +49,57 @@ local function new_senario_builder(senario_name, diff)
             return nil
         end
     end
-    return SenarioBuilder.new(base, c, diff)
+    return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
 end
 
 function M.run(senario_name, diff)
+    if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
     local id = M.bridge.run(senario):unwrap()
     local sid = id.session
     local fid = id.flow
-    local session = Session.new(M.bridge, sid, senario, senario_builder)
-    M.sessions[sid] = session
-    M.view:start(session)
+    local flow = Flow.new(M.bridge, sid, fid, senario)
+    local sess = Session.new(sid, senario_builder):insert(fid, flow)
+    M._sessions[sid] = sess
+    M.view:flow({awake = 'session'}, flow)
+end
+
+local function expect_session(sid)
+    local sess = M._sessions[sid]
+    if not sess then error(string.format("session %d is not found", sid)) end
+    return sess
+end
+
+function M.query(session_id, q)
+    if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
+    local sess = expect_session(session_id)
+    local senario = sess.senario_builder:build()
+    senario.linearf.query = q
+    local id = M.bridge.tick(session_id, senario):unwrap()
+    local sid = id.session
+    local fid = id.flow
+    local flow = Flow.new(M.bridge, sid, fid, senario)
+    sess:insert(fid, flow)
+    M.view:flow({awake = 'flow'}, flow)
+end
+
+local function expect_flow(sid, fid)
+    local sess = expect_session(sid)
+    local flow = sess.flows[fid]
+    if not flow then error(string.format("flow %d is not found", fid)) end
+    return flow
 end
 
 function M.resume(session_id)
-    M.view:start(session_id)
+    local fid = M.bridge.resume(session_id):unwrap()
+    local flow = expect_flow(session_id, fid)
+    M.view:flow({awake = 'resume'}, flow)
 end
 
-local function signature_error()
-    local msg = table.concat({
-        '`linearf` accepts args one of following signatures',
-        'linearf(name: string)',
-        'linearf(diff: table)',
-        'linearf(name: string, diff: table)'
-    }, '\n')
-    return Result.Err(msg)
+function M.remove_session(session_id)
+    M.bridge.remove_session(session_id):unwrap()
+    M._sessions[session_id] = nil
 end
 
 return setmetatable(M, {
@@ -94,6 +121,11 @@ return setmetatable(M, {
                 return self.run(name, diff)
             end
         end
-        signature_error():unwrap()
+        error(table.concat({
+            '`linearf` accepts args one of following signatures',
+            'linearf(name: string)',
+            'linearf(diff: table)',
+            'linearf(name: string, diff: table)'
+        }, '\n'))
     end
 })

@@ -1,7 +1,7 @@
 mod flow;
 
 use crate::{source::Reusable, AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars};
-pub use flow::Flow;
+pub use flow::*;
 use flow::{Reuse, StartError};
 use serde::{Deserialize, Serialize};
 use smartstring::alias::String as SmartString;
@@ -25,7 +25,7 @@ impl State {
         Arc::new(RwLock::new(this))
     }
 
-    pub fn start_flow<'a, D, S, M, C>(
+    pub async fn start_flow<'a, D, S, M, C>(
         &mut self,
         rt: AsyncRt,
         source: &S,
@@ -54,14 +54,34 @@ impl State {
             }
         };
         let senario = parse_senario(source, matcher, request.senario)?;
-        let reuse = match self.reusable((id, &target), source, matcher, senario.as_ref(), started) {
-            Some(r) => Ok(r.map(|(_, _, flow)| flow)),
+        let reuse: Result<Reuse<(SessionId, FlowId)>, Instant> = match reusable(
+            self,
+            (id, &target),
+            source,
+            matcher,
+            senario.as_ref(),
+            started
+        ) {
+            Some(r) => {
+                log::debug!("reuse {:?}", r.map(|(s, f, _)| (s, f)));
+                Ok(r.map(|(s, f, _)| (s, f)))
+            }
             None => Err(started)
         };
+        let reuse: Result<Reuse<&mut Flow>, Instant> = reuse.and_then(|r| {
+            r.map(|(s, f)| flow_mut(self, (id, &mut target), s, f))
+                .optional()
+                .ok_or(started)
+        });
+        log::debug!(
+            "reuse {:?}",
+            reuse.as_ref().map(|r| r.as_ref().map(|f| f.senario()))
+        );
         let flow =
             Flow::start(rt, source, matcher, converter, reuse, senario).map_err(|e| match e {
                 StartError::ConverterNotFound(n) => Error::ConverterNotFound(n)
             })?;
+        dispose_slow_flows(&mut target).await;
         let fid = target.push(flow);
         self.sessions.push_back((id, target));
         Ok((id, fid))
@@ -107,6 +127,8 @@ pub enum Error {
     ConverterNotFound(SmartString),
     #[error("Session {0:?} is not found")]
     SessionNotFound(SessionId),
+    #[error("Flow {0:?} {1:?} is not found")]
+    FlowNotFound(SessionId, FlowId),
     #[error("Flow must have the same source in session: {0:?} != {1:?}")]
     SenarioSource(SmartString, SmartString),
     #[error("Flow must have the same matcher in session: {0:?} != {1:?}")]
@@ -114,7 +136,9 @@ pub enum Error {
     #[error("Flow must have the same converters in session: {0:?} != {1:?}")]
     SenarioConverters(Vec<SmartString>, Vec<SmartString>),
     #[error("{0}")]
-    Others(Box<dyn std::error::Error + Send + Sync>)
+    Others(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Flow {0:?} {1:?} is disposed")]
+    FlowDisposed(SessionId, FlowId)
 }
 
 struct Session {
@@ -168,7 +192,7 @@ fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<
             senario.linearf.source.clone()
         ));
     }
-    if prev.sorted_vars.source != senario.linearf.matcher {
+    if prev.sorted_vars.matcher != senario.linearf.matcher {
         return Err(Error::SenarioMatcher(
             prev.sorted_vars.matcher.clone(),
             senario.linearf.matcher.clone()
@@ -215,37 +239,56 @@ where
     })
 }
 
-impl State {
-    /// Reusable::Same&&Reuse::Matcher >
-    /// Reuseable::Cache&&Reuse::Matcher && use it offered by vars >
-    /// Reusable::Same&&Reuse::Source >
-    /// Reusable::Cache&&Reuse::Source && use it offered by vars >
-    /// None
-    fn reusable<'a, S, M>(
-        &'a self,
-        target: (SessionId, &'a Session),
-        source: &S,
-        matcher: &M,
-        senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
-        started: Instant
-    ) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>>
-    where
-        S: SourceRegistry,
-        M: MatcherRegistry
-    {
-        let use_cache = |flow: &Flow| -> bool {
-            (started - flow.at()).as_secs() < senario.linearf.cache_sec.into()
+async fn dispose_slow_flows(session: &mut Session) {
+    for flow in &mut session.flows {
+        let dispose = if let Some(sorted) = flow.sorted().await {
+            !sorted.0
+        } else {
+            false
         };
-        let source_reusable = |flow: &Flow| {
-            source.reusable(
-                &senario.linearf.source,
-                (flow.senario().stream_vars, flow.senario().source),
-                (senario.linearf, senario.source)
-            )
-        };
-        let matcher_reusable = |flow: &Flow| match (
+        if dispose {
+            flow.dispose();
+        }
+    }
+}
+
+/// Reusable::Same&&Reuse::Matcher >
+/// Reuseable::Cache&&Reuse::Matcher && use it offered by vars >
+/// Reusable::Same&&Reuse::Source >
+/// Reusable::Cache&&Reuse::Source && use it offered by vars >
+/// None
+fn reusable<'a, S, M>(
+    state: &'a State,
+    target: (SessionId, &'a Session),
+    source: &S,
+    matcher: &M,
+    senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
+    started: Instant
+) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>>
+where
+    S: SourceRegistry,
+    M: MatcherRegistry
+{
+    let use_cache = |flow: &Flow| -> bool {
+        (started - flow.at()).as_secs() < senario.linearf.cache_sec.into()
+    };
+    let source_reusable = |flow: &Flow| {
+        if flow.senario().stream_vars.source != senario.linearf.source {
+            return Reusable::None;
+        }
+        source.reusable(
+            &senario.linearf.source,
+            (flow.senario().stream_vars, flow.senario().source),
+            (senario.linearf, senario.source)
+        )
+    };
+    let matcher_reusable = |flow: &Flow| {
+        if flow.senario().sorted_vars.matcher != senario.linearf.matcher {
+            return Reusable::None;
+        }
+        match (
             source_reusable(flow),
-            matcher.reusable(
+            &&matcher.reusable(
                 &senario.linearf.matcher,
                 (flow.senario().sorted_vars, flow.senario().matcher),
                 (senario.linearf, senario.source)
@@ -256,67 +299,84 @@ impl State {
             (Reusable::Same, Reusable::Cache) => Reusable::Cache,
             (Reusable::Cache, Reusable::Cache) => Reusable::Cache,
             _ => Reusable::None
-        };
-        let matcher_same = |flow: &Flow| -> Option<Reuse<()>> {
-            let go = matcher_reusable(flow) == Reusable::Same;
-            go.then(|| Reuse::Matcher(()))
-        };
-        let matcher_cache = |flow: &Flow| -> Option<Reuse<()>> {
-            let go = use_cache(flow) && matcher_reusable(flow) == Reusable::Cache;
-            go.then(|| Reuse::Matcher(()))
-        };
-        let source_same = |flow: &Flow| -> Option<Reuse<()>> {
-            let go = source_reusable(flow) == Reusable::Same;
-            go.then(|| Reuse::Source(()))
-        };
-        let source_cache = |flow: &Flow| -> Option<Reuse<()>> {
-            let go = use_cache(flow) && source_reusable(flow) == Reusable::Cache;
-            go.then(|| Reuse::Source(()))
-        };
-        let traversal = Traversal {
-            state: self,
-            target,
-            senario
-        };
-        // should I find newest cache?
-        traversal.find(matcher_same)?;
-        traversal.find(matcher_cache)?;
-        traversal.find(source_same)?;
-        traversal.find(source_cache)?;
-        return None;
-
-        struct Traversal<'a, 'b> {
-            state: &'a State,
-            target: (SessionId, &'a Session),
-            senario: Senario<&'b Arc<Vars>, &'b Arc<dyn Any + Send + Sync>>
         }
-        impl<'a, 'b> Traversal<'a, 'b> {
-            fn find(
-                &self,
-                f: impl Fn(&Flow) -> Option<Reuse<()>>
-            ) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>> {
-                {
-                    let sid = self.target.0;
-                    let sess = self.target.1;
+    };
+    let matcher_same = |flow: &Flow| -> Option<Reuse<()>> {
+        let go = matcher_reusable(flow) == Reusable::Same;
+        go.then(|| Reuse::Matcher(()))
+    };
+    let matcher_cache = |flow: &Flow| -> Option<Reuse<()>> {
+        let go = use_cache(flow) && matcher_reusable(flow) == Reusable::Cache;
+        go.then(|| Reuse::Matcher(()))
+    };
+    let source_same = |flow: &Flow| -> Option<Reuse<()>> {
+        let go = source_reusable(flow) == Reusable::Same;
+        go.then(|| Reuse::Source(()))
+    };
+    let source_cache = |flow: &Flow| -> Option<Reuse<()>> {
+        let go = use_cache(flow) && source_reusable(flow) == Reusable::Cache;
+        go.then(|| Reuse::Source(()))
+    };
+    let traversal = Traversal { state, target };
+    // should I find newest cache?
+    macro_rules! return_found {
+        ($e:expr) => {
+            if let Some(x) = $e {
+                return Some(x);
+            }
+        };
+    }
+    return_found!(traversal.find(matcher_same, true));
+    return_found!(traversal.find(matcher_cache, senario.linearf.cache_across_sessions));
+    return_found!(traversal.find(source_same, true));
+    return_found!(traversal.find(source_cache, senario.linearf.cache_across_sessions));
+    return None;
+
+    struct Traversal<'a> {
+        state: &'a State,
+        target: (SessionId, &'a Session)
+    }
+    impl<'a> Traversal<'a> {
+        fn find(
+            &self,
+            f: impl Fn(&Flow) -> Option<Reuse<()>>,
+            across: bool
+        ) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>> {
+            {
+                let sid = self.target.0;
+                let sess = self.target.1;
+                for (fid, flow) in sess.flows().rev() {
+                    if let Some(r) = f(flow) {
+                        return Some(r.map(|_| (sid, fid, flow)));
+                    }
+                }
+            }
+            if across {
+                for &(sid, ref sess) in self.state.sessions.iter().rev() {
                     for (fid, flow) in sess.flows().rev() {
                         if let Some(r) = f(flow) {
                             return Some(r.map(|_| (sid, fid, flow)));
                         }
                     }
                 }
-                if self.senario.linearf.cache_across_sessions {
-                    for &(sid, ref sess) in self.state.sessions.iter().rev() {
-                        for (fid, flow) in sess.flows().rev() {
-                            if let Some(r) = f(flow) {
-                                return Some(r.map(|_| (sid, fid, flow)));
-                            }
-                        }
-                    }
-                }
-                None
             }
+            None
         }
     }
+}
+
+fn flow_mut<'a>(
+    state: &'a mut State,
+    target: (SessionId, &'a mut Session),
+    s: SessionId,
+    f: FlowId
+) -> Option<&'a mut Flow> {
+    if target.0 == s {
+        return target.1.flows.get_mut(f.0);
+    }
+    let mut rev = state.sessions.iter_mut().rev();
+    let sess = rev.find(|x| x.0 == s).map(|(_, s)| s)?;
+    sess.flows.get_mut(f.0)
 }
 
 impl State {
@@ -335,6 +395,9 @@ impl State {
         let sess = self.session(s)?;
         let flow = sess.flow(f)?;
         Some(flow)
+    }
+    pub fn try_get_flow(&self, s: SessionId, f: FlowId) -> Result<&Flow, Error> {
+        self.get_flow(s, f).ok_or(Error::FlowNotFound(s, f))
     }
 
     pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
