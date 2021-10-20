@@ -1,7 +1,8 @@
 local Vanilla = {}
 require('linearf-vanilla.win')(Vanilla)
 
-local utils = require('linearf').utils
+local linearf = require('linearf')
+local utils = linearf.utils
 
 -- REQUIRED
 
@@ -34,15 +35,23 @@ Vanilla.DEFAULT = {
 -- this.querier_on_start = 'inactive' -- 'inactive'/'active'/'insert'
 -- this.deactivate_querier_on_normal = true
 
+local function time(name)
+    if linearf._debug then
+        utils.command_("echomsg '%s' .. reltimestr(reltime(g:_linearf_time))",
+                       name)
+    end
+end
+
 function Vanilla.flow(self, ctx, flow)
-    -- utils.command("let g:_linearf_time = reltime()")
     self:_save_prev_flow(flow)
     -- TODO: resume curline
     local buff = self:_ensure_bufexists()
-    local done = self:_write_first_view(flow, buff)
     self:_ensure_open(flow, buff)
+    print(self.list_win)
+    local done = self:_write_first_view(flow, buff)
+    print(vim.inspect(done))
     utils.command('redraw')
-    utils.command("echomsg 'first view' .. reltimestr(reltime(g:_linearf_time))")
+    time('first view')
     if not done then self:_start_incremental(flow, buff) end
 end
 
@@ -74,25 +83,35 @@ function Vanilla._save_prev_flow(self, flow)
     end
 end
 
+local function load_file(path)
+    utils.command(vim.fn.printf("vs %s | setlocal buftype=nofile | q", path))
+end
+local function open_file(winid, path)
+    load_file(path)
+    utils.command(table.concat({
+        "let g:_linearf_win = win_getid()",
+        string.format("call win_gotoid(%d)", winid),
+        vim.fn.printf("buffer %s", path),
+        "setlocal buftype=nofile",
+        "setlocal nonumber",
+        "setlocal cursorline",
+        "call win_gotoid(g:_linearf_win)"
+    }, "|"))
+end
+
 function Vanilla._write_first_view(self, flow, buff)
     local n = flow.senario.linearf.first_view
-    local status
+    local path, items, done, count
     do
-        local r = flow:status()
+        local r = flow:view(n, FIELDS)
         if not r.ok then return false end
-        status = r.value
+        path = r.value.path
+        items = r.value.items
+        done = r.value.done
+        count = r.value.count
     end
-    local items
-    do
-        local r = flow:items({{0, n}}, FIELDS)
-        if not r.ok then return false end
-        items = r.value[1]
-    end
-    local lines = {}
-    for _, item in ipairs(items) do table.insert(lines, item.view) end
-    vim.fn.setbufline(buff.list, 1, lines)
-    -- vim.fn.deletebufline(buff.list, #lines + 1, '$') -- TODO: slow
-    return status.done and status.count <= n
+    open_file(self.list_win, path)
+    return done and count <= n
 end
 
 local function calc_ranges(cur, len, rendering)
@@ -117,22 +136,6 @@ local function empty(n)
     local ret = {}
     for _ = 1, n do table.insert(ret, s) end
     return ret
-end
-
-local function load_file(path)
-    utils.command(vim.fn.printf("vs %s | setlocal buftype=nofile | q", path))
-end
-local function open_file(winid, path)
-    load_file(path)
-    utils.command(table.concat({
-        "let g:_linearf_win = win_getid()",
-        string.format("call win_gotoid(%d)", winid),
-        vim.fn.printf("buffer %s", path),
-        "setlocal buftype=nofile",
-        "setlocal nonumber",
-        "setlocal cursorline",
-        "call win_gotoid(g:_linearf_win)"
-    }, "|"))
 end
 
 function Vanilla._start_incremental(self, flow, buff)
@@ -197,8 +200,7 @@ function Vanilla._start_incremental(self, flow, buff)
         -- end
 
         if first then
-            utils.command(
-                "echomsg 'tmp first line' .. reltimestr(reltime(g:_linearf_time))")
+            time('tmp first line')
             first = false
         end
     end)
@@ -233,14 +235,10 @@ function Vanilla._write_last_view(self, flow, buff, count)
             return
         end
         vim.fn.setbufline(b, l, lines)
-        if l == 1 then
-            utils.command(
-                "echomsg 'last first line' .. reltimestr(reltime(g:_linearf_time))")
-        end
+        if l == 1 then time('last first line') end
         l = l + chunk
         if l > count then
-            utils.command(
-                "echomsg 'last done' .. reltimestr(reltime(g:_linearf_time))")
+            time('last done')
             vim.fn.timer_stop(timer)
         end
     end)

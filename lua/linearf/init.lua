@@ -7,6 +7,7 @@ local M = {
     recipe = {crates = {}, sources = {}, matchers = {}, converters = {}},
     senarios = {},
     context_managers = {},
+    _debug = true,
     -- mutables
     view = nil,
     _sessions = {}
@@ -52,7 +53,7 @@ local function new_senario_builder(senario_name, diff)
 end
 
 function M.run(senario_name, diff)
-    M.utils.command("let g:_linearf_time = reltime()")
+    if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
     local id = M.bridge.run(senario):unwrap()
@@ -71,7 +72,7 @@ local function expect_session(sid)
 end
 
 function M.query(session_id, q)
-    M.utils.command("let g:_linearf_time = reltime()")
+    if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local sess = expect_session(session_id)
     local senario = sess.senario_builder:build()
     senario.linearf.query = q
