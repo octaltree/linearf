@@ -102,9 +102,14 @@ function M.augroup(name, xs)
     M.command("augroup END")
 end
 
-function M.pid()
-    if C._pid == nil then C._pid = vim.fn.getpid() end
-    return C._pid
+function M.win_id2tabwin(winid)
+    if M.is_nvim() then
+        return vim.fn.win_id2tabwin(winid)
+    else
+        local ret = {}
+        for x in vim.fn.win_id2tabwin(winid)() do table.insert(ret, x) end
+        return ret
+    end
 end
 
 -- PRIVATE

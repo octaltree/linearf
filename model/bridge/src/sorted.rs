@@ -52,7 +52,12 @@ pub fn flow_items<'a>(
         let it = ranges
             .into_iter()
             .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
-        convert(lua, fields, it)
+        {
+            let t = convert(lua, fields, it)?;
+            t.set("done", sorted.0)?;
+            t.set("count", sorted.1.len())?;
+            Ok(t)
+        }
     })
 }
 
