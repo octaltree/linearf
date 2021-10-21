@@ -140,7 +140,8 @@ function M.init(build)
         package.cpath = table.concat({package.cpath, path.cpath()}, ';')
     end
     M._build = build
-    return try_reload()
+    return true
+    --return try_reload()
 end
 
 return M

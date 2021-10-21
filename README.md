@@ -60,6 +60,7 @@ For more information, see `:help linearf`
 - [x] implement logic
 - [x] runtime reloading and auto building
 - [x] implement view
-- [ ] implement action and preview
+- [ ] implement action
 - [ ] implement linearf-my-flavors
 - [ ] use vim as a fuzzy finder from CLI
+- [ ] implement preview
