@@ -17,13 +17,7 @@ function M.is_windows()
     return C._is_windows
 end
 
-function M.g(name)
-    if M.is_nvim() then
-        return vim.g[name]
-    else
-        return vim.eval('g:' .. name)
-    end
-end
+-- vim.g
 
 function M.eval(s)
     if M.is_nvim() then

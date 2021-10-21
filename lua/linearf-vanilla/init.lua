@@ -29,7 +29,7 @@ do -- REQUIRED
         querier_on_start = 'inactive', -- 'inactive'|'active'|'insert'
 
         refresh_interval = 15,
-        view_size = 3000,
+        view_size = 1000,
         chunk_size = 6000
     }
 
@@ -43,7 +43,6 @@ do -- REQUIRED
         local buff, done, skip = self:_first_view(ctx, flow, resume_view)
         self:_ensure_open(ctx, flow, buff, skip)
         self:_set_cursor(ctx, flow, resume_view)
-        if ctx.refresh then utils.command("redraw") end
         time('first view')
         if not done then self:_start_incremental(flow, buff) end
     end
@@ -82,12 +81,12 @@ do -- PRIVATE
             utils.command('bwipeout ' .. nr)
         end
 
-        local function _create(name)
+        local function _create(name, hidden)
             local new = vim.fn.bufadd(name)
             vim.fn.setbufvar(new, '&buftype', 'nofile')
             vim.fn.setbufvar(new, '&buflisted', 0)
             vim.fn.setbufvar(new, '&swapfile', 0)
-            vim.fn.setbufvar(new, '&bufhidden', 'wipe')
+            vim.fn.setbufvar(new, '&bufhidden', hidden)
             vim.fn.setbufvar(new, '&modeline', 0)
             vim.fn.bufload(new)
             return new
@@ -98,15 +97,15 @@ do -- PRIVATE
         end
 
         function nofile.new(name)
-            local nr = find(name)
-            if nr ~= -1 then nofile.delete(nr) end
-            return _create(name)
+            --local nr = find(name)
+            --if nr ~= -1 then nofile.delete(nr) end
+            return _create(name, 'wipe')
         end
 
         function nofile.named(name)
             local nr = find(name)
             if nr ~= -1 then return nr end
-            return _create(name)
+            return _create(name, 'hide')
         end
     end
 
@@ -273,7 +272,10 @@ do -- PRIVATE
             else
                 vim.fn.win_gotoid(self.list_win)
             end
-            if status == 'insert' then utils.command("startinsert!") end
+            if status == 'insert' then
+                --utils.command("startinsert!") -- The drawing of the list is faulty.
+                vim.fn.feedkeys('A', 'n')
+            end
         elseif ctx.awake == 'resume' then
             vim.fn.win_gotoid(self.list_win)
             if resume_view then vim.fn.winrestview(resume_view) end
@@ -287,12 +289,23 @@ do -- PRIVATE
             if cur ~= self.list_win and cur ~= self.querier_win then
                 return
             end
-            if vim.fn.win_gotoid(self.list_win) ~= 1 then return end
-            local page = vim.fn.winsaveview()
-            utils.command('buffer ' .. b)
-            vim.fn.winrestview(page)
-            setlocal_list_win(flow)
-            vim.fn.win_gotoid(cur)
+            --if vim.fn.win_gotoid(self.list_win) ~= 1 then return end
+            --local page = vim.fn.winsaveview()
+            --utils.command('buffer ' .. b)
+            --vim.fn.winrestview(page)
+            --setlocal_list_win(flow)
+            --vim.fn.win_gotoid(cur)
+            _G['_linearf_open'] = function()
+                local page = vim.fn.winsaveview()
+                utils.command('buffer ' .. b)
+                vim.fn.winrestview(page)
+                setlocal_list_win(flow)
+            end
+            local cur_nr = vim.fn.win_id2win(cur)
+            local list_nr = vim.fn.win_id2win(self.list_win)
+            utils.command_('%swindo lua _linearf_open()', list_nr)
+            utils.command_('%swindo :', cur_nr)
+            _G['_linearf_open'] = nil
         end
         local pre = nil
         local lazy = 10
@@ -327,7 +340,7 @@ do -- PRIVATE
             end
             do -- write
                 local b =
-                    nofile.named(title(senario.linearf.query, count, source_count, done))
+                    nofile.new(title(senario.linearf.query, count, source_count, done))
                 vim.fn.setbufline(b, 1, lines)
                 table.insert(buff.list, b)
                 if self.current ~= flow then
