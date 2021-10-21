@@ -92,6 +92,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
         id: id.map(state::SessionId),
         senario
     };
+    log::debug!("{:?}", &req.senario.linearf.query);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let (sid, fid) = lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;

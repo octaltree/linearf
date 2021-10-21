@@ -97,8 +97,8 @@ do -- PRIVATE
         end
 
         function nofile.new(name)
-            --local nr = find(name)
-            --if nr ~= -1 then nofile.delete(nr) end
+            -- local nr = find(name)
+            -- if nr ~= -1 then nofile.delete(nr) end
             return _create(name, 'wipe')
         end
 
@@ -110,7 +110,8 @@ do -- PRIVATE
     end
 
     local function title(query, count, source_count, done)
-        return string.format('"%s" %s/%s%s', query, count, source_count, done and '' or '+')
+        return string.format('"%s" %s/%s%s', query, count, source_count,
+                             done and '' or '+')
     end
 
     local function _first_view_size(flow, resume_view)
@@ -273,7 +274,7 @@ do -- PRIVATE
                 vim.fn.win_gotoid(self.list_win)
             end
             if status == 'insert' then
-                --utils.command("startinsert!") -- The drawing of the list is faulty.
+                -- utils.command("startinsert!") -- The drawing of the list is faulty.
                 vim.fn.feedkeys('A', 'n')
             end
         elseif ctx.awake == 'resume' then
@@ -289,12 +290,12 @@ do -- PRIVATE
             if cur ~= self.list_win and cur ~= self.querier_win then
                 return
             end
-            --if vim.fn.win_gotoid(self.list_win) ~= 1 then return end
-            --local page = vim.fn.winsaveview()
-            --utils.command('buffer ' .. b)
-            --vim.fn.winrestview(page)
-            --setlocal_list_win(flow)
-            --vim.fn.win_gotoid(cur)
+            -- if vim.fn.win_gotoid(self.list_win) ~= 1 then return end
+            -- local page = vim.fn.winsaveview()
+            -- utils.command('buffer ' .. b)
+            -- vim.fn.winrestview(page)
+            -- setlocal_list_win(flow)
+            -- vim.fn.win_gotoid(cur)
             _G['_linearf_open'] = function()
                 local page = vim.fn.winsaveview()
                 utils.command('buffer ' .. b)
@@ -339,8 +340,8 @@ do -- PRIVATE
                 table.insert(lines, item.view)
             end
             do -- write
-                local b =
-                    nofile.new(title(senario.linearf.query, count, source_count, done))
+                local b = nofile.new(title(senario.linearf.query, count,
+                                           source_count, done))
                 vim.fn.setbufline(b, 1, lines)
                 table.insert(buff.list, b)
                 if self.current ~= flow then
