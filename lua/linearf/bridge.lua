@@ -141,7 +141,7 @@ function M.init(build)
     end
     M._build = build
     return true
-    --return try_reload()
+    -- return try_reload()
 end
 
 return M

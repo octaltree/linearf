@@ -189,6 +189,7 @@ do -- PRIVATE
 
     local function setlocal_querier_win(ctx)
         win_common()
+        utils.command('setlocal ft=linearf-vanilla-querier')
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
 
@@ -209,6 +210,7 @@ do -- PRIVATE
         local senario = flow.senario
         local params = senario.view
         win_common()
+        utils.command('setlocal ft=linearf-vanilla-list')
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
 
         utils.augroup('linearf_list', {

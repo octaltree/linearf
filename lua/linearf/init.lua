@@ -46,6 +46,7 @@ function M.init(view)
         M._sessions = Dim.new()
     end
     _G['linearf'] = M
+    _G['lnf'] = M
     M.bridge.init(M.build)
     M.view = view
 end
@@ -62,11 +63,25 @@ local function new_senario_builder(senario_name, diff)
     return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
 end
 
+local function shallow_copy(x)
+    if type(x) ~= 'table' then return x end
+    local ret = {}
+    for k, v in pairs(x) do ret[k] = v end
+    return ret
+end
+
+local function new_serializable(senario)
+    local ret = shallow_copy(senario)
+    ret.linearf = shallow_copy(senario.linearf)
+    ret.linearf.action = nil
+    return ret
+end
+
 function M.run(senario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
-    local id = M.bridge.run(senario):unwrap()
+    local id = M.bridge.run(new_serializable(senario)):unwrap()
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
@@ -86,7 +101,7 @@ function M.query(session_id, q)
     local sess = expect_session(session_id)
     local senario = sess.senario_builder:build()
     senario.linearf.query = q
-    local id = M.bridge.tick(session_id, senario):unwrap()
+    local id = M.bridge.tick(session_id, new_serializable(senario)):unwrap()
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
@@ -111,6 +126,23 @@ end
 function M.remove_session(session_id)
     M.bridge.remove_session(session_id):unwrap()
     M._sessions[session_id] = nil
+end
+
+function M.action(senario, items)
+    local a
+    if type(senario.linearf.action) == 'function' then
+        a = senario.linearf.action
+    else
+        local name = senario.linearf.action
+        a = M.actions[name]
+        if type(a) ~= 'function' then
+            error(string.format('Action "%s" is not found', name))
+        end
+    end
+    senario.view = nil
+    senario.source = nil
+    senario.matcher = nil
+    return a(senario, items)
 end
 
 return setmetatable(M, {
