@@ -4,8 +4,6 @@ local M = {
     utils = require('linearf.utils'),
     path = require('linearf.path'),
     bridge = require('linearf.bridge'),
-    -- Dim = Dim,
-    -- Result = require('linearf.result'),
     -- config
     recipe = Dim.from({
         crates = {},
@@ -128,7 +126,7 @@ function M.remove_session(session_id)
     M._sessions[session_id] = nil
 end
 
-function M.action(senario, items)
+function M.execute_action(senario, items)
     local a
     if type(senario.linearf.action) == 'function' then
         a = senario.linearf.action
