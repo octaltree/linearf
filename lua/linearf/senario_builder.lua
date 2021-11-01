@@ -5,6 +5,7 @@ local SenarioBuilder = {}
 --   * source: SourceParams,
 --   * matcher: MatcherParams,
 --   * view: ViewParams,
+-- actions is e.g. {'directory' = {'querier_insert' = {'<CR>' = function(items) end}}}
 local DEFAULT = {
     linearf = {
         query = '',
@@ -13,13 +14,11 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
-        action = function(_senario, _items)
-        end -- name or function
+        actions = {}
     },
     source = {},
     matcher = {},
-    view = {},
-    action = {}
+    view = {}
 }
 
 local function merge(a, b)

@@ -13,7 +13,6 @@ local M = {
     }),
     senarios = Dim.new(),
     context_managers = Dim.new(),
-    actions = Dim.new(),
     _debug = true,
     -- mutables
     view = nil,
@@ -61,17 +60,11 @@ local function new_senario_builder(senario_name, diff)
     return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
 end
 
-local function shallow_copy(x)
-    if type(x) ~= 'table' then return x end
-    local ret = {}
-    for k, v in pairs(x) do ret[k] = v end
-    return ret
-end
-
-local function new_serializable(senario)
-    local ret = shallow_copy(senario)
-    ret.linearf = shallow_copy(senario.linearf)
-    ret.linearf.action = nil
+local function with_serializable(senario, f)
+    local action = senario.action
+    senario.action = nil
+    local ret = f(senario)
+    senario.action = action
     return ret
 end
 
@@ -79,7 +72,9 @@ function M.run(senario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
-    local id = M.bridge.run(new_serializable(senario)):unwrap()
+    local id = with_serializable(senario, function(s)
+        return M.bridge.run(s):unwrap()
+    end)
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
@@ -94,12 +89,14 @@ local function expect_session(sid)
     return sess
 end
 
-function M.query(session_id, q)
+function M._query(session_id, q)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local sess = expect_session(session_id)
     local senario = sess.senario_builder:build()
     senario.linearf.query = q
-    local id = M.bridge.tick(session_id, new_serializable(senario)):unwrap()
+    local id = with_serializable(senario, function(s)
+        return M.bridge.tick(session_id, s):unwrap()
+    end)
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)

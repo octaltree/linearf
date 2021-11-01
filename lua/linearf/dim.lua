@@ -33,9 +33,7 @@ function Dim.get(self, ...)
 end
 
 function Dim.set_multi(self, places, value)
-    for _, place in ipairs(places) do
-        self:set(utils.unpack(place), value)
-    end
+    for _, place in ipairs(places) do self:set(utils.unpack(place), value) end
     return self
 end
 
