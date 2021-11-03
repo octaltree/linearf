@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 
-const RT: &str = "_lienarf_rt";
+const RT: &str = "_linearf_rt";
 const LINEARF: &str = "_linearf_linearf";
 
 #[macros::lua_module]
