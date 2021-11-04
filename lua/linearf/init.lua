@@ -61,10 +61,10 @@ local function new_senario_builder(senario_name, diff)
 end
 
 local function with_serializable(senario, f)
-    local action = senario.action
-    senario.action = nil
+    local actions = senario.actions
+    senario.actions = nil
     local ret = f(senario)
-    senario.action = action
+    senario.actions = actions
     return ret
 end
 
