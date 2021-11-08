@@ -199,7 +199,7 @@ do -- PRIVATE
                 first_changedtick = false
                 return
             end
-            linearf.view.current.query(vim.fn.getline(1))
+            linearf.view.current:query(vim.fn.getline(1))
         end
         utils.augroup('linearf_querier', {
             "au TextChanged,TextChangedI,TextchangedP <buffer> lua linearf.view._querier_on_changed()"
