@@ -60,21 +60,11 @@ local function new_senario_builder(senario_name, diff)
     return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
 end
 
-local function with_serializable(senario, f)
-    local actions = senario.actions
-    senario.actions = nil
-    local ret = f(senario)
-    senario.actions = actions
-    return ret
-end
-
 function M.run(senario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local senario_builder = new_senario_builder(senario_name, diff)
     local senario = senario_builder:build()
-    local id = with_serializable(senario, function(s)
-        return M.bridge.run(s):unwrap()
-    end)
+    local id = M.bridge.run(senario):unwrap()
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
@@ -94,9 +84,7 @@ function M._query(session_id, q)
     local sess = expect_session(session_id)
     local senario = sess.senario_builder:build()
     senario.linearf.query = q
-    local id = with_serializable(senario, function(s)
-        return M.bridge.tick(session_id, s):unwrap()
-    end)
+    local id = M.bridge.tick(session_id, senario):unwrap()
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, senario)
@@ -121,23 +109,6 @@ end
 function M.remove_session(session_id)
     M.bridge.remove_session(session_id):unwrap()
     M._sessions[session_id] = nil
-end
-
-function M.execute_action(senario, items)
-    local a
-    if type(senario.linearf.action) == 'function' then
-        a = senario.linearf.action
-    else
-        local name = senario.linearf.action
-        a = M.actions[name]
-        if type(a) ~= 'function' then
-            error(string.format('Action "%s" is not found', name))
-        end
-    end
-    senario.view = nil
-    senario.source = nil
-    senario.matcher = nil
-    return a(senario, items)
 end
 
 return setmetatable(M, {

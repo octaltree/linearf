@@ -116,9 +116,10 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
 }
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
-    let vars = Vars::deserialize(LuaDeserializer::new(LuaValue::Table(
-        senario.raw_get::<_, LuaTable>("linearf")?
-    )))?;
+    let vars = Vars::deserialize(LuaDeserializer::new_with_options(
+        LuaValue::Table(senario.raw_get::<_, LuaTable>("linearf")?),
+        LuaDeserializeOptions::new().deny_unsupported_types(false)
+    ))?;
     let source = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("source")?);
     let matcher = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("matcher")?);
     Ok(state::Senario {

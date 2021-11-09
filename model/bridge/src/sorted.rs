@@ -69,8 +69,6 @@ struct Fields {
     #[serde(default)]
     id: bool,
     #[serde(default)]
-    r#type: bool,
-    #[serde(default)]
     value: bool,
     #[serde(default)]
     info: bool,
@@ -110,9 +108,6 @@ fn convert_item<'a>(lua: &'a Lua, fields: Fields, i: &Item) -> LuaResult<LuaTabl
     let ret = lua.create_table_with_capacity(0, 5)?;
     if fields.id {
         ret.set("id", i.id)?;
-    }
-    if fields.r#type {
-        ret.set("type", i.r#type)?;
     }
     if fields.value {
         ret.set("value", maybe_utf8_into_lua_string(lua, &i.value)?)?;

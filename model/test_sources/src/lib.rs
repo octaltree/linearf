@@ -29,7 +29,7 @@ pub mod source {
             let s = futures::stream::unfold(0..1000000, |mut it| async {
                 it.next().map(|i| {
                     let id = i + 1;
-                    let item = Item::new(id, "number", MaybeUtf8::Utf8(i.to_string()));
+                    let item = Item::new(id, MaybeUtf8::Utf8(i.to_string()));
                     (item, it)
                 })
             });
@@ -78,7 +78,7 @@ pub mod source {
                 .filter_map(|e| Some(e.ok()?.path()))
                 .enumerate()
                 .filter_map(|(i, p)| Some((i.try_into().ok()?, p)))
-                .map(|(id, p)| Item::new(id, "path", MaybeUtf8::Os(p.into_os_string())));
+                .map(|(id, p)| Item::new(id, MaybeUtf8::Os(p.into_os_string())));
             let s = futures::stream::unfold(it, |mut it| async { it.next().map(|i| (i, it)) });
             Box::pin(s)
         }
@@ -167,9 +167,6 @@ pub mod converter {
 
     impl<L> SimpleConverter for OddEven<L> {
         fn convert(&self, item: Item) -> Item {
-            if item.r#type != "number" {
-                return item;
-            }
             if let Ok(x) = item.view().parse::<i32>() {
                 let view = Some(if x % 2 == 0 {
                     format!("e{}", x)

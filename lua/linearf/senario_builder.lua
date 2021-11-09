@@ -5,7 +5,7 @@ local SenarioBuilder = {}
 --   * source: SourceParams,
 --   * matcher: MatcherParams,
 --   * view: ViewParams,
--- actions is e.g. {'directory' = {'querier_insert' = {'<CR>' = function(items) end}}}
+-- list_nmap is e.g. {'<CR>' = function(items) end}
 local DEFAULT = {
     linearf = {
         query = '',
@@ -14,7 +14,9 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
-        actions = {}
+        querier_imap  = {},
+        querier_nmap  = {},
+        list_nmap  = {}
     },
     source = {},
     matcher = {},
