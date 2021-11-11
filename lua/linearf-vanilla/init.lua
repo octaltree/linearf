@@ -9,6 +9,22 @@ local function time(name)
     utils.command_("echomsg '%s' .. reltimestr(reltime(g:_linearf_time))", name)
 end
 
+local function initialize_global_map()
+    local commands = function(cs)
+        for _, c in ipairs(cs) do utils.command(c) end
+    end
+    commands {
+        'nnor <Plug>(linearf-hide-all) :<c-u>lua linearf.view:hide_all()<CR>',
+        'inor <Plug>(linearf-hide-all) <cmd>lua linearf.view:hide_all()<CR>',
+        'nnor <Plug>(linearf-goto-list) :<c-u>lua linearf.view:goto_list()<CR>',
+        'inor <Plug>(linearf-goto-list) <cmd>lua linearf.view:goto_list()<CR>',
+        'nnor <Plug>(linearf-goto-querier) :<c-u>lua linearf.view:goto_querier()<CR>',
+        'inor <Plug>(linearf-goto-querier) <cmd>lua linearf.view:goto_querier()<CR>',
+        'nnor <Plug>(linearf-goto-querier-insert) :<c-u>lua linearf.view:goto_querier_insert()<CR>',
+        'inor <Plug>(linearf-goto-querier-insert) <cmd>lua linearf.view:goto_querier_insert()<CR>'
+    }
+end
+
 do -- REQUIRED
     function Vanilla.new()
         local this = {}
@@ -20,6 +36,8 @@ do -- REQUIRED
 
         this.curview = nil
         this.session_view = Dim.new()
+
+        initialize_global_map()
         return setmetatable(this, {__index = Vanilla})
     end
 
@@ -53,8 +71,22 @@ do -- REQUIRED
 end
 
 do -- DUCK TYPING
-    function Vanilla.hide_all(self)
+    -- vanilla has only one set of windows at most across all tabs, so view_id is not needed
+    function Vanilla.hide_all(self, _view_id)
         self:_close_all()
+    end
+
+    function Vanilla.goto_list(self, _view_id)
+        vim.fn.win_gotoid(self.list_win)
+    end
+
+    function Vanilla.goto_querier(self, _view_id)
+        vim.fn.win_gotoid(self.querier_win)
+    end
+
+    function Vanilla.goto_querier_insert(self, _view_id)
+        if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
+        vim.fn.feedkeys('A', 'n')
     end
 end
 
@@ -213,9 +245,11 @@ do -- PRIVATE
         utils.command('setlocal ft=linearf-vanilla-list')
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
 
+        -- linearf-toggle-select, select-all, unselect-all?
+
         utils.augroup('linearf_list', {
             string.format(
-                "autocmd CursorMoved <buffer> lua linearf.view.session_view:set(%s, %s, vim.fn.winsaveview())",
+                "au CursorMoved <buffer> lua linearf.view.session_view:set(%s, %s, vim.fn.winsaveview())",
                 flow.session_id, flow.flow_id)
         })
     end
