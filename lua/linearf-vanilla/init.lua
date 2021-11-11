@@ -28,6 +28,7 @@ end
 do -- REQUIRED
     function Vanilla.new()
         local this = {}
+        this.orig_win = nil
         this.list_win = nil
         this.querier_win = nil
 
@@ -55,6 +56,7 @@ do -- REQUIRED
     -- }
     function Vanilla.flow(self, ctx, flow)
         ctx.refresh = ctx.awake == 'session' or ctx.awake == 'resume'
+        self:_save_orig_win()
         self:_save_prev_flow(flow)
         local resume_view = self:_resume_view(ctx, flow)
         local buff, done, skip = self:_first_view(ctx, flow, resume_view)
@@ -91,6 +93,12 @@ end
 
 do -- PRIVATE
     local FIELDS = {id = true, view = true}
+
+    function Vanilla._save_orig_win(self)
+        local current = vim.fn.win_getid()
+        if self.querier_win == current or self.list_win == currrent then return end
+        self.orig_win = current
+    end
 
     function Vanilla._save_prev_flow(self, flow)
         self.prev_flow = self.current
@@ -233,7 +241,10 @@ do -- PRIVATE
         end
         local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
         local items = {self.shown[cur]}
+        local tmp = vim.fn.win_getid()
+        vim.fn.win_gotoid(self.orig_win)
         fn(items)
+        vim.fn.win_gotoid(tmp)
     end
 
     local function setlocal_querier_win(ctx, flow)
