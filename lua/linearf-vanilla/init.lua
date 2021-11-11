@@ -33,9 +33,8 @@ do -- REQUIRED
 
         this.prev_flow = nil
         this.current = nil
-
-        this.curview = nil
         this.session_view = Dim.new()
+        this.shown = {}
 
         initialize_global_map()
         return setmetatable(this, {__index = Vanilla})
@@ -173,6 +172,7 @@ do -- PRIVATE
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
         vim.fn.setbufline(buff.list[1], 1, lines)
+        self.shown = items
         return buff, last, count == 0 and not last
     end
 
@@ -223,12 +223,17 @@ do -- PRIVATE
         return tostring(f):gsub("^function: ", '')
     end
 
-    function Vanilla._find_function_hash(dic, fh)
+    function Vanilla._execute(self, dic_name, fh)
+        local dic = self.current.senario.linearf[dic_name]
+        local fn = nil
         for _, f in pairs(dic) do
             if function_hash(f) == fh then
-                return f
+                fn = f
             end
         end
+        local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
+        local items = {self.shown[cur]}
+        fn(items)
     end
 
     local function setlocal_querier_win(ctx, flow)
@@ -240,12 +245,12 @@ do -- PRIVATE
         -- TODO: args
         for k, v in pairs(flow.senario.linearf.querier_nnoremap) do
             local h = function_hash(v)
-            local r = string.format(':<c-u>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.querier_nnoremap, %q)()<CR>', h)
+            local r = string.format(':<c-u>lua linearf.view:_execute("querier_nnoremap", %q)<CR>', h)
             utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
         end
         for k, v in pairs(flow.senario.linearf.querier_inoremap) do
             local h = function_hash(v)
-            local r = string.format('<cmd>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.querier_inoremap, %q)()<CR>', h)
+            local r = string.format('<cmd>lua linearf.view:_execute("querier_inoremap", %q)<CR>', h)
             utils.command(string.format('inor <silent><buffer>%s %s', k, r))
         end
 
@@ -271,7 +276,7 @@ do -- PRIVATE
 
         for k, v in pairs(flow.senario.linearf.list_nnoremap) do
             local h = function_hash(v)
-            local r = string.format(':<c-u>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.list_nnoremap, %q)()<CR>', h)
+            local r = string.format(':<c-u>lua linearf.view:_execute("list_nnoremap", %q)<CR>', h)
             utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
         end
 
@@ -409,6 +414,7 @@ do -- PRIVATE
                 local b = nofile.new(title(senario.linearf.query, count,
                                            source_count, done))
                 vim.fn.setbufline(b, 1, lines)
+                self.shown = items
                 table.insert(buff.list, b)
                 if self.current ~= flow then
                     vim.fn.timer_stop(timer)
@@ -448,6 +454,9 @@ do -- PRIVATE
                 table.insert(lines, item.view)
             end
             vim.fn.setbufline(b, l, lines)
+            for _, item in ipairs(items) do
+                table.insert(self.shown, item)
+            end
             l = l + #items
             if l > count then
                 time('last done')
