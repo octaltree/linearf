@@ -17,7 +17,7 @@ local function initialize_global_map()
         'nnor <Plug>(linearf-hide-all) :<c-u>lua linearf.view:hide_all()<CR>',
         'inor <Plug>(linearf-hide-all) <cmd>lua linearf.view:hide_all()<CR>',
         'nnor <Plug>(linearf-goto-list) :<c-u>lua linearf.view:goto_list()<CR>',
-        'inor <Plug>(linearf-goto-list) <cmd>lua linearf.view:goto_list()<CR>',
+        'inor <Plug>(linearf-goto-list) <esc>:<c-u>lua linearf.view:goto_list()<CR>',
         'nnor <Plug>(linearf-goto-querier) :<c-u>lua linearf.view:goto_querier()<CR>',
         'inor <Plug>(linearf-goto-querier) <cmd>lua linearf.view:goto_querier()<CR>',
         'nnor <Plug>(linearf-goto-querier-insert) :<c-u>lua linearf.view:goto_querier_insert()<CR>',
@@ -219,11 +219,35 @@ do -- PRIVATE
         utils.command('setlocal nonumber')
     end
 
-    local function setlocal_querier_win(ctx)
+    local function function_hash(f)
+        return tostring(f):gsub("^function: ", '')
+    end
+
+    function Vanilla._find_function_hash(dic, fh)
+        for _, f in pairs(dic) do
+            if function_hash(f) == fh then
+                return f
+            end
+        end
+    end
+
+    local function setlocal_querier_win(ctx, flow)
         win_common()
         utils.command('setlocal ft=linearf-vanilla-querier')
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
+
+        -- TODO: args
+        for k, v in pairs(flow.senario.linearf.querier_nnoremap) do
+            local h = function_hash(v)
+            local r = string.format(':<c-u>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.querier_nnoremap, %q)()<CR>', h)
+            utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
+        end
+        for k, v in pairs(flow.senario.linearf.querier_inoremap) do
+            local h = function_hash(v)
+            local r = string.format('<cmd>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.querier_inoremap, %q)()<CR>', h)
+            utils.command(string.format('inor <silent><buffer>%s %s', k, r))
+        end
 
         local first_changedtick = ctx.refresh
         linearf.view._querier_on_changed = function()
@@ -244,6 +268,12 @@ do -- PRIVATE
         win_common()
         utils.command('setlocal ft=linearf-vanilla-list')
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
+
+        for k, v in pairs(flow.senario.linearf.list_nnoremap) do
+            local h = function_hash(v)
+            local r = string.format(':<c-u>lua linearf.view._find_function_hash(linearf.view.current.senario.linearf.list_nnoremap, %q)()<CR>', h)
+            utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
+        end
 
         -- linearf-toggle-select, select-all, unselect-all?
 
@@ -269,7 +299,7 @@ do -- PRIVATE
             end
             vim.fn.win_gotoid(self.querier_win)
             utils.command("buffer " .. querier)
-            setlocal_querier_win(ctx)
+            setlocal_querier_win(ctx, flow)
         end
         if ctx.refresh then
             local tab = current_tab()
@@ -297,7 +327,7 @@ do -- PRIVATE
         setlocal_list_win(flow)
         utils.command('silent keepalt aboveleft sb ' .. querier)
         self.querier_win = vim.fn.win_getid()
-        setlocal_querier_win(ctx)
+        setlocal_querier_win(ctx, flow)
     end
 
     function Vanilla._set_cursor(self, ctx, flow, resume_view)

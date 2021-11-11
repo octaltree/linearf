@@ -14,9 +14,9 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
-        querier_imap = {},
-        querier_nmap = {},
-        list_nmap = {}
+        querier_inoremap = {},
+        querier_nnoremap = {},
+        list_nnoremap = {}
     },
     source = {},
     matcher = {},
