@@ -19,6 +19,10 @@ function Flow.items(self, ranges, fields)
     return self.bridge.flow_items(self.session_id, self.flow_id, ranges, fields)
 end
 
+function Flow.id_items(self, ids, fields)
+    return self.bridge.flow_id_items(self.session_id, self.flow_id, ids, fields)
+end
+
 function Flow.query(self, q)
     local linearf = require('linearf')
     return linearf._query(self.session_id, q)

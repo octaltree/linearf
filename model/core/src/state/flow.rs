@@ -8,7 +8,9 @@ use crate::{
 };
 use chunks::Chunks;
 use futures::{pin_mut, Stream, StreamExt};
-use std::{any::Any, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant};
+use std::{
+    any::Any, collections::HashSet, future::Future, pin::Pin, sync::Arc, task::Poll, time::Instant
+};
 use tokio::{
     sync::{RwLock, RwLockReadGuard},
     task::JoinHandle
@@ -336,5 +338,14 @@ fn run_sort(
 impl Flow {
     pub async fn sorted(&self) -> Option<RwLockReadGuard<'_, Sorted>> {
         Some(self.sorted.as_ref()?.read().await)
+    }
+}
+
+impl Sorted {
+    pub fn id_items<'a>(&'a self, ids: &'a HashSet<u32>) -> impl Iterator<Item = WithScore> + 'a {
+        self.items
+            .iter()
+            .filter(|(i, _)| ids.contains(&i.id))
+            .cloned()
     }
 }

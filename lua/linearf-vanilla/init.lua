@@ -96,7 +96,9 @@ do -- PRIVATE
 
     function Vanilla._save_orig_win(self)
         local current = vim.fn.win_getid()
-        if self.querier_win == current or self.list_win == currrent then return end
+        if self.querier_win == current or self.list_win == current then
+            return
+        end
         self.orig_win = current
     end
 
@@ -231,6 +233,17 @@ do -- PRIVATE
         return tostring(f):gsub("^function: ", '')
     end
 
+    function Vanilla._items(self)
+        local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
+        local xs = {self.shown[cur]}
+        local ids = {}
+        for _, x in ipairs(xs) do
+            table.insert(ids, x.id)
+        end
+        local fields = {id = true, value = true, info = true}
+        return self.current:id_items(ids, fields):unwrap()
+    end
+
     function Vanilla._execute(self, dic_name, fh)
         local dic = self.current.senario.linearf[dic_name]
         local fn = nil
@@ -239,8 +252,7 @@ do -- PRIVATE
                 fn = f
             end
         end
-        local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
-        local items = {self.shown[cur]}
+        local items = self:_items()
         local tmp = vim.fn.win_getid()
         vim.fn.win_gotoid(self.orig_win)
         fn(items)
