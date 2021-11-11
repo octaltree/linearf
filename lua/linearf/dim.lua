@@ -1,5 +1,7 @@
 local Dim = {}
 
+local utils = require('linearf.utils')
+
 function Dim.new()
     return setmetatable({}, {__index = Dim})
 end
@@ -28,6 +30,11 @@ function Dim.get(self, ...)
     local ret = self
     for _, k in ipairs(args) do ret = (ret or {})[k] end
     return ret
+end
+
+function Dim.set_multi(self, places, value)
+    for _, place in ipairs(places) do self:set(utils.unpack(place), value) end
+    return self
 end
 
 return Dim

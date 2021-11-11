@@ -12,17 +12,15 @@ pub enum MaybeUtf8 {
 pub struct Item {
     /// id must not be 0
     pub id: u32,
-    pub r#type: &'static str,
     pub value: MaybeUtf8,
     pub info: Option<Map<String, Value>>,
     pub view: Option<String>,
     pub view_for_matcing: Option<String>
 }
 impl Item {
-    pub fn new(id: u32, r#type: &'static str, value: MaybeUtf8) -> Self {
+    pub fn new(id: u32, value: MaybeUtf8) -> Self {
         Self {
             id,
-            r#type,
             value,
             info: None,
             view: None,

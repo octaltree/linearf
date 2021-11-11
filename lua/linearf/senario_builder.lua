@@ -5,6 +5,7 @@ local SenarioBuilder = {}
 --   * source: SourceParams,
 --   * matcher: MatcherParams,
 --   * view: ViewParams,
+-- list_nmap is e.g. {'<CR>' = function(items) end}
 local DEFAULT = {
     linearf = {
         query = '',
@@ -13,13 +14,13 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
-        action = function(_senario, _items)
-        end -- name or function
+        querier_inoremap = {},
+        querier_nnoremap = {},
+        list_nnoremap = {}
     },
     source = {},
     matcher = {},
-    view = {},
-    action = {}
+    view = {}
 }
 
 local function merge(a, b)

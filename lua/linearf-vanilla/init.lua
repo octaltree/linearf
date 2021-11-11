@@ -9,17 +9,35 @@ local function time(name)
     utils.command_("echomsg '%s' .. reltimestr(reltime(g:_linearf_time))", name)
 end
 
+local function initialize_global_map()
+    local commands = function(cs)
+        for _, c in ipairs(cs) do utils.command(c) end
+    end
+    commands {
+        'nnor <Plug>(linearf-hide-all) :<c-u>lua linearf.view:hide_all()<CR>',
+        'inor <Plug>(linearf-hide-all) <cmd>lua linearf.view:hide_all()<CR>',
+        'nnor <Plug>(linearf-goto-list) :<c-u>lua linearf.view:goto_list()<CR>',
+        'inor <Plug>(linearf-goto-list) <esc>:<c-u>lua linearf.view:goto_list()<CR>',
+        'nnor <Plug>(linearf-goto-querier) :<c-u>lua linearf.view:goto_querier()<CR>',
+        'inor <Plug>(linearf-goto-querier) <cmd>lua linearf.view:goto_querier()<CR>',
+        'nnor <Plug>(linearf-goto-querier-insert) :<c-u>lua linearf.view:goto_querier_insert()<CR>',
+        'inor <Plug>(linearf-goto-querier-insert) <cmd>lua linearf.view:goto_querier_insert()<CR>'
+    }
+end
+
 do -- REQUIRED
     function Vanilla.new()
         local this = {}
+        this.orig_win = nil
         this.list_win = nil
         this.querier_win = nil
 
         this.prev_flow = nil
         this.current = nil
-
-        this.curview = nil
         this.session_view = Dim.new()
+        this.shown = {}
+
+        initialize_global_map()
         return setmetatable(this, {__index = Vanilla})
     end
 
@@ -38,6 +56,7 @@ do -- REQUIRED
     -- }
     function Vanilla.flow(self, ctx, flow)
         ctx.refresh = ctx.awake == 'session' or ctx.awake == 'resume'
+        self:_save_orig_win()
         self:_save_prev_flow(flow)
         local resume_view = self:_resume_view(ctx, flow)
         local buff, done, skip = self:_first_view(ctx, flow, resume_view)
@@ -53,13 +72,35 @@ do -- REQUIRED
 end
 
 do -- DUCK TYPING
-    function Vanilla.hide_all(self)
+    -- vanilla has only one set of windows at most across all tabs, so view_id is not needed
+    function Vanilla.hide_all(self, _view_id)
         self:_close_all()
+    end
+
+    function Vanilla.goto_list(self, _view_id)
+        vim.fn.win_gotoid(self.list_win)
+    end
+
+    function Vanilla.goto_querier(self, _view_id)
+        vim.fn.win_gotoid(self.querier_win)
+    end
+
+    function Vanilla.goto_querier_insert(self, _view_id)
+        if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
+        vim.fn.feedkeys('A', 'n')
     end
 end
 
 do -- PRIVATE
     local FIELDS = {id = true, view = true}
+
+    function Vanilla._save_orig_win(self)
+        local current = vim.fn.win_getid()
+        if self.querier_win == current or self.list_win == current then
+            return
+        end
+        self.orig_win = current
+    end
 
     function Vanilla._save_prev_flow(self, flow)
         self.prev_flow = self.current
@@ -141,6 +182,7 @@ do -- PRIVATE
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
         vim.fn.setbufline(buff.list[1], 1, lines)
+        self.shown = items
         return buff, last, count == 0 and not last
     end
 
@@ -187,11 +229,53 @@ do -- PRIVATE
         utils.command('setlocal nonumber')
     end
 
-    local function setlocal_querier_win(ctx)
+    local function function_hash(f)
+        return tostring(f):gsub("^function: ", '')
+    end
+
+    function Vanilla._items(self)
+        local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
+        local xs = {self.shown[cur]}
+        local ids = {}
+        for _, x in ipairs(xs) do
+            table.insert(ids, x.id)
+        end
+        local fields = {id = true, value = true, info = true}
+        return self.current:id_items(ids, fields):unwrap()
+    end
+
+    function Vanilla._execute(self, dic_name, fh)
+        local dic = self.current.senario.linearf[dic_name]
+        local fn = nil
+        for _, f in pairs(dic) do
+            if function_hash(f) == fh then
+                fn = f
+            end
+        end
+        local items = self:_items()
+        local tmp = vim.fn.win_getid()
+        vim.fn.win_gotoid(self.orig_win)
+        fn(items)
+        vim.fn.win_gotoid(tmp)
+    end
+
+    local function setlocal_querier_win(ctx, flow)
         win_common()
         utils.command('setlocal ft=linearf-vanilla-querier')
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
+
+        -- TODO: args
+        for k, v in pairs(flow.senario.linearf.querier_nnoremap) do
+            local h = function_hash(v)
+            local r = string.format(':<c-u>lua linearf.view:_execute("querier_nnoremap", %q)<CR>', h)
+            utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
+        end
+        for k, v in pairs(flow.senario.linearf.querier_inoremap) do
+            local h = function_hash(v)
+            local r = string.format('<cmd>lua linearf.view:_execute("querier_inoremap", %q)<CR>', h)
+            utils.command(string.format('inor <silent><buffer>%s %s', k, r))
+        end
 
         local first_changedtick = ctx.refresh
         linearf.view._querier_on_changed = function()
@@ -199,7 +283,7 @@ do -- PRIVATE
                 first_changedtick = false
                 return
             end
-            linearf.query(linearf.view.current.session_id, vim.fn.getline(1))
+            linearf.view.current:query(vim.fn.getline(1))
         end
         utils.augroup('linearf_querier', {
             "au TextChanged,TextChangedI,TextchangedP <buffer> lua linearf.view._querier_on_changed()"
@@ -213,9 +297,17 @@ do -- PRIVATE
         utils.command('setlocal ft=linearf-vanilla-list')
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
 
+        for k, v in pairs(flow.senario.linearf.list_nnoremap) do
+            local h = function_hash(v)
+            local r = string.format(':<c-u>lua linearf.view:_execute("list_nnoremap", %q)<CR>', h)
+            utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
+        end
+
+        -- linearf-toggle-select, select-all, unselect-all?
+
         utils.augroup('linearf_list', {
             string.format(
-                "autocmd CursorMoved <buffer> lua linearf.view.session_view:set(%s, %s, vim.fn.winsaveview())",
+                "au CursorMoved <buffer> lua linearf.view.session_view:set(%s, %s, vim.fn.winsaveview())",
                 flow.session_id, flow.flow_id)
         })
     end
@@ -235,7 +327,7 @@ do -- PRIVATE
             end
             vim.fn.win_gotoid(self.querier_win)
             utils.command("buffer " .. querier)
-            setlocal_querier_win(ctx)
+            setlocal_querier_win(ctx, flow)
         end
         if ctx.refresh then
             local tab = current_tab()
@@ -263,7 +355,7 @@ do -- PRIVATE
         setlocal_list_win(flow)
         utils.command('silent keepalt aboveleft sb ' .. querier)
         self.querier_win = vim.fn.win_getid()
-        setlocal_querier_win(ctx)
+        setlocal_querier_win(ctx, flow)
     end
 
     function Vanilla._set_cursor(self, ctx, flow, resume_view)
@@ -345,6 +437,7 @@ do -- PRIVATE
                 local b = nofile.new(title(senario.linearf.query, count,
                                            source_count, done))
                 vim.fn.setbufline(b, 1, lines)
+                self.shown = items
                 table.insert(buff.list, b)
                 if self.current ~= flow then
                     vim.fn.timer_stop(timer)
@@ -384,6 +477,9 @@ do -- PRIVATE
                 table.insert(lines, item.view)
             end
             vim.fn.setbufline(b, l, lines)
+            for _, item in ipairs(items) do
+                table.insert(self.shown, item)
+            end
             l = l + #items
             if l > count then
                 time('last done')
