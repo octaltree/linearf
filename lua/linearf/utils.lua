@@ -84,8 +84,7 @@ function M.readdir(...)
 end
 
 function M.interval(ms, f)
-    local options = {}
-    options['repeat'] = -1
+    local options = vim.dict({['repeat'] = -1})
     return vim.fn.timer_start(ms, f, options)
 end
 
