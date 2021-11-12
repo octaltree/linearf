@@ -165,7 +165,7 @@ do -- PRIVATE
         local buff = {list = {}}
         buff.querier = nofile.named(self.QUERIER)
         if ctx.refresh then
-            vim.fn.setbufline(buff.querier, 1, flow.senario.linearf.query)
+            utils.setbufline(buff.querier, 1, {flow.senario.linearf.query})
         end
         local size = _first_view_size(flow, resume_view)
         local items, done, count, source_count, last
@@ -181,7 +181,7 @@ do -- PRIVATE
         buff.list[1] = nofile.new(title(vars.query, count, source_count, last))
         local lines = {}
         for _, item in ipairs(items) do table.insert(lines, item.view) end
-        vim.fn.setbufline(buff.list[1], 1, lines)
+        utils.setbufline(buff.list[1], 1, lines)
         self.shown = items
         return buff, last, count == 0 and not last
     end
@@ -436,7 +436,7 @@ do -- PRIVATE
             do -- write
                 local b = nofile.new(title(senario.linearf.query, count,
                                            source_count, done))
-                vim.fn.setbufline(b, 1, lines)
+                utils.setbufline(b, 1, lines)
                 self.shown = items
                 table.insert(buff.list, b)
                 if self.current ~= flow then
@@ -476,7 +476,7 @@ do -- PRIVATE
             for _, item in ipairs(items) do
                 table.insert(lines, item.view)
             end
-            vim.fn.setbufline(b, l, lines)
+            utils.setbufline(b, l, lines)
             for _, item in ipairs(items) do
                 table.insert(self.shown, item)
             end

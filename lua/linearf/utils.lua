@@ -106,6 +106,10 @@ function M.win_id2tabwin(winid)
     end
 end
 
+function M.setbufline(b, lnum, lines)
+  return vim.fn.setbufline(b, lnum, vim.list(lines))
+end
+
 -- PRIVATE
 
 function M.lua_ver()
