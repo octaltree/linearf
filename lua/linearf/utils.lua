@@ -84,7 +84,7 @@ function M.readdir(...)
 end
 
 function M.interval(ms, f)
-    local options = vim.dict({['repeat'] = -1})
+    local options = M.dict({['repeat'] = -1})
     return vim.fn.timer_start(ms, f, options)
 end
 
@@ -106,7 +106,7 @@ function M.win_id2tabwin(winid)
 end
 
 function M.setbufline(b, lnum, lines)
-  return vim.fn.setbufline(b, lnum, vim.list(lines))
+  return vim.fn.setbufline(b, lnum, M.list(lines))
 end
 
 -- PRIVATE
