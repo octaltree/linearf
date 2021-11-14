@@ -288,10 +288,10 @@ where
         }
         match (
             source_reusable(flow),
-            &&matcher.reusable(
+            matcher.reusable(
                 &senario.linearf.matcher,
                 (flow.senario().sorted_vars, flow.senario().matcher),
-                (senario.linearf, senario.source)
+                (senario.linearf, senario.matcher)
             )
         ) {
             (Reusable::Same, Reusable::Same) => Reusable::Same,
