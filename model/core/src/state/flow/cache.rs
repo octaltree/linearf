@@ -127,3 +127,53 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::StreamExt;
+    use test::Bencher;
+    use tokio::runtime::Runtime;
+
+    #[bench]
+    fn rw_cache(b: &mut Bencher) {
+        let s = Box::pin(futures::stream::unfold(0i32..1000000, |mut it| async {
+            it.next().map(|i| (i.to_string(), it))
+        }));
+        let f = Box::pin(s.map(|x| {
+            let score = if x.find('0').is_some() {
+                vec![1]
+            } else {
+                vec![]
+            };
+            (x, score)
+        }));
+        let c = CacheStream::new(f);
+        let rt = Runtime::new().unwrap();
+        let rt2 = rt.handle().clone();
+        b.iter(|| {
+            let r = rt.block_on(async {
+                let c1 = c.reload();
+                let c2 = c.reload();
+                let c3 = c.reload();
+                tokio::join!(
+                    rt2.spawn(async {
+                        pin_mut!(c1);
+                        while c1.next().await.is_some() {}
+                    }),
+                    rt2.spawn(async {
+                        pin_mut!(c2);
+                        while c2.next().await.is_some() {}
+                    }),
+                    rt2.spawn(async {
+                        pin_mut!(c3);
+                        while c3.next().await.is_some() {}
+                    })
+                )
+            });
+            r.0.unwrap();
+            r.1.unwrap();
+            r.2.unwrap();
+        });
+    }
+}
