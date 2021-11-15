@@ -21,6 +21,8 @@ pub struct Flow {
     senario: UsedSenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
     cache: CacheStream<WithScore>,
     sorted: Option<Shared<Sorted>>,
+    // source_handle: Option<JoinHandle<()>>,
+    // matcher_handle: Option<JoinHandle<()>>,
     handles: Vec<JoinHandle<()>>
 }
 
@@ -110,13 +112,6 @@ impl Flow {
             sorted: Some(sorted),
             handles
         })
-    }
-
-    pub(super) fn dispose(&mut self) {
-        for h in &self.handles {
-            h.abort()
-        }
-        self.sorted = None;
     }
 }
 
