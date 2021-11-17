@@ -81,7 +81,6 @@ impl State {
             Flow::start(rt, source, matcher, converter, reuse, senario).map_err(|e| match e {
                 StartError::ConverterNotFound(n) => Error::ConverterNotFound(n)
             })?;
-        dispose_slow_flows(&mut target).await;
         let fid = target.push(flow);
         self.sessions.push_back((id, target));
         Ok((id, fid))
@@ -237,19 +236,6 @@ where
         source: source_params,
         matcher: matcher_params
     })
-}
-
-async fn dispose_slow_flows(session: &mut Session) {
-    for flow in &mut session.flows {
-        let dispose = if let Some(sorted) = flow.sorted().await {
-            !sorted.done
-        } else {
-            false
-        };
-        if dispose {
-            flow.dispose();
-        }
-    }
 }
 
 /// Reusable::Same&&Reuse::Matcher >
