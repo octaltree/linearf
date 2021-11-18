@@ -13,6 +13,7 @@ pub struct Item {
     /// id must not be 0
     pub id: u32,
     pub value: MaybeUtf8,
+    // json value cannot represent luastring
     pub info: Option<Map<String, Value>>,
     pub view: Option<String>,
     pub view_for_matcing: Option<String>

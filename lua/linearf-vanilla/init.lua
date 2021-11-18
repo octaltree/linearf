@@ -14,8 +14,8 @@ local function initialize_global_map()
         for _, c in ipairs(cs) do utils.command(c) end
     end
     commands {
-        'nnor <Plug>(linearf-hide-all) :<c-u>lua linearf.view:hide_all()<CR>',
-        'inor <Plug>(linearf-hide-all) <cmd>lua linearf.view:hide_all()<CR>',
+        'nnor <Plug>(linearf-hide) :<c-u>lua linearf.view:hide()<CR>',
+        'inor <Plug>(linearf-hide) <cmd>lua linearf.view:hide()<CR>',
         'nnor <Plug>(linearf-goto-list) :<c-u>lua linearf.view:goto_list()<CR>',
         'inor <Plug>(linearf-goto-list) <esc>:<c-u>lua linearf.view:goto_list()<CR>',
         'nnor <Plug>(linearf-goto-querier) :<c-u>lua linearf.view:goto_querier()<CR>',
@@ -69,7 +69,7 @@ do -- REQUIRED
     end
 
     function Vanilla.destruct(self)
-        self:hide_all()
+        self:_close_all()
     end
 
     function Vanilla.orig_winid(self)
@@ -79,7 +79,7 @@ end
 
 do -- DUCK TYPING
     -- vanilla has only one set of windows at most across all tabs, so view_id is not needed
-    function Vanilla.hide_all(self, _view_id)
+    function Vanilla.hide(self, _view_id)
         self:_close_all()
     end
 
@@ -99,6 +99,14 @@ do -- DUCK TYPING
     function Vanilla.goto_querier_insert(self, _view_id)
         if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
         vim.fn.feedkeys('A', 'n')
+    end
+
+    function Vanilla.execute(self, action, view_id)
+        local items = self:_items()
+        local tmp = vim.fn.win_getid()
+        vim.fn.win_gotoid(self.orig_win)
+        action(items, view_id)
+        vim.fn.win_gotoid(tmp)
     end
 end
 
@@ -260,11 +268,8 @@ do -- PRIVATE
         for _, f in pairs(dic) do
             if function_hash(f) == fh then fn = f end
         end
-        local items = self:_items()
-        local tmp = vim.fn.win_getid()
-        vim.fn.win_gotoid(self.orig_win)
-        fn(items)
-        vim.fn.win_gotoid(tmp)
+        local view_id = nil
+        self:execute(fn, view_id)
     end
 
     local function setlocal_querier_win(ctx, flow)

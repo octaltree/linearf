@@ -23,57 +23,70 @@ Paste config file
 ```vim
 lua<<EOF
 local linearf = require('linearf')
+local flavors = require('linearf_my_flavors')
+
+-- Initialize with a view module
 linearf.init(require('linearf-vanilla').new())
 
-linearf.recipe.sources = {}
-linearf.recipe.matchers = {}
-linearf.recipe.converters = {}
-
-linearf.senarios = {
-    simple = {
-        linearf = {
-            source = 'simple',
-            matcher = 'substring',
-            querier_inoremap = {
-                ["<CR>"] = function(items)
-                    print(vim.inspect(items))
-                    linearf.view:hide_all()
-                end
-            },
-            list_nnoremap = {
-                ["<CR>"] = function(items)
-                    print(vim.inspect(items))
-                    linearf.view:hide_all()
-                end
-            }
-        }
+linearf.recipe.sources = {
+    {
+        name = "identity",
+        path = "flavors_plain::Identity"
     },
-    osstr = {
-        linearf = {
-            source = 'osstr',
-            matcher = 'substring',
-            list_nnoremap = {
-                ["<CR>"] = function(items)
-                  linearf.utils.command(vim.fn.printf("e %s", items[1].value))
-                  linearf.view:hide_all()
-                end
-            }
-        }
+    {
+        name = "command",
+        path = "flavors_tokio::Command"
+    }
+}
+linearf.recipe.matchers = {
+    {
+        name = "identity",
+        path = "flavors_plain::Identity"
+    },
+    {
+        name = "substring",
+        path = "flavors_plain::Substring"
+    }
+}
+linearf.recipe.converters = {
+    {
+        name = "format_line",
+        path = "flavors_plain::FormatLine"
     }
 }
 
-linearf.bridge.try_build_if_not_exist = true
+-- Define senarios with presets and your preferences
+linearf.senarios['line'] = flavors.merge(flavors.senarios['line'], {
+    linearf = {
+        list_nnoremap = {
+            ["<CR>"] = flavors.hide_and(flavors.actions.line.jump)
+        }
+    },
+    view = {
+        querier_on_start = 'insert'
+    }
+})
+linearf.senarios['file'] = flavors.merge(flavors.senarios['file_find'], {})
+linearf.senarios['grep'] = flavors.merge(flavors.senarios['grep_rg'], {})
+linearf.context_managers['line'] = flavors.context_managers['line']
+linearf.context_managers['file'] = flavors.context_managers['file_find']
+linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
+
+-- Auto building if you want
+linearf.bridge.try_build_if_not_loaded = true
 linearf.bridge.try_build_on_error = true
 EOF
+
+nnoremap <Denite>/ :<c-u>lua lnf('line')<CR>
 au FileType linearf-vanilla-querier call s:bind_linearf_vanilla_querier()
 function! s:bind_linearf_vanilla_querier() abort
-  nmap <silent><buffer><nowait>q <Plug>(linearf-hide-all)
+  nmap <silent><buffer><nowait>q <Plug>(linearf-hide)
   nmap <silent><buffer><CR> <Plug>(linearf-goto-list)
   imap <silent><buffer><esc> <Plug>(linearf-goto-list)
 endfunction
 au FileType linearf-vanilla-list call s:bind_linearf_vanilla_list()
 function! s:bind_linearf_vanilla_list() abort
-  nmap <silent><buffer><nowait>q <Plug>(linearf-hide-all)
+  nmap <silent><buffer><nowait>q <Plug>(linearf-hide)
   nmap <silent><buffer>i <Plug>(linearf-goto-querier-insert)
   nmap <silent><buffer>I <Plug>(linearf-goto-querier-insert)
   nmap <silent><buffer>a <Plug>(linearf-goto-querier-insert)
@@ -82,11 +95,12 @@ function! s:bind_linearf_vanilla_list() abort
   nmap <silent><buffer>O <Plug>(linearf-goto-querier-insert)
 endfunction
 ```
+
 Then run with the pre-defined senario and its difference.
 ```vim
-lua linearf({})
-lua linearf('simple')
-lua linearf('simple', {})
+lua lnf('line')
+lua lnf('line', {})
+lua lnf({})
 ```
 For more information, see `:help linearf`
 
