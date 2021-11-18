@@ -48,7 +48,7 @@ function M.init(view)
     M.view = view
 end
 
-local function new_senario_builder(senario_name, diff)
+local function new_senario_builder(senario_name, diff, winid)
     local base = M.senarios[senario_name]
     if not base then base = {} end
     local c = M.context_managers[senario_name]
@@ -57,13 +57,14 @@ local function new_senario_builder(senario_name, diff)
             return nil
         end
     end
-    return SenarioBuilder.new(M.view.DEFAULT, base, c, diff)
+    return SenarioBuilder.new(M.view.DEFAULT, base, c, diff, winid)
 end
 
 function M.run(senario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
-    local senario_builder = new_senario_builder(senario_name, diff)
-    local senario = senario_builder:build()
+    local target = M.view:orig_winid() or vim.fn.win_getid()
+    local senario_builder = new_senario_builder(senario_name, diff, target)
+    local senario = senario_builder:for_session()
     local id = M.bridge.run(senario):unwrap()
     local sid = id.session
     local fid = id.flow
@@ -82,7 +83,7 @@ end
 function M._query(session_id, q)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local sess = expect_session(session_id)
-    local senario = sess.senario_builder:build()
+    local senario = sess.senario_builder:for_flow()
     senario.linearf.query = q
     local id = M.bridge.tick(session_id, senario):unwrap()
     local sid = id.session

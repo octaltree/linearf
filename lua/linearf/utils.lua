@@ -106,7 +106,12 @@ function M.win_id2tabwin(winid)
 end
 
 function M.setbufline(b, lnum, lines)
-  return vim.fn.setbufline(b, lnum, M.list(lines))
+    return vim.fn.setbufline(b, lnum, M.list(lines))
+end
+
+function M.win_id2bufnr(winid)
+    local infos = vim.fn.getwininfo(winid)
+    return (infos[0] or infos[1])['bufnr']
 end
 
 -- PRIVATE

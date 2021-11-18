@@ -71,6 +71,10 @@ do -- REQUIRED
     function Vanilla.destruct(self)
         self:hide_all()
     end
+
+    function Vanilla.orig_winid(self)
+        return self.orig_win
+    end
 end
 
 do -- DUCK TYPING
@@ -241,12 +245,11 @@ do -- PRIVATE
     end
 
     function Vanilla._items(self)
-        local cur = (self.session_view:get(self.current.session_id, self.current.flow_id) or {lnum = 1})['lnum']
+        local cur = (self.session_view:get(self.current.session_id,
+                                           self.current.flow_id) or {lnum = 1})['lnum']
         local xs = {self.shown[cur]}
         local ids = {}
-        for _, x in ipairs(xs) do
-            table.insert(ids, x.id)
-        end
+        for _, x in ipairs(xs) do table.insert(ids, x.id) end
         local fields = {id = true, value = true, info = true}
         return self.current:id_items(ids, fields):unwrap()
     end
@@ -255,9 +258,7 @@ do -- PRIVATE
         local dic = self.current.senario.linearf[dic_name]
         local fn = nil
         for _, f in pairs(dic) do
-            if function_hash(f) == fh then
-                fn = f
-            end
+            if function_hash(f) == fh then fn = f end
         end
         local items = self:_items()
         local tmp = vim.fn.win_getid()
@@ -275,12 +276,16 @@ do -- PRIVATE
         -- TODO: args
         for k, v in pairs(flow.senario.linearf.querier_nnoremap) do
             local h = function_hash(v)
-            local r = string.format(':<c-u>lua linearf.view:_execute("querier_nnoremap", %q)<CR>', h)
+            local r = string.format(
+                          ':<c-u>lua linearf.view:_execute("querier_nnoremap", %q)<CR>',
+                          h)
             utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
         end
         for k, v in pairs(flow.senario.linearf.querier_inoremap) do
             local h = function_hash(v)
-            local r = string.format('<cmd>lua linearf.view:_execute("querier_inoremap", %q)<CR>', h)
+            local r = string.format(
+                          '<cmd>lua linearf.view:_execute("querier_inoremap", %q)<CR>',
+                          h)
             utils.command(string.format('inor <silent><buffer>%s %s', k, r))
         end
 
@@ -306,7 +311,9 @@ do -- PRIVATE
 
         for k, v in pairs(flow.senario.linearf.list_nnoremap) do
             local h = function_hash(v)
-            local r = string.format(':<c-u>lua linearf.view:_execute("list_nnoremap", %q)<CR>', h)
+            local r = string.format(
+                          ':<c-u>lua linearf.view:_execute("list_nnoremap", %q)<CR>',
+                          h)
             utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
         end
 

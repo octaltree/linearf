@@ -40,13 +40,14 @@ local function merge(a, b)
     return ret
 end
 
-function SenarioBuilder.new(view_default, base, context_manager, diff)
+function SenarioBuilder.new(view_default, base, context_manager, diff, winid)
     local this = {}
     this.view_default = view_default
     this.base = base
     this.context_manager = context_manager
     this.diff = diff
     this.merge = merge
+    this.winid = winid
     return setmetatable(this, {__index = SenarioBuilder})
 end
 
@@ -56,11 +57,25 @@ local function foldl(f, x, xs)
     return ret
 end
 
-function SenarioBuilder.build(self)
-    local ctx = self.context_manager()
+function SenarioBuilder._f(self, ctx)
     if type(ctx) ~= 'table' then ctx = {} end
     return foldl(self.merge, DEFAULT,
                  {{view = self.view_default}, self.base, ctx, self.diff})
+end
+
+function SenarioBuilder.for_session(self)
+    local current = vim.fn.win_getid()
+    if self.winid ~= current then vim.fn.win_gotoid(self.winid) end
+    local meta = {awake = 'session', winid = self.winid}
+    local ctx = self.context_manager(meta)
+    if self.winid ~= current then vim.fn.win_gotoid(self.winid) end
+    return self:_f(ctx)
+end
+
+function SenarioBuilder.for_flow(self)
+    local meta = {awake = 'flow', winid = self.winid}
+    local ctx = self.context_manager(meta)
+    return self:_f(ctx)
 end
 
 return SenarioBuilder
