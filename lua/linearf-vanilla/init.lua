@@ -216,7 +216,6 @@ do -- PRIVATE
     end
 
     function Vanilla._close_all(self)
-        local tmp = vim.fn.win_getid()
         if vim.fn.win_gotoid(self.querier_win) == 1 then
             utils.command("silent close")
         end
@@ -225,7 +224,7 @@ do -- PRIVATE
         end
         self.querier_win = nil
         self.list_win = nil
-        vim.fn.win_gotoid(tmp)
+        vim.fn.win_gotoid(self.orig_win)
     end
 
     -- https://github.com/Shougo/denite.nvim/blob/master/autoload/denite/filter.vim s:init_buffer
