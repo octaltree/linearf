@@ -45,7 +45,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             {
                 Self {
                     phantom: PhantomData,
-                    #(#new_fields)*
+                    #(#new_fields),*
                 }
             }
         }

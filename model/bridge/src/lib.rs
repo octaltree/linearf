@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 
-const RT: &str = "_lienarf_rt";
+const RT: &str = "_linearf_rt";
 const LINEARF: &str = "_linearf_linearf";
 
 #[macros::lua_module]
@@ -35,6 +35,7 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("resume", lua.create_function(resume)?)?;
     exports.set("flow_status", lua.create_function(sorted::flow_status)?)?;
     exports.set("flow_items", lua.create_function(sorted::flow_items)?)?;
+    exports.set("flow_id_items", lua.create_function(sorted::flow_id_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
     exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(
@@ -92,6 +93,7 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
         id: id.map(state::SessionId),
         senario
     };
+    log::debug!("{:?}", &req.senario.linearf.query);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let (sid, fid) = lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;
@@ -115,9 +117,10 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
 }
 
 fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
-    let vars = Vars::deserialize(LuaDeserializer::new(LuaValue::Table(
-        senario.raw_get::<_, LuaTable>("linearf")?
-    )))?;
+    let vars = Vars::deserialize(LuaDeserializer::new_with_options(
+        LuaValue::Table(senario.raw_get::<_, LuaTable>("linearf")?),
+        LuaDeserializeOptions::new().deny_unsupported_types(false)
+    ))?;
     let source = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("source")?);
     let matcher = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("matcher")?);
     Ok(state::Senario {

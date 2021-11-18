@@ -8,7 +8,7 @@ use linearf::{
 use mlua::prelude::*;
 use serde::Deserialize;
 use serde_json::{Map, Value};
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
     let s = state::SessionId(s);
@@ -22,12 +22,14 @@ pub fn flow_status(lua: &Lua, (s, f): (i32, usize)) -> LuaResult<LuaTable<'_>> {
             .await
             .ok_or(state::Error::FlowDisposed(s, f))
             .map_err(LuaError::external)?;
-        let (done, count) = (sorted.0, sorted.1.len());
+        let (done, hit_count, source_count) =
+            (sorted.done, sorted.items.len(), sorted.source_count);
         std::mem::drop(sorted);
         std::mem::drop(state);
         let t = lua.create_table_with_capacity(0, 2)?;
         t.set("done", done)?;
-        t.set("count", count)?;
+        t.set("count", hit_count)?;
+        t.set("source_count", source_count)?;
         Ok(t)
     })
 }
@@ -51,13 +53,39 @@ pub fn flow_items<'a>(
             .map_err(LuaError::external)?;
         let it = ranges
             .into_iter()
-            .map(|(s, e)| &sorted.1[s..std::cmp::min(e, sorted.1.len())]);
+            .map(|(s, e)| &sorted.items[s..std::cmp::min(e, sorted.items.len())]);
         {
             let t = convert(lua, fields, it)?;
-            t.set("done", sorted.0)?;
-            t.set("count", sorted.1.len())?;
+            t.set("done", sorted.done)?;
+            t.set("count", sorted.items.len())?;
+            t.set("source_count", sorted.source_count)?;
             Ok(t)
         }
+    })
+}
+
+pub fn flow_id_items<'a>(
+    lua: &'a Lua,
+    (s, f, ids, fields): (i32, usize, LuaValue, LuaValue)
+) -> LuaResult<LuaTable<'a>> {
+    let s = state::SessionId(s);
+    let f = state::FlowId(f);
+    let ids: Vec<u32> = lua.from_value(ids)?;
+    let ids: HashSet<u32> = ids.into_iter().collect();
+    let fields: Fields = lua.from_value(fields)?;
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = lnf.state().read().await;
+        let flow = state.try_get_flow(s, f).map_err(LuaError::external)?;
+        let sorted = flow
+            .sorted()
+            .await
+            .ok_or(state::Error::FlowDisposed(s, f))
+            .map_err(LuaError::external)?;
+        let it = sorted.id_items(&ids);
+        let items: Vec<_> = it.collect();
+        let t = convert_items(lua, fields, &items)?;
+        Ok(t)
     })
 }
 
@@ -65,8 +93,6 @@ pub fn flow_items<'a>(
 struct Fields {
     #[serde(default)]
     id: bool,
-    #[serde(default)]
-    r#type: bool,
     #[serde(default)]
     value: bool,
     #[serde(default)]
@@ -107,9 +133,6 @@ fn convert_item<'a>(lua: &'a Lua, fields: Fields, i: &Item) -> LuaResult<LuaTabl
     let ret = lua.create_table_with_capacity(0, 5)?;
     if fields.id {
         ret.set("id", i.id)?;
-    }
-    if fields.r#type {
-        ret.set("type", i.r#type)?;
     }
     if fields.value {
         ret.set("value", maybe_utf8_into_lua_string(lua, &i.value)?)?;
