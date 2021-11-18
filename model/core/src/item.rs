@@ -28,7 +28,7 @@ impl Item {
         }
     }
 
-    fn value_lossy(&self) -> Cow<'_, str> {
+    pub fn value_lossy(&self) -> Cow<'_, str> {
         match &self.value {
             MaybeUtf8::Utf8(s) => Cow::Borrowed(s),
             MaybeUtf8::Os(s) => match s.to_string_lossy() {
