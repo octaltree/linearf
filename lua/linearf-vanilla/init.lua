@@ -21,7 +21,9 @@ local function initialize_global_map()
         'nnor <Plug>(linearf-goto-querier) :<c-u>lua linearf.view:goto_querier()<CR>',
         'inor <Plug>(linearf-goto-querier) <cmd>lua linearf.view:goto_querier()<CR>',
         'nnor <Plug>(linearf-goto-querier-insert) :<c-u>lua linearf.view:goto_querier_insert()<CR>',
-        'inor <Plug>(linearf-goto-querier-insert) <cmd>lua linearf.view:goto_querier_insert()<CR>'
+        'inor <Plug>(linearf-goto-querier-insert) <cmd>lua linearf.view:goto_querier_insert()<CR>',
+        'nnor <Plug>(linearf-goto-querier-insert-a) :<c-u>lua linearf.view:goto_querier_insert_a()<CR>',
+        'inor <Plug>(linearf-goto-querier-insert-a) <cmd>lua linearf.view:goto_querier_insert_a()<CR>'
     }
 end
 
@@ -83,6 +85,11 @@ do -- DUCK TYPING
 
     function Vanilla.goto_querier(self, _view_id)
         vim.fn.win_gotoid(self.querier_win)
+    end
+
+    function Vanilla.goto_querier_insert_a(self, _view_id)
+        if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
+        vim.fn.feedkeys('a', 'n')
     end
 
     function Vanilla.goto_querier_insert(self, _view_id)
