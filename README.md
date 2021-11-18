@@ -21,7 +21,7 @@ call dein#add('octaltree/linearf-my-flavors')
 
 Paste config file
 ```vim
--- lua block in vim script
+" lua block in vim script
 lua<<EOF
 local linearf = require('linearf')
 local flavors = require('linearf_my_flavors')
