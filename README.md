@@ -21,6 +21,7 @@ call dein#add('octaltree/linearf-my-flavors')
 
 Paste config file
 ```vim
+-- lua block in vim script
 lua<<EOF
 local linearf = require('linearf')
 local flavors = require('linearf_my_flavors')
@@ -28,6 +29,7 @@ local flavors = require('linearf_my_flavors')
 -- Initialize with a view module
 linearf.init(require('linearf-vanilla').new())
 
+-- Specify the sources to include in the build
 linearf.recipe.sources = {
     {
         name = "identity",
@@ -54,8 +56,11 @@ linearf.recipe.converters = {
         path = "flavors_plain::FormatLine"
     }
 }
+-- Auto-build if you want
+linearf.bridge.try_build_if_not_loaded = true
+linearf.bridge.try_build_on_error = true
 
--- Define senarios with presets and your preferences
+-- Define your scenario. flavors provides you with several presets
 linearf.senarios['line'] = flavors.merge(flavors.senarios['line'], {
     linearf = {
         list_nnoremap = {
@@ -66,15 +71,18 @@ linearf.senarios['line'] = flavors.merge(flavors.senarios['line'], {
         querier_on_start = 'insert'
     }
 })
-linearf.senarios['file'] = flavors.merge(flavors.senarios['file_find'], {})
+linearf.senarios['file'] = flavors.merge(flavors.senarios['file_rg'], {
+    linearf = {
+        list_nnoremap = {
+            ["<CR>"] = flavors.hide_and(flavors.actions.file.open),
+            't' = flavors.hide_and(flavors.actions.file.tabopen),
+        }
+    },
+})
 linearf.senarios['grep'] = flavors.merge(flavors.senarios['grep_rg'], {})
 linearf.context_managers['line'] = flavors.context_managers['line']
 linearf.context_managers['file'] = flavors.context_managers['file_find']
 linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
-
--- Auto building if you want
-linearf.bridge.try_build_if_not_loaded = true
-linearf.bridge.try_build_on_error = true
 EOF
 
 nnoremap <Denite>/ :<c-u>lua lnf('line')<CR>
