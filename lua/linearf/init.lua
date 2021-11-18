@@ -13,7 +13,7 @@ local M = {
     }),
     senarios = Dim.new(),
     context_managers = Dim.new(),
-    _debug = true,
+    _debug = false,
     -- mutables
     view = nil,
     _sessions = Dim.new()
