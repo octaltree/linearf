@@ -228,16 +228,20 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
         let start = Instant::now();
         pin_mut!(chunks);
         while let Some(mut chunk) = chunks.next().await {
+            // +50ms desc
             let orig_size = chunk.len();
             let mut chunk = chunk
                 .drain_filter(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
+            // +1ms
             chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+            // +0~1ms
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
             sorted.items.append(&mut chunk);
             sorted.items.sort_by(|a, b| a.1.cmp(&b.1));
+            // +10ms asc
         }
         let sorted = &mut sorted.write().await;
         sorted.done = true;

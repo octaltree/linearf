@@ -84,6 +84,7 @@ pub fn flow_id_items<'a>(
             .map_err(LuaError::external)?;
         let it = sorted.id_items(&ids);
         let items: Vec<_> = it.collect();
+        std::mem::drop(sorted);
         let t = convert_items(lua, fields, &items)?;
         Ok(t)
     })
