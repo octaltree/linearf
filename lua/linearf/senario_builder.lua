@@ -14,6 +14,7 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
+        dispose_flow = false,
         querier_inoremap = {},
         querier_nnoremap = {},
         list_nnoremap = {}

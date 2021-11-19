@@ -12,6 +12,7 @@ type Shared<T> = Arc<RwLock<T>>;
 
 const N: usize = 10;
 
+#[derive(Clone)]
 pub struct CacheChunks<I> {
     cached: Shared<Vec<Option<Vec<I>>>>,
     wakers: Arc<Mutex<Vec<Waker>>>,

@@ -77,10 +77,14 @@ impl State {
             "reuse {:?}",
             reuse.as_ref().map(|r| r.as_ref().map(|f| f.senario()))
         );
+        let dispose_flow = senario.linearf.dispose_flow;
         let flow =
             Flow::start(rt, source, matcher, converter, reuse, senario).map_err(|e| match e {
                 StartError::ConverterNotFound(n) => Error::ConverterNotFound(n)
             })?;
+        if dispose_flow {
+            dispose_flows(&mut target);
+        }
         let fid = target.push(flow);
         self.sessions.push_back((id, target));
         Ok((id, fid))
@@ -259,7 +263,10 @@ where
         (started - flow.at()).as_secs() < senario.linearf.cache_sec.into()
     };
     let source_reusable = |flow: &Flow| {
-        if flow.senario().stream_vars.source != senario.linearf.source {
+        if !flow.has_cache()
+            || flow.senario().stream_vars.source != senario.linearf.source
+            || flow.senario().stream_vars.converters != senario.linearf.converters
+        {
             return Reusable::None;
         }
         source.reusable(
@@ -363,6 +370,12 @@ fn flow_mut<'a>(
     let mut rev = state.sessions.iter_mut().rev();
     let sess = rev.find(|x| x.0 == s).map(|(_, s)| s)?;
     sess.flows.get_mut(f.0)
+}
+
+fn dispose_flows(session: &mut Session) {
+    for flow in &mut session.flows {
+        flow.dispose();
+    }
 }
 
 impl State {
