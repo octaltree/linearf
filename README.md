@@ -23,6 +23,7 @@ Paste config file
 ```vim
 nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
 nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
+nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
 
 " lua block in vim script
 lua<<EOF
@@ -99,7 +100,12 @@ linearf.senarios['grep'] = flavors.merge {
     flavors.senarios.enter_list,
     {
         linearf = {
-            list_nnoremap = {},
+            list_nnoremap = {
+                ["<CR>"] = flavors.hide_and(flavors.actions.grep.open),
+                ["<nowait>s"] = flavors.hide_and(flavors.actions.grep.split),
+                ["t"] = flavors.hide_and(flavors.actions.grep.tabopen),
+                ["v"] = flavors.hide_and(flavors.actions.grep.vsplit)
+            },
             querier_inoremap = {},
             querier_nnoremap = {
                 ["<nowait><ESC>"] = flavors.actions.view.goto_list
