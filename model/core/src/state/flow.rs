@@ -8,7 +8,7 @@ use crate::{
 };
 use cache_chunks::CacheChunks;
 use futures::{pin_mut, StreamExt};
-use std::{any::Any, collections::HashSet, sync::Arc, time::Instant};
+use std::{any::Any, cmp::Ordering, collections::HashSet, mem, sync::Arc, time::Instant};
 use tokio::{sync::RwLockReadGuard, task::JoinHandle};
 
 pub struct Flow {
@@ -33,7 +33,7 @@ pub struct Sorted {
 
 impl<T> Drop for Disposable<T> {
     fn drop(&mut self) {
-        let handles = std::mem::take(&mut self.handles);
+        let handles = mem::take(&mut self.handles);
         for arc in handles.into_iter().rev() {
             if let Ok(handle) = Arc::try_unwrap(arc) {
                 handle.abort()
@@ -44,8 +44,8 @@ impl<T> Drop for Disposable<T> {
 
 impl Drop for Flow {
     fn drop(&mut self) {
-        std::mem::drop(self.matcher.take());
-        std::mem::drop(self.source.take());
+        mem::drop(self.matcher.take());
+        mem::drop(self.source.take());
     }
 }
 
@@ -167,8 +167,8 @@ impl Flow {
     }
 
     pub(super) fn dispose(&mut self) {
-        std::mem::drop(self.matcher.take());
-        std::mem::drop(self.source.take());
+        mem::drop(self.matcher.take());
+        mem::drop(self.source.take());
     }
 }
 
@@ -239,14 +239,50 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
             // +0~1ms
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
-            sorted.items.append(&mut chunk);
-            sorted.items.sort_by(|a, b| a.1.cmp(&b.1));
+            merge(&mut sorted.items, &mut chunk, |a, b| a.1.cmp(&b.1));
             // +10ms asc
         }
         let sorted = &mut sorted.write().await;
+        // sorted.items.shrink_to_fit();
         sorted.done = true;
         log::debug!("{:?}", start.elapsed());
     })
+}
+
+fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
+    if b.is_empty() {
+        return;
+    }
+    let orig_len = a.len();
+    a.reserve(b.len());
+    unsafe {
+        let a: &mut Vec<mem::MaybeUninit<T>> = mem::transmute(a);
+        let b: &mut Vec<mem::MaybeUninit<T>> = mem::transmute(b);
+        a.set_len(a.len() + b.len());
+        let (mut n, mut m) = (
+            (0..orig_len).rev().peekable(),
+            (0..b.len()).rev().peekable()
+        );
+        for dst in (0..a.len()).rev() {
+            match (n.peek(), m.peek()) {
+                (Some(&i), Some(&j))
+                    if cmp(mem::transmute(&a[i]), mem::transmute(&b[j])) == Ordering::Greater =>
+                {
+                    n.next();
+                    a[dst] = mem::replace(&mut a[i], mem::MaybeUninit::uninit());
+                }
+                (Some(_), Some(&_j)) | (None, Some(&_j)) => {
+                    m.next();
+                    a[dst] = b.pop().unwrap();
+                }
+                (Some(_), None) => break,
+                (None, None) => break
+            }
+        }
+        assert_eq!(b.len(), 0);
+        let _a: &mut Vec<T> = mem::transmute(a);
+        let _b: &mut Vec<T> = mem::transmute(b);
+    }
 }
 
 impl Flow {
