@@ -54,11 +54,16 @@ pub fn flow_items<'a>(
         let it = ranges
             .into_iter()
             .map(|(s, e)| &sorted.items[s..std::cmp::min(e, sorted.items.len())]);
+        let cloned = it.map(|slice| slice.to_vec()).collect::<Vec<_>>();
+        let done = sorted.done;
+        let count = sorted.items.len();
+        let source_count = sorted.source_count;
+        std::mem::drop(sorted);
         {
-            let t = convert(lua, fields, it)?;
-            t.set("done", sorted.done)?;
-            t.set("count", sorted.items.len())?;
-            t.set("source_count", sorted.source_count)?;
+            let t = convert(lua, fields, cloned.iter().map(std::ops::Deref::deref))?;
+            t.set("done", done)?;
+            t.set("count", count)?;
+            t.set("source_count", source_count)?;
             Ok(t)
         }
     })
