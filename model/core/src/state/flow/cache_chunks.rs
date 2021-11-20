@@ -12,6 +12,7 @@ type Shared<T> = Arc<RwLock<T>>;
 
 const N: usize = 10;
 
+#[derive(Clone)]
 pub struct CacheChunks<I> {
     cached: Shared<Vec<Option<Vec<I>>>>,
     wakers: Arc<Mutex<Vec<Waker>>>,
@@ -137,23 +138,26 @@ where
     }
 
     #[inline]
-    fn fetch(&mut self, cx: &mut Context<'_>) -> Option<()> {
-        let s = &mut self.stream;
-        pin_mut!(s);
-        let x: Option<_> = match s.poll_next(cx) {
-            Poll::Pending => return None,
-            Poll::Ready(x) => x
-        };
-        if let Some(x) = x {
-            self.chunk.push(x);
-            if self.size <= self.chunk.len() {
+    fn fetch(&mut self, cx: &mut Context<'_>) {
+        loop {
+            let s = &mut self.stream;
+            pin_mut!(s);
+            let x: Option<_> = match s.poll_next(cx) {
+                Poll::Pending => return,
+                Poll::Ready(x) => x
+            };
+            if let Some(x) = x {
+                self.chunk.push(x);
+                if self.size <= self.chunk.len() {
+                    self.waits_write = true;
+                    break;
+                }
+            } else {
+                self.last_chunk = true;
                 self.waits_write = true;
+                break;
             }
-        } else {
-            self.last_chunk = true;
-            self.waits_write = true;
         }
-        Some(())
     }
 }
 

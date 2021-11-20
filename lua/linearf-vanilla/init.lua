@@ -81,32 +81,42 @@ do -- DUCK TYPING
     -- vanilla has only one set of windows at most across all tabs, so view_id is not needed
     function Vanilla.hide(self, _view_id)
         self:_close_all()
+        return true
+    end
+
+    function Vanilla.goto_orig(self, _view_id)
+        vim.fn.win_gotoid(self.orig_win)
+        return true
     end
 
     function Vanilla.goto_list(self, _view_id)
         vim.fn.win_gotoid(self.list_win)
+        return true
     end
 
     function Vanilla.goto_querier(self, _view_id)
         vim.fn.win_gotoid(self.querier_win)
+        return true
     end
 
     function Vanilla.goto_querier_insert_a(self, _view_id)
         if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
         vim.fn.feedkeys('a', 'n')
+        return true
     end
 
     function Vanilla.goto_querier_insert(self, _view_id)
         if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
         vim.fn.feedkeys('A', 'n')
+        return true
     end
 
     function Vanilla.execute(self, action, view_id)
         local items = self:_items()
         local tmp = vim.fn.win_getid()
         vim.fn.win_gotoid(self.orig_win)
-        action(items, view_id)
-        vim.fn.win_gotoid(tmp)
+        local is_view_action = action(items, view_id)
+        if not is_view_action then vim.fn.win_gotoid(tmp) end
     end
 end
 
@@ -276,6 +286,8 @@ do -- PRIVATE
         utils.command('setlocal ft=linearf-vanilla-querier')
         utils.command('setlocal nocursorline')
         utils.command('resize 1')
+        utils.command('inoremap <buffer><CR> <nop>')
+        utils.command('nnoremap <buffer><CR> <nop>')
 
         -- TODO: args
         for k, v in pairs(flow.senario.linearf.querier_nnoremap) do

@@ -14,6 +14,7 @@ local DEFAULT = {
         cache_across_sessions = true,
         first_view = 255,
         chunk_size = 32767,
+        dispose_flow = false,
         querier_inoremap = {},
         querier_nnoremap = {},
         list_nnoremap = {}
@@ -33,7 +34,6 @@ local function merge(a, b)
             return a
         end
     end
-    if not a_is_dict or not b_is_dict then return b end
     local ret = {}
     for k, v in pairs(a) do ret[k] = v end
     for k, v in pairs(b) do ret[k] = merge(ret[k], v) end

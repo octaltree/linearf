@@ -9,13 +9,19 @@ use crate::{
 use cache_chunks::CacheChunks;
 use futures::{pin_mut, StreamExt};
 use std::{any::Any, collections::HashSet, sync::Arc, time::Instant};
-use tokio::sync::RwLockReadGuard;
+use tokio::{sync::RwLockReadGuard, task::JoinHandle};
 
 pub struct Flow {
     at: Instant,
     senario: UsedSenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
-    cache: CacheChunks<WithScore>,
-    sorted: Option<Shared<Sorted>>
+    source: Option<Disposable<CacheChunks<WithScore>>>,
+    matcher: Option<Disposable<Shared<Sorted>>>
+}
+
+#[derive(Clone)]
+struct Disposable<T> {
+    data: T,
+    handles: Vec<Arc<JoinHandle<()>>>
 }
 
 #[derive(Debug, Clone, Default)]
@@ -23,6 +29,24 @@ pub struct Sorted {
     pub done: bool,
     pub items: Vec<WithScore>,
     pub source_count: usize
+}
+
+impl<T> Drop for Disposable<T> {
+    fn drop(&mut self) {
+        let handles = std::mem::take(&mut self.handles);
+        for arc in handles.into_iter().rev() {
+            if let Ok(handle) = Arc::try_unwrap(arc) {
+                handle.abort()
+            }
+        }
+    }
+}
+
+impl Drop for Flow {
+    fn drop(&mut self) {
+        std::mem::drop(self.matcher.take());
+        std::mem::drop(self.source.take());
+    }
 }
 
 impl Flow {
@@ -34,11 +58,14 @@ impl Flow {
     #[inline]
     pub(super) fn at(&self) -> Instant { self.at }
 
+    #[inline]
+    pub(super) fn has_cache(&self) -> bool { self.source.is_some() }
+
     pub(super) fn start<S, M, C>(
         rt: AsyncRt,
-        source: &S,
-        matcher: &M,
-        converter: &C,
+        source_registry: &S,
+        matcher_registry: &M,
+        converter_registry: &C,
         reuse: Result<Reuse<&mut Flow>, Instant>,
         senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Result<Self, StartError>
@@ -47,30 +74,35 @@ impl Flow {
         M: MatcherRegistry,
         C: ConverterRegistry
     {
-        let (at, senario, cache) = match reuse {
-            Ok(Reuse::Matcher(flow)) if flow.sorted.is_some() => {
-                let sorted = flow.sorted.take();
+        let (at, senario, source) = match reuse {
+            Ok(Reuse::Matcher(flow)) if flow.matcher.is_some() => {
+                let matcher = flow.matcher.take();
+                let source = flow.source.take();
                 return Ok(Flow {
                     at: flow.at,
                     senario: flow.senario.clone(),
-                    cache: flow.cache.renew(),
-                    sorted
+                    source,
+                    matcher
                 });
             }
-            Ok(Reuse::Matcher(flow)) => (flow.at, flow.senario.clone(), flow.cache.renew()),
-            Ok(Reuse::Source(flow)) => {
+            Ok(Reuse::Matcher(flow)) if flow.source.is_some() => {
+                (flow.at, flow.senario.clone(), flow.source.take().unwrap())
+            }
+            Ok(Reuse::Matcher(_)) => unreachable!(),
+            Ok(Reuse::Source(flow)) if flow.source.is_some() => {
+                let source = flow.source.clone().unwrap();
                 let senario = UsedSenario {
                     matcher: senario.matcher,
                     sorted_vars: senario.linearf,
                     ..flow.senario.clone()
                 };
-                let a = flow.cache.renew();
+                let a = source.data.renew();
                 let b = a.flat_map(|chunk| {
                     futures::stream::unfold(chunk.into_iter(), |mut it| async {
                         it.next().map(|(i, _score)| (i, it))
                     })
                 });
-                let scores = matcher.score(
+                let scores = matcher_registry.score(
                     &senario.sorted_vars.matcher,
                     (&senario.sorted_vars, &senario.matcher),
                     b
@@ -78,19 +110,32 @@ impl Flow {
                 let first_size = std::cmp::max(senario.sorted_vars.first_view, 1);
                 let chunk_size = std::cmp::max(senario.sorted_vars.chunk_size, 1);
                 let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
-                rt.spawn(load);
-                (flow.at, senario, cache)
+                let source_handle = rt.spawn(load);
+                let new_source = Disposable {
+                    data: cache,
+                    handles: {
+                        let mut h = source.handles.clone();
+                        h.push(Arc::new(source_handle));
+                        h
+                    }
+                };
+                (flow.at, senario, new_source)
             }
+            Ok(Reuse::Source(_)) => unreachable!(),
             Err(started) => {
                 let v = &senario.linearf;
-                let a = source.stream(&v.source, (v, &senario.source));
-                let b = converter.map_convert(&v.converters, a)?;
+                let a = source_registry.stream(&v.source, (v, &senario.source));
+                let b = converter_registry.map_convert(&v.converters, a)?;
                 let c = b.map(Arc::new);
-                let scores = matcher.score(&v.matcher, (v, &senario.matcher), c);
+                let scores = matcher_registry.score(&v.matcher, (v, &senario.matcher), c);
                 let first_size = std::cmp::max(v.first_view, 1);
                 let chunk_size = std::cmp::max(v.chunk_size, 1);
                 let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
-                rt.spawn(load);
+                let source_handle = rt.spawn(load);
+                let new_source = Disposable {
+                    data: cache,
+                    handles: vec![Arc::new(source_handle)]
+                };
                 (
                     started,
                     UsedSenario {
@@ -99,18 +144,31 @@ impl Flow {
                         matcher: senario.matcher,
                         sorted_vars: senario.linearf
                     },
-                    cache
+                    new_source
                 )
             }
         };
         let sorted = Arc::default();
-        run_sort(rt, Arc::clone(&sorted), cache.renew());
+        let matcher_handle = run_sort(rt, Arc::clone(&sorted), source.data.renew());
+        let handles = {
+            let mut h = source.handles.clone();
+            h.push(Arc::new(matcher_handle));
+            h
+        };
         Ok(Flow {
             at,
             senario,
-            cache,
-            sorted: Some(sorted)
+            source: Some(source),
+            matcher: Some(Disposable {
+                data: sorted,
+                handles
+            })
         })
+    }
+
+    pub(super) fn dispose(&mut self) {
+        std::mem::drop(self.matcher.take());
+        std::mem::drop(self.source.take());
     }
 }
 
@@ -165,31 +223,35 @@ impl<V, P> UsedSenario<V, P> {
 }
 
 // TODO: improve
-fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>) {
+fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = Instant::now();
         pin_mut!(chunks);
         while let Some(mut chunk) = chunks.next().await {
+            // +50ms desc
             let orig_size = chunk.len();
             let mut chunk = chunk
                 .drain_filter(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
+            // +1ms
             chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+            // +0~1ms
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
             sorted.items.append(&mut chunk);
             sorted.items.sort_by(|a, b| a.1.cmp(&b.1));
+            // +10ms asc
         }
         let sorted = &mut sorted.write().await;
         sorted.done = true;
         log::debug!("{:?}", start.elapsed());
-    });
+    })
 }
 
 impl Flow {
     pub async fn sorted(&self) -> Option<RwLockReadGuard<'_, Sorted>> {
-        Some(self.sorted.as_ref()?.read().await)
+        Some(self.matcher.as_ref()?.data.read().await)
     }
 }
 

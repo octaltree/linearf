@@ -45,5 +45,6 @@ pub struct Vars {
     /// Whether to reuse flows from different sessions
     pub cache_across_sessions: bool,
     pub first_view: usize,
-    pub chunk_size: usize
+    pub chunk_size: usize,
+    pub dispose_flow: bool
 }
