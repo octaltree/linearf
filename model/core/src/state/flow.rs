@@ -9,7 +9,10 @@ use crate::{
 use cache_chunks::CacheChunks;
 use futures::{pin_mut, StreamExt};
 use std::{any::Any, cmp::Ordering, collections::HashSet, mem, sync::Arc, time::Instant};
-use tokio::{sync::RwLockReadGuard, task::JoinHandle};
+use tokio::{
+    sync::{mpsc, RwLockReadGuard},
+    task::JoinHandle
+};
 
 pub struct Flow {
     at: Instant,
@@ -149,10 +152,12 @@ impl Flow {
             }
         };
         let sorted = Arc::default();
-        let matcher_handle = run_sort(rt, Arc::clone(&sorted), source.data.renew());
+        let matcher_handles = run_sort(rt, Arc::clone(&sorted), source.data.renew());
         let handles = {
             let mut h = source.handles.clone();
-            h.push(Arc::new(matcher_handle));
+            for x in matcher_handles.into_iter() {
+                h.push(Arc::new(x));
+            }
             h
         };
         Ok(Flow {
@@ -223,11 +228,16 @@ impl<V, P> UsedSenario<V, P> {
 }
 
 // TODO: improve
-fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>) -> JoinHandle<()> {
-    rt.spawn(async move {
-        let start = Instant::now();
+fn run_sort(
+    rt: AsyncRt,
+    sorted: Shared<Sorted>,
+    chunks: CacheChunks<WithScore>
+) -> Vec<JoinHandle<()>> {
+    let mut ret = Vec::with_capacity(2);
+    let (tx, mut rx) = mpsc::channel(100);
+    ret.push(rt.spawn(async move {
         pin_mut!(chunks);
-        while let Some(mut chunk) = chunks.next().await {
+        while let Some(mut chunk) = { chunks.next().await } {
             // +50ms desc
             let orig_size = chunk.len();
             let mut chunk = chunk
@@ -237,6 +247,12 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
             // +1ms
             chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
             // +0~1ms
+            tx.send((chunk, orig_size)).await.unwrap();
+        }
+    }));
+    ret.push(rt.spawn(async move {
+        let start = Instant::now();
+        while let Some((mut chunk, orig_size)) = rx.recv().await {
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
             merge(&mut sorted.items, &mut chunk, |a, b| a.1.cmp(&b.1));
@@ -245,7 +261,8 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
         sorted.items.shrink_to_fit();
         sorted.done = true;
         log::debug!("{:?}", start.elapsed());
-    })
+    }));
+    ret
 }
 
 fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
