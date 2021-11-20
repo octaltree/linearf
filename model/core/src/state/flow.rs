@@ -230,6 +230,7 @@ impl<V, P> UsedSenario<V, P> {
 fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>) -> JoinHandle<()> {
     rt.spawn(async move {
         let start = Instant::now();
+        let guard = pprof::ProfilerGuard::new(100).unwrap();
         pin_mut!(chunks);
         while let Some(mut chunk) = chunks.next().await {
             // +50ms desc
@@ -250,6 +251,19 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
         let sorted = &mut sorted.write().await;
         sorted.items.shrink_to_fit();
         sorted.done = true;
+        use pprof::protos::Message;
+        use std::io::Write;
+        match guard.report().build() {
+            Ok(report) => {
+                let mut file = std::fs::File::create("profile.pb").unwrap();
+                let profile = report.pprof().unwrap();
+
+                let mut content = Vec::new();
+                profile.encode(&mut content).unwrap();
+                file.write_all(&content).unwrap();
+            }
+            Err(_) => {}
+        };
         log::debug!("{:?}", start.elapsed());
     })
 }
