@@ -488,7 +488,7 @@ do -- PRIVATE
         local l = offset + 1
         local chunk = flow.senario.view.chunk_size
         local b = buff.list[#buff.list]
-        utils.interval(0, function(timer)
+        utils.interval(flow.senario.view.refresh_interval, function(timer)
             if self.current ~= flow then
                 vim.fn.timer_stop(timer)
                 return
