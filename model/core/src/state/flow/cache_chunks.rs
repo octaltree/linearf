@@ -19,9 +19,10 @@ pub struct CacheChunks<I> {
     idx: usize
 }
 
-pub struct Load<S, I>
+pub struct Load<S, I, T>
 where
-    S: Stream<Item = I>
+    S: Stream<Item = I>,
+    T: Iterator<Item = usize>
 {
     cached: Shared<Vec<Option<Vec<I>>>>,
     wakers: Arc<Mutex<Vec<Waker>>>,
@@ -29,24 +30,20 @@ where
     chunk: Vec<I>,
     waits_write: bool,
     last_chunk: bool,
-    cap: usize,
-    size: usize
+    size: usize,
+    next_size: T
 }
 
-pub fn new_cache_chunks<S, I>(
-    stream: S,
-    first_size: usize,
-    cap: usize
-) -> (Load<S, I>, CacheChunks<I>)
+pub fn new_cache_chunks<S, I, T>(stream: S, size: T) -> (Load<S, I, T>, CacheChunks<I>)
 where
     S: Stream<Item = I>,
-    I: Clone
+    I: Clone,
+    T: Iterator<Item = usize>
 {
-    assert!(first_size > 0);
-    assert!(cap > 0);
     let cached = Arc::default();
     let wakers = Arc::default();
-    let size = first_size;
+    let mut next_size = size;
+    let size = next_size.next().unwrap_or_default();
     (
         Load {
             cached: Arc::clone(&cached),
@@ -54,9 +51,9 @@ where
             stream: Fuse::new(stream),
             chunk: Vec::with_capacity(size + N),
             waits_write: false,
-            last_chunk: false,
-            cap,
-            size
+            last_chunk: size == 0,
+            size,
+            next_size
         },
         CacheChunks {
             cached,
@@ -76,10 +73,11 @@ impl<I> CacheChunks<I> {
     }
 }
 
-impl<S, I> Future for Load<S, I>
+impl<S, I, T> Future for Load<S, I, T>
 where
     S: Stream<Item = I> + std::marker::Unpin,
-    I: std::marker::Unpin
+    I: std::marker::Unpin,
+    T: Iterator<Item = usize> + std::marker::Unpin
 {
     type Output = ();
 
@@ -97,10 +95,11 @@ where
     }
 }
 
-impl<S, I> Load<S, I>
+impl<S, I, T> Load<S, I, T>
 where
     S: Stream<Item = I> + std::marker::Unpin,
-    I: std::marker::Unpin
+    I: std::marker::Unpin,
+    T: Iterator<Item = usize> + std::marker::Unpin
 {
     #[inline]
     fn write(&mut self, cx: &mut Context<'_>) -> Poll<<Self as futures::Future>::Output> {
@@ -116,7 +115,10 @@ where
             }
         };
         self.waits_write = false;
-        self.size = self.cap;
+        self.size = self.next_size.next().unwrap_or_default();
+        if self.size == 0 {
+            self.last_chunk = true;
+        }
         cached.push(Some(std::mem::replace(
             &mut self.chunk,
             Vec::with_capacity(self.size + N)
@@ -124,6 +126,7 @@ where
         if self.last_chunk {
             cached.push(None);
         }
+        log::debug!("ready {}", cached.len() - 1);
         std::mem::drop(cached);
         let wakers = std::mem::take(&mut *wakers);
         for w in wakers {
@@ -168,10 +171,16 @@ where
     type Item = Vec<I>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let s = std::time::Instant::now();
         let this = self.get_mut();
         if let Some(poll) = this.fetch(cx) {
+            log::debug!("{:?} {:?}", this.idx, s.elapsed());
+            if poll.is_pending() {
+                log::debug!("pending");
+            }
             poll
         } else {
+            log::debug!("miss {:?} {:?}", this.idx, s.elapsed());
             this.schedule(cx)
         }
     }
@@ -216,5 +225,38 @@ where
         };
         wakers.push(waker);
         Poll::Pending
+    }
+}
+
+pub struct ChunkSize {
+    first: usize,
+    base: usize,
+    rate: f64,
+    x: Option<f64>
+}
+
+impl ChunkSize {
+    pub fn new(first: usize, base: usize, rate: f64) -> Self {
+        Self {
+            first,
+            base,
+            rate,
+            x: None
+        }
+    }
+}
+
+impl Iterator for ChunkSize {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(x) = self.x {
+            let ret = x as usize;
+            self.x = Some(x * self.rate);
+            Some(ret)
+        } else {
+            self.x = Some(self.base as f64);
+            Some(self.first)
+        }
     }
 }

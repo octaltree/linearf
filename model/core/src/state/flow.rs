@@ -77,6 +77,16 @@ impl Flow {
         M: MatcherRegistry,
         C: ConverterRegistry
     {
+        let size = |vars: &Arc<Vars>| {
+            let first_size = std::cmp::max(vars.first_view, 1);
+            let chunk_size = std::cmp::max(vars.chunk_size, 1);
+            let chunk_rate = if vars.chunk_size_rate <= 0. {
+                1.
+            } else {
+                vars.chunk_size_rate
+            };
+            cache_chunks::ChunkSize::new(first_size, chunk_size, chunk_rate)
+        };
         let (at, senario, source) = match reuse {
             Ok(Reuse::Matcher(flow)) if flow.matcher.is_some() => {
                 let matcher = flow.matcher.take();
@@ -110,9 +120,8 @@ impl Flow {
                     (&senario.sorted_vars, &senario.matcher),
                     b
                 );
-                let first_size = std::cmp::max(senario.sorted_vars.first_view, 1);
-                let chunk_size = std::cmp::max(senario.sorted_vars.chunk_size, 1);
-                let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
+                let (load, cache) =
+                    cache_chunks::new_cache_chunks(scores, size(&senario.sorted_vars));
                 let source_handle = rt.spawn(load);
                 let new_source = Disposable {
                     data: cache,
@@ -131,9 +140,7 @@ impl Flow {
                 let b = converter_registry.map_convert(&v.converters, a)?;
                 let c = b.map(Arc::new);
                 let scores = matcher_registry.score(&v.matcher, (v, &senario.matcher), c);
-                let first_size = std::cmp::max(v.first_view, 1);
-                let chunk_size = std::cmp::max(v.chunk_size, 1);
-                let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
+                let (load, cache) = cache_chunks::new_cache_chunks(scores, size(v));
                 let source_handle = rt.spawn(load);
                 let new_source = Disposable {
                     data: cache,
@@ -237,7 +244,12 @@ fn run_sort(
     let (tx, mut rx) = mpsc::channel(100);
     ret.push(rt.spawn(async move {
         pin_mut!(chunks);
-        while let Some(mut chunk) = { chunks.next().await } {
+        while let Some(mut chunk) = {
+            let a = Instant::now();
+            let c = chunks.next().await;
+            log::debug!("chunk {:?}", a.elapsed());
+            c
+        } {
             // +50ms desc
             let orig_size = chunk.len();
             let mut chunk = chunk
@@ -247,15 +259,19 @@ fn run_sort(
             // +1ms
             chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
             // +0~1ms
+            let a = Instant::now();
             tx.send((chunk, orig_size)).await.unwrap();
+            log::debug!("send {:?}", a.elapsed());
         }
     }));
     ret.push(rt.spawn(async move {
         let start = Instant::now();
         while let Some((mut chunk, orig_size)) = rx.recv().await {
+            let a = Instant::now();
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
             merge(&mut sorted.items, &mut chunk, |a, b| a.1.cmp(&b.1));
+            log::debug!("sort {:?}", a.elapsed());
         }
         let sorted = &mut sorted.write().await;
         sorted.items.shrink_to_fit();

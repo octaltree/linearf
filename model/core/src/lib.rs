@@ -46,5 +46,6 @@ pub struct Vars {
     pub cache_across_sessions: bool,
     pub first_view: usize,
     pub chunk_size: usize,
+    pub chunk_size_rate: f64,
     pub dispose_flow: bool
 }

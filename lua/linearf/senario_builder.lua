@@ -12,8 +12,10 @@ local DEFAULT = {
         converters = {},
         cache_sec = 60,
         cache_across_sessions = true,
+        -- a0 = first_view, a1 = chunk_size * 1.5 ^ (n-1)
         first_view = 255,
-        chunk_size = 32767,
+        chunk_size = 10000,
+        chunk_size_rate = 2,
         dispose_flow = false,
         querier_inoremap = {},
         querier_nnoremap = {},
