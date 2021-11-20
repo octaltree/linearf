@@ -240,10 +240,9 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
             merge(&mut sorted.items, &mut chunk, |a, b| a.1.cmp(&b.1));
-            // +10ms asc
         }
         let sorted = &mut sorted.write().await;
-        // sorted.items.shrink_to_fit();
+        sorted.items.shrink_to_fit();
         sorted.done = true;
         log::debug!("{:?}", start.elapsed());
     })
