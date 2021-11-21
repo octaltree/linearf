@@ -1,15 +1,14 @@
-# linearf [WIP]
+# linearf
 A fast and extensible fuzzy finder for vimmers
 
 ## Concept
 * Show the first view faster
 * Find as fast as if they were in linear time
 * High modularity and extensibility
-* Use vim as a fuzzy finder from CLI
 
 ## Requirements
 * [cargo](https://doc.rust-lang.org/book/ch01-01-installation.html) nightly
-* +lua/dyn for vim / luajit for neovim
+* vim and +lua/dyn, or neovim and luajit
 
 ## Usage
 First, install the plugins and sources locally. If you use dein as your package
@@ -122,7 +121,6 @@ Then run with the pre-defined senario and its difference.
 ```vim
 lua lnf('line')
 lua lnf('line', {})
-lua lnf({})
 ```
 For more information, see `:help linearf`
 
