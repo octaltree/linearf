@@ -1,7 +1,56 @@
-use sailfish::TemplateOnce;
+use std::path::Path;
+
+use crate::LINEARF_ROOT;
+use sailfish::{
+    runtime::{Buffer, Render},
+    TemplateOnce
+};
 
 #[derive(TemplateOnce)]
-#[template(path = "linearf.txt.stpl")]
+#[template(path = "linearf.txt.stpl", escape = false)]
 struct LinearfTxt {}
 
 pub fn fetch_context() -> impl TemplateOnce { LinearfTxt {} }
+
+fn load() -> Load { Load {} }
+
+fn load_block<P: AsRef<Path>>(path: P, first_line: &str, last_line: &str) -> LoadBlock {
+    let body = std::fs::read_to_string(path).unwrap();
+    let mut it = body.lines().enumerate();
+    let first = it.find(|(_, l)| *l == first_line).map(|(i, _)| i).unwrap();
+    let last = if first_line == last_line {
+        first
+    } else {
+        it.find(|(_, l)| *l == last_line).map(|(i, _)| i).unwrap()
+    };
+    LoadBlock { body, first, last }
+}
+
+struct Load {}
+
+impl Render for Load {
+    fn render(&self, b: &mut Buffer) -> Result<(), sailfish::RenderError> { Ok(()) }
+}
+
+struct LoadBlock {
+    body: String,
+    first: usize,
+    last: usize
+}
+
+impl Render for LoadBlock {
+    fn render(&self, b: &mut Buffer) -> Result<(), sailfish::RenderError> {
+        b.push_str(">\n");
+        for (i, l) in self.body.lines().enumerate() {
+            if self.first <= i && i <= self.last {
+                if !l.is_empty() {
+                    b.push_str("  ");
+                    b.push_str(&l);
+                }
+                b.push('\n');
+            }
+        }
+        b.push('<');
+        Ok(())
+    }
+}
