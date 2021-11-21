@@ -127,14 +127,7 @@ the root module. it can call as
 *linearf_vanilla.DEFAULT*  <%=
   load_block(LINEARF_ROOT.join("lua/linearf-vanilla/init.lua"), "    Vanilla.DEFAULT = {", "    }", 1) %>
 
-*linearf_vanilla.hide*
-*linearf_vanilla.goto_orig*
-*linearf_vanilla.goto_list*
-*linearf_vanilla.goto_querier*
-*linearf_vanilla.goto_querier_insert*
-*linearf_vanilla.goto_querier_insert_a*
-*linearf_vanilla.execute*
-
+*linearf_vanilla.execute*  ({self}, {action}, {view_id}) -> ()
 
 ==============================================================================
 MOTIVATION	*linearf-motivation*
