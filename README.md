@@ -51,7 +51,7 @@ linearf.bridge.try_build_on_error = true
 -- Define your scenario. flavors provides you with several presets
 linearf.senarios['line'] = flavors.merge {
     flavors.senarios['line'],
-    flavors.senarios.exit_q,
+    flavors.senarios.quit,
     flavors.senarios.no_list_insert,
     flavors.senarios.no_querier_normal,
     {
@@ -71,7 +71,7 @@ linearf.context_managers['line'] = flavors.context_managers['line']
 linearf.senarios['file'] = flavors.merge {
     flavors.senarios['file_find'],
     --flavors.senarios['file_rg'],
-    flavors.senarios.exit_q,
+    flavors.senarios.quit,
     flavors.senarios.no_list_insert,
     flavors.senarios.no_querier_normal,
     {
@@ -94,7 +94,7 @@ linearf.context_managers['file'] = flavors.context_managers['file_find']
 linearf.senarios['grep'] = flavors.merge {
     flavors.senarios['grep_grep'],
     --flavors.senarios['grep_rg'],
-    flavors.senarios.exit_q,
+    flavors.senarios.quit,
     flavors.senarios.no_list_insert,
     flavors.senarios.enter_list,
     {

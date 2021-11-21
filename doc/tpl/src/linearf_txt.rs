@@ -12,8 +12,6 @@ struct LinearfTxt {}
 
 pub fn fetch_context() -> impl TemplateOnce { LinearfTxt {} }
 
-fn load() -> Load { Load {} }
-
 fn load_block<P: AsRef<Path>>(
     path: P,
     first_line: &str,
@@ -34,12 +32,6 @@ fn load_block<P: AsRef<Path>>(
         last,
         indent
     }
-}
-
-struct Load {}
-
-impl Render for Load {
-    fn render(&self, b: &mut Buffer) -> Result<(), sailfish::RenderError> { Ok(()) }
 }
 
 struct LoadBlock {
