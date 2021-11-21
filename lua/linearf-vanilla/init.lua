@@ -43,7 +43,6 @@ do -- REQUIRED
         return setmetatable(this, {__index = Vanilla})
     end
 
-    Vanilla.QUERIER = 'linearf-vanilla-querier'
     Vanilla.DEFAULT = {
         cursorline = true,
         querier_on_start = 'inactive', -- 'inactive'|'active'|'insert'
@@ -122,6 +121,7 @@ end
 
 do -- PRIVATE
     local FIELDS = {id = true, view = true}
+    Vanilla.QUERIER = 'linearf-vanilla-querier'
 
     function Vanilla._save_orig_win(self)
         local current = vim.fn.win_getid()

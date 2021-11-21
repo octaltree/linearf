@@ -57,12 +57,52 @@ You can set up frequently used scenarios in advance.
       \ }
   lua linearf.run('simple')
   lua linearf.run('simple', {})
-
+<
 ==============================================================================
 EXAMPLE	*linearf-example*
-<%= load_block(LINEARF_ROOT.join("README.md"), "nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>", "EOF") %>
+<%= load_block(LINEARF_ROOT.join("README.md"), "nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>", "EOF", 0) %>
 ==============================================================================
 API REFERENCE	*linearf-reference*
+
+------------------------------------------------------------------------------
+*linearf* *lnf*
+
+the root module. it can call
+({senario_name:string}) -> nil
+({diff:table}) -> nil
+({senario_name:string}, {diff:table}) -> nil
+
+*linearf.recipe* <%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct Recipe {", "}", 1)
+  %><%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct Crate {", "}", 1)
+  %><%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct SourceDescriptor {", "}", 1)
+  %><%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct MatcherDescriptor {", "}", 1)
+  %><%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct ConverterDescriptor {", "}", 1)
+  %>
+
+
+*linearf.senarios*
+*linearf.context_managers*
+*linearf.view*
+
+*linearf.build*
+*linearf.init*
+*linearf.run*
+*linearf.query*
+
+------------------------------------------------------------------------------
+*linearf-vanilla* *vanilla*
+
+*linearf_vanilla.new*
+*linearf_vanilla.DEFAULT*
+
+*linearf_vanilla.hide*
+*linearf_vanilla.goto_orig*
+*linearf_vanilla.goto_list*
+*linearf_vanilla.goto_querier*
+*linearf_vanilla.goto_querier_insert*
+*linearf_vanilla.goto_querier_insert_a*
+*linearf_vanilla.execute*
+
 
 ==============================================================================
 MOTIVATION	*linearf-motivation*

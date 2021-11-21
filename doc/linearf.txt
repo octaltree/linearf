@@ -57,10 +57,10 @@ You can set up frequently used scenarios in advance.
       \ }
   lua linearf.run('simple')
   lua linearf.run('simple', {})
-
+<
 ==============================================================================
 EXAMPLE	*linearf-example*
->
+ >
   nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
   nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
   nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
@@ -68,7 +68,7 @@ EXAMPLE	*linearf-example*
   " lua block in vim script
   lua<<EOF
   local linearf = require('linearf')
-  local flavors = require('linearf_my_flavors')
+  local flavors = require('linearf-my-flavors')
 
   -- Initialize with a view module
   linearf.init(require('linearf-vanilla').new())
@@ -159,6 +159,72 @@ EXAMPLE	*linearf-example*
 <
 ==============================================================================
 API REFERENCE	*linearf-reference*
+
+------------------------------------------------------------------------------
+*linearf* *lnf*
+
+the root module. it can call
+({senario_name:string}) -> nil
+({diff:table}) -> nil
+({senario_name:string}, {diff:table}) -> nil
+
+*linearf.recipe*  >
+		  pub struct Recipe {
+		      #[serde(default)]
+		      pub crates: Vec<Crate>,
+		      #[serde(default)]
+		      pub sources: Vec<SourceDescriptor>,
+		      #[serde(default)]
+		      pub matchers: Vec<MatcherDescriptor>,
+		      #[serde(default)]
+		      pub converters: Vec<ConverterDescriptor>
+		  }
+< >
+		  pub struct Crate {
+		      pub name: String,
+		      pub dir: PathBuf
+		  }
+< >
+		  pub struct SourceDescriptor {
+		      pub name: String,
+		      pub path: String
+		  }
+< >
+		  pub struct MatcherDescriptor {
+		      pub name: String,
+		      pub path: String
+		  }
+< >
+		  pub struct ConverterDescriptor {
+		      pub name: String,
+		      pub path: String
+		  }
+<
+
+
+*linearf.senarios*
+*linearf.context_managers*
+*linearf.view*
+
+*linearf.build*
+*linearf.init*
+*linearf.run*
+*linearf.query*
+
+------------------------------------------------------------------------------
+*linearf-vanilla* *vanilla*
+
+*linearf_vanilla.new*
+*linearf_vanilla.DEFAULT*
+
+*linearf_vanilla.hide*
+*linearf_vanilla.goto_orig*
+*linearf_vanilla.goto_list*
+*linearf_vanilla.goto_querier*
+*linearf_vanilla.goto_querier_insert*
+*linearf_vanilla.goto_querier_insert_a*
+*linearf_vanilla.execute*
+
 
 ==============================================================================
 MOTIVATION	*linearf-motivation*

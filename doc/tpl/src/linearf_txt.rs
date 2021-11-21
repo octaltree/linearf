@@ -14,7 +14,12 @@ pub fn fetch_context() -> impl TemplateOnce { LinearfTxt {} }
 
 fn load() -> Load { Load {} }
 
-fn load_block<P: AsRef<Path>>(path: P, first_line: &str, last_line: &str) -> LoadBlock {
+fn load_block<P: AsRef<Path>>(
+    path: P,
+    first_line: &str,
+    last_line: &str,
+    indent: usize
+) -> LoadBlock {
     let body = std::fs::read_to_string(path).unwrap();
     let mut it = body.lines().enumerate();
     let first = it.find(|(_, l)| *l == first_line).map(|(i, _)| i).unwrap();
@@ -23,7 +28,12 @@ fn load_block<P: AsRef<Path>>(path: P, first_line: &str, last_line: &str) -> Loa
     } else {
         it.find(|(_, l)| *l == last_line).map(|(i, _)| i).unwrap()
     };
-    LoadBlock { body, first, last }
+    LoadBlock {
+        body,
+        first,
+        last,
+        indent
+    }
 }
 
 struct Load {}
@@ -35,15 +45,19 @@ impl Render for Load {
 struct LoadBlock {
     body: String,
     first: usize,
-    last: usize
+    last: usize,
+    indent: usize
 }
 
 impl Render for LoadBlock {
     fn render(&self, b: &mut Buffer) -> Result<(), sailfish::RenderError> {
-        b.push_str(">\n");
+        b.push_str(" >\n");
         for (i, l) in self.body.lines().enumerate() {
             if self.first <= i && i <= self.last {
                 if !l.is_empty() {
+                    for _ in 0..self.indent {
+                        b.push_str("		");
+                    }
                     b.push_str("  ");
                     b.push_str(&l);
                 }

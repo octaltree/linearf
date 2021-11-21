@@ -10,6 +10,10 @@ dev:
 clean:
 	cd tests && make clean
 
+.PHONY: doc
+doc:
+	cd doc/tpl && cargo run
+
 .PHONY: d
 d:
 	@watchexec -i model/registry -c 'make dev'

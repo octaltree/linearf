@@ -14,7 +14,7 @@ pub struct Recipe {
     #[serde(default)]
     pub sources: Vec<SourceDescriptor>,
     #[serde(default)]
-    pub matchers: Vec<MatchDescriptor>,
+    pub matchers: Vec<MatcherDescriptor>,
     #[serde(default)]
     pub converters: Vec<ConverterDescriptor>
 }
@@ -32,7 +32,7 @@ pub struct SourceDescriptor {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct MatchDescriptor {
+pub struct MatcherDescriptor {
     pub name: String,
     pub path: String
 }

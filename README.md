@@ -15,7 +15,7 @@ First, install the plugins and sources locally. If you use dein as your package
 manager, it will look like this.
 ```vim
 call dein#add('octaltree/linearf')
-call dein#add('octaltree/linearf-my-flavors')
+call dein#add('octaltree/linearf-my-flavors') # optional
 ```
 
 Paste config file
@@ -27,7 +27,7 @@ nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
 " lua block in vim script
 lua<<EOF
 local linearf = require('linearf')
-local flavors = require('linearf_my_flavors')
+local flavors = require('linearf-my-flavors')
 
 -- Initialize with a view module
 linearf.init(require('linearf-vanilla').new())
