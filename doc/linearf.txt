@@ -60,7 +60,7 @@ You can set up frequently used scenarios in advance.
 <
 ==============================================================================
 EXAMPLE	*linearf-example*
- >
+>
   nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
   nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
   nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
@@ -161,12 +161,12 @@ EXAMPLE	*linearf-example*
 API REFERENCE	*linearf-reference*
 
 ------------------------------------------------------------------------------
-*linearf* *lnf*
+*linearf*
 
-the root module. it can call
-({senario_name:string}) -> nil
-({diff:table}) -> nil
-({senario_name:string}, {diff:table}) -> nil
+the root module. it can call as
+({senario_name:string}) -> ()
+({senario_diff:table}) -> ()
+({senario_name:string}, {senario_diff:table}) -> ()
 
 *linearf.recipe*  >
 		  pub struct Recipe {
@@ -201,21 +201,102 @@ the root module. it can call
 		  }
 <
 
+*linearf.senarios* {{senario_name:string} = {senario_diff}}
+		A table that has name and senario diff. The default senario is >
+		  local DEFAULT = {
+		      linearf = {
+		          query = '',
+		          converters = {},
+		          cache_sec = 60,
+		          cache_across_sessions = true,
+		          first_view = 255,
+		          chunk_size = 32767,
+		          dispose_flow = false,
+		          querier_inoremap = {},
+		          querier_nnoremap = {},
+		          list_nnoremap = {},
+		          querier_nnoremap = {},
+		          querier_inoremap = {}
+		      },
+		      source = {},
+		      matcher = {},
+		      view = {}
+		  }
+<		The schema of linearf is >
+		  pub struct Vars {
+		      pub source: SmartString,
+		      pub matcher: SmartString,
+		      pub converters: Vec<SmartString>,
+		      pub query: String,
+		      /// How many seconds before you can reuse it
+		      pub cache_sec: u32,
+		      /// Whether to reuse flows from different sessions
+		      pub cache_across_sessions: bool,
+		      pub first_view: usize,
+		      pub chunk_size: usize,
+		      pub dispose_flow: bool
+		  }
+<		list_nnoremap is {{key:string} = {action:function}}
+		view is, e.g., |linearf_vanilla.DEFAULT|
 
-*linearf.senarios*
-*linearf.context_managers*
+*linearf-action* ({items}, {view_id}) -> {is_view_action:boolean}
+
+*linearf-item*  >
+		  pub struct Item {
+		      /// id must not be 0
+		      pub id: u32,
+		      pub value: MaybeUtf8,
+		      // json value cannot represent luastring
+		      pub info: Option<Map<String, Value>>,
+		      pub view: Option<String>,
+		      pub view_for_matcing: Option<String>
+		  }
+<
+
+*linearf.context_managers* {{senario_name:string} = () -> {senario_diff:table}}
+		Table with senario names and functions that return scenario diff
+
 *linearf.view*
+		An object with the same interface as vanilla
 
-*linearf.build*
-*linearf.init*
-*linearf.run*
-*linearf.query*
+*linearf.build* () -> ()
+		Builds dynamic library based on |linearf.recipe|
+
+*linearf.init* ({view}) -> ()
+		1. Load dynamic library
+		2. Set global variable `linearf` and `lnf`
+		3. Set |linearf.view|
+
+*linearf.run* ({senario_name:string}, {senario_diff:table}) -> ()
+
+*linearf.query* ({session_id:number}, {query:string}) -> ()
 
 ------------------------------------------------------------------------------
-*linearf-vanilla* *vanilla*
+*linearf.bridge*
 
-*linearf_vanilla.new*
-*linearf_vanilla.DEFAULT*
+*linearf.bridge.try_build_if_not_loaded* boolean >
+		      try_build_if_not_exist = false,
+<		Trying to build dynamic library when it is not loaded on run, if true
+
+*linearf.bridge.try_build_on_error* boolean >
+		      try_build_on_error = false,
+<		Trying to build dynamic library when you get the recipe based error such as source not found on error, if true
+
+------------------------------------------------------------------------------
+*linearf-vanilla*
+
+*linearf_vanilla.new* () -> {vanilla}
+
+*linearf_vanilla.DEFAULT*  >
+		      Vanilla.DEFAULT = {
+		          cursorline = true,
+		          querier_on_start = 'inactive', -- 'inactive'|'active'|'insert'
+
+		          refresh_interval = 15,
+		          view_size = 1000,
+		          chunk_size = 6000
+		      }
+<
 
 *linearf_vanilla.hide*
 *linearf_vanilla.goto_orig*

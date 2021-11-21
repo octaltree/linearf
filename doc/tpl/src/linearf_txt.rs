@@ -51,7 +51,7 @@ struct LoadBlock {
 
 impl Render for LoadBlock {
     fn render(&self, b: &mut Buffer) -> Result<(), sailfish::RenderError> {
-        b.push_str(" >\n");
+        b.push_str(">\n");
         for (i, l) in self.body.lines().enumerate() {
             if self.first <= i && i <= self.last {
                 if !l.is_empty() {

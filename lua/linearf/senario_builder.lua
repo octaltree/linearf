@@ -17,7 +17,9 @@ local DEFAULT = {
         dispose_flow = false,
         querier_inoremap = {},
         querier_nnoremap = {},
-        list_nnoremap = {}
+        list_nnoremap = {},
+        querier_nnoremap = {},
+        querier_inoremap = {}
     },
     source = {},
     matcher = {},
