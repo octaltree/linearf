@@ -1,0 +1,173 @@
+*linearf.txt*	Fast and extensible fuzzy finder
+
+Author: octaltree <octaltree at users.noreply.github.com>
+
+CONTENTS	*linearf-contents*
+
+Installation	|linearf-install|
+Usage	|linearf-usage|
+Example	linearf-example
+API Reference	|linearf-reference|
+Motivation	|linearf-motivation|
+
+==============================================================================
+INSTALLATION	*linearf-install*
+
+First, install the plugins and sources locally. If you use dein as your package
+manager, it will look like this.
+>
+  call dein#add('octaltree/linearf')
+  call dein#add('octaltree/linearf-my-flavors')
+<
+Then build your own fuzzy finder.
+>
+  lua require('linearf').recipe.sources = {{name = "identity", path = "flavors_plain::Identity"}}
+  lua require('linearf').recipe.matchers = {{name = "identity", path = "flavors_plain::Identity"}}
+  lua require('linearf').recipe.converters = {{name = "identity", path = "flavors_plain::Identity"}}
+  lua require('linearf').build()
+<
+One building is required per recipe change.
+
+==============================================================================
+USAGE	*linearf-usage*
+
+After the build is complete, initialize it with the UI module.
+>
+  lua require('linearf').init(require('linearf-vanilla').new())
+<
+After initialize, you can use the global variable `linearf` and `lnf`.
+>
+  lua lnf('', {})
+<
+You can set up frequently used scenarios in advance.
+>
+  lua require('linearf').senarios = {
+      \     simple = {
+      \         linearf = {
+      \             source = 'simple',
+      \             matcher = 'substring'
+      \         }
+      \     },
+      \     osstr = {
+      \         linearf = {
+      \             source = 'osstr',
+      \             matcher = 'substring'
+      \         }
+      \     }
+      \ }
+  lua linearf.run('simple')
+  lua linearf.run('simple', {})
+
+==============================================================================
+EXAMPLE	*linearf-example*
+>
+  nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
+  nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
+  nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
+
+  " lua block in vim script
+  lua<<EOF
+  local linearf = require('linearf')
+  local flavors = require('linearf_my_flavors')
+
+  -- Initialize with a view module
+  linearf.init(require('linearf-vanilla').new())
+
+  -- Specify the sources to include in the build
+  linearf.recipe.sources = {
+      {name = "identity", path = "flavors_plain::Identity"},
+      {name = "command", path = "flavors_tokio::Command"}
+  }
+  linearf.recipe.matchers = {
+      {name = "identity", path = "flavors_plain::Identity"},
+      {name = "substring", path = "flavors_plain::Substring"}
+  }
+  linearf.recipe.converters = {
+      {name = "format_line", path = "flavors_plain::FormatLine"}
+  }
+  -- Auto-build if you want
+  linearf.bridge.try_build_if_not_loaded = true
+  linearf.bridge.try_build_on_error = true
+
+  -- Define your scenario. flavors provides you with several presets
+  linearf.senarios['line'] = flavors.merge {
+      flavors.senarios['line'],
+      flavors.senarios.exit_q,
+      flavors.senarios.no_list_insert,
+      flavors.senarios.no_querier_normal,
+      {
+          linearf = {
+              list_nnoremap = {
+                  ["<CR>"] = flavors.hide_and(flavors.actions.line.jump)
+              },
+              querier_inoremap = {
+                  ["<CR>"] = flavors.normal_and(
+                      flavors.hide_and(flavors.actions.line.jump))
+              }
+          },
+          view = {querier_on_start = 'insert'}
+      }
+  }
+  linearf.context_managers['line'] = flavors.context_managers['line']
+  linearf.senarios['file'] = flavors.merge {
+      flavors.senarios['file_find'],
+      --flavors.senarios['file_rg'],
+      flavors.senarios.exit_q,
+      flavors.senarios.no_list_insert,
+      flavors.senarios.no_querier_normal,
+      {
+          linearf = {
+              list_nnoremap = {
+                  ["<CR>"] = flavors.hide_and(flavors.actions.file.open),
+                  ["<nowait>s"] = flavors.hide_and(flavors.actions.file.split),
+                  ["t"] = flavors.hide_and(flavors.actions.file.tabopen),
+                  ["v"] = flavors.hide_and(flavors.actions.file.vsplit)
+              },
+              querier_inoremap = {
+                  ["<CR>"] = flavors.normal_and(
+                      flavors.hide_and(flavors.actions.file.open))
+              }
+          }
+      }
+  }
+  linearf.context_managers['file'] = flavors.context_managers['file_find']
+  --linearf.context_managers['file'] = flavors.context_managers['file_rg']
+  linearf.senarios['grep'] = flavors.merge {
+      flavors.senarios['grep_grep'],
+      --flavors.senarios['grep_rg'],
+      flavors.senarios.exit_q,
+      flavors.senarios.no_list_insert,
+      flavors.senarios.enter_list,
+      {
+          linearf = {
+              list_nnoremap = {
+                  ["<CR>"] = flavors.hide_and(flavors.actions.grep.open),
+                  ["<nowait>s"] = flavors.hide_and(flavors.actions.grep.split),
+                  ["t"] = flavors.hide_and(flavors.actions.grep.tabopen),
+                  ["v"] = flavors.hide_and(flavors.actions.grep.vsplit)
+              },
+              querier_inoremap = {},
+              querier_nnoremap = {
+                  ["<nowait><ESC>"] = flavors.actions.view.goto_list
+              }
+          }
+      }
+  }
+  linearf.context_managers['grep'] = flavors.context_managers['grep_grep']
+  --linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
+  EOF
+<
+==============================================================================
+API REFERENCE	*linearf-reference*
+
+==============================================================================
+MOTIVATION	*linearf-motivation*
+
+There are many fuzzy finders in vim: CtrlP, LeaderF, denite, telescope, clap,
+fzf, skim, fzf-preview, candle, etc. However, there were nothing that that had
+the feel of vim and the speed of native fzf, so I decided to make one.
+
+I want to write in another language because vim script is slow, but I have to
+consider the cost of moving data to vim. After considering rpc, dynamic
+libraries, and wasm for speed and vim compability, I chose to load dynamic
+libraries written by rust via lua.
