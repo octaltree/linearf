@@ -11,9 +11,9 @@ log = "0.4.14"
 log4rs = "1.0.0"
 serde = "1.0.130"
 mlua = { version = "0.6.6", features = ["module", "async", "send", "serialize"] }
-tokio = { version = "1.12.0", features = ["rt-multi-thread", "sync"] }
+tokio = { version = "1.14.0", features = ["rt-multi-thread", "sync"] }
 linearf = { path = "../core" }
 registry = { path = "../registry" }
 macros = { path = "../macros" }
-os_str_bytes = "4.2.0"
-serde_json = "1.0.68"
+os_str_bytes = "5.0.0"
+serde_json = "1.0.71"
