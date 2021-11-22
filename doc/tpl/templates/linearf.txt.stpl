@@ -100,9 +100,8 @@ the root module. it can call as
 		Builds dynamic library based on |linearf.recipe|
 
 *linearf.init* ({view}) -> ()
-		1. Load dynamic library
-		2. Set global variable `linearf` and `lnf`
-		3. Set |linearf.view|
+		1. Set global variable `linearf` and `lnf`
+		2. Set |linearf.view|
 
 *linearf.run* ({senario_name:string}, {senario_diff:table}) -> ()
 

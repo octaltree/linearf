@@ -435,7 +435,7 @@ do -- PRIVATE
         local pre = nil
         local lazy = 10
         utils.interval(senario.view.refresh_interval, function(timer)
-            if self.current ~= flow then
+            if self.current ~= flow or vim.g._linearf_leave == 1 then
                 vim.fn.timer_stop(timer)
                 return
             end
@@ -488,8 +488,8 @@ do -- PRIVATE
         local l = offset + 1
         local chunk = flow.senario.view.chunk_size
         local b = buff.list[#buff.list]
-        utils.interval(flow.senario.view.refresh_interval, function(timer)
-            if self.current ~= flow then
+        utils.interval(5, function(timer)
+            if self.current ~= flow or vim.g._linearf_leave == 1 then
                 vim.fn.timer_stop(timer)
                 return
             end
