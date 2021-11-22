@@ -125,7 +125,11 @@ impl Flow {
             Err(started) => {
                 let v = &senario.linearf;
                 let a = source_registry.stream(&v.source, (v, &senario.source));
-                let b = converter_registry.map_convert(&v.converters, a)?;
+                let b = if v.converters.is_empty() {
+                    a
+                } else {
+                    converter_registry.map_convert(&v.converters, a)?
+                };
                 let c = b.map(Arc::new);
                 let scores = matcher_registry.score(&v.matcher, (v, &senario.matcher), c);
                 let first_size = std::cmp::max(v.first_view, 1);

@@ -68,11 +68,8 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                         }
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                let f = move |mut item: Item| -> Item {
-                    for f in &fs {
-                        item = f(item);
-                    }
-                    item
+                let f = move |item: Item| -> Item {
+                    fs.iter().fold(item, |x, f| f(x))
                 };
                 Ok(Box::pin(items.map(f)))
             }
