@@ -105,7 +105,7 @@ local function format_recipe(recipe)
 end
 
 function M.build(recipe)
-    M.clean_dir()
+    pcall((M.inner or {}).clean_dir)
     local timestamp = os.time(os.date("!*t"))
     do -- set args
         local json = format_recipe(recipe)
