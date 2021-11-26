@@ -36,9 +36,7 @@ function M.build()
 end
 
 function M.init(view)
-    M.utils.augroup('linearf_leave', {
-      'au VimLeave * let g:_linearf_leave = 1'
-    })
+    M.utils.augroup('linearf_leave', {'au VimLeave * let g:_linearf_leave = 1'})
     if M.view then
         M.view:destruct()
         M.utils.cache = {}
