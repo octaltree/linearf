@@ -110,7 +110,7 @@ the root module. it can call as
 ------------------------------------------------------------------------------
 *linearf.bridge*
 
-*linearf.bridge.try_build_if_not_loaded* boolean <%=
+*linearf.bridge.try_build_if_not_exist* boolean <%=
   load_block(LINEARF_ROOT.join("lua/linearf/bridge.lua"), "    try_build_if_not_exist = false,", "    try_build_if_not_exist = false,", 1)
   %>		Trying to build dynamic library when it is not loaded on run, if true
 

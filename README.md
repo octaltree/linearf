@@ -45,7 +45,7 @@ linearf.recipe.converters = {
     {name = "format_line", path = "flavors_plain::FormatLine"}
 }
 -- Auto-build if you want
-linearf.bridge.try_build_if_not_loaded = true
+linearf.bridge.try_build_if_not_exist = true
 linearf.bridge.try_build_on_error = true
 
 -- Define your scenario. flavors provides you with several presets

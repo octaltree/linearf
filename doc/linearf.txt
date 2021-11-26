@@ -86,7 +86,7 @@ EXAMPLE	*linearf-example*
       {name = "format_line", path = "flavors_plain::FormatLine"}
   }
   -- Auto-build if you want
-  linearf.bridge.try_build_if_not_loaded = true
+  linearf.bridge.try_build_if_not_exist = true
   linearf.bridge.try_build_on_error = true
 
   -- Define your scenario. flavors provides you with several presets
@@ -263,9 +263,8 @@ the root module. it can call as
 		Builds dynamic library based on |linearf.recipe|
 
 *linearf.init* ({view}) -> ()
-		1. Load dynamic library
-		2. Set global variable `linearf` and `lnf`
-		3. Set |linearf.view|
+		1. Set global variable `linearf` and `lnf`
+		2. Set |linearf.view|
 
 *linearf.run* ({senario_name:string}, {senario_diff:table}) -> ()
 
@@ -274,7 +273,7 @@ the root module. it can call as
 ------------------------------------------------------------------------------
 *linearf.bridge*
 
-*linearf.bridge.try_build_if_not_loaded* boolean >
+*linearf.bridge.try_build_if_not_exist* boolean >
 		      try_build_if_not_exist = false,
 <		Trying to build dynamic library when it is not loaded on run, if true
 
