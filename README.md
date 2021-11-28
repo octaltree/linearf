@@ -14,7 +14,7 @@ A fast and extensible fuzzy finder for vimmers
 First, install the plugins and sources locally. If you use dein as your package
 manager, it will look like this.
 ```vim
-call dein#add('octaltree/linearf')
+call dein#add('octaltree/linearf', {'merged': 0})
 call dein#add('octaltree/linearf-my-flavors') # optional
 ```
 
