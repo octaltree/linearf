@@ -20,10 +20,6 @@ call dein#add('octaltree/linearf-my-flavors') # optional
 
 Paste config file
 ```vim
-nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
-nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
-nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
-
 " lua block in vim script
 lua<<EOF
 local linearf = require('linearf')
@@ -114,6 +110,11 @@ linearf.senarios['grep'] = flavors.merge {
 }
 linearf.context_managers['grep'] = flavors.context_managers['grep_grep']
 --linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
+
+-- optional
+linearf.utils.command("nnoremap <silent><space>/ :<c-u>lua linearf.run('line')<CR>")
+linearf.utils.command("nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
+linearf.utils.command("nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
 EOF
 ```
 
