@@ -239,11 +239,13 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
             // +1ms
-            chunk.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+            chunk.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
             // +0~1ms
             let sorted = &mut sorted.write().await;
             sorted.source_count += orig_size;
-            merge(&mut sorted.items, &mut chunk, |a, b| a.1.cmp(&b.1));
+            merge(&mut sorted.items, &mut chunk, |a, b| {
+                a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal)
+            });
         }
         let sorted = &mut sorted.write().await;
         sorted.items.shrink_to_fit();

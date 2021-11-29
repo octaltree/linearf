@@ -4,9 +4,9 @@ use std::cmp::Ordering;
 /// No guarantee of order when it is equal.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Score {
-    pub item_id: u32,
+    item_id: u32,
     /// If empty, the item will not be displayed
-    pub v: Vec<i16>
+    v: Vec<i16>
 }
 
 impl Score {
@@ -31,17 +31,5 @@ impl PartialOrd for Score {
             }
         }
         Some(self.item_id.cmp(&other.item_id))
-    }
-}
-
-impl Ord for Score {
-    fn cmp(&self, other: &Self) -> Ordering {
-        for (a, b) in self.v.iter().zip(other.v.iter()) {
-            match b.cmp(a) {
-                Ordering::Equal => {}
-                x => return x
-            }
-        }
-        self.item_id.cmp(&other.item_id)
     }
 }
