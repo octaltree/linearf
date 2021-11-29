@@ -24,7 +24,7 @@ pub trait MatcherRegistry {
         items: impl Stream<Item = Arc<Item>> + Send + Sync + 'static
     ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
         Box::pin(items.map(|i| {
-            let score = Arc::new(Score::new(i.id, []));
+            let score = Arc::new(Score::new_excluded());
             (i, score)
         }))
     }

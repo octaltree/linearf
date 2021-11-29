@@ -119,9 +119,9 @@ pub mod matcher {
     impl<L> SimpleScorer for Substring<L> {
         fn score(&self, (vars, _): (&Arc<Vars>, &Arc<Self::Params>), item: &Arc<Item>) -> Score {
             return if item.view_for_matcing().find(&vars.query).is_some() {
-                Score::new(item.id, vec![1])
+                Score::value(item.id, 1)
             } else {
-                Score::new(item.id, vec![])
+                Score::new_excluded()
             };
         }
 
