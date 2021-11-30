@@ -61,10 +61,6 @@ You can set up frequently used scenarios in advance.
 ==============================================================================
 EXAMPLE	*linearf-example*
 >
-  nnoremap <space>/ :<c-u>lua linearf.run('line')<CR>
-  nnoremap <space>f :<c-u>lua linearf.run('file')<CR>
-  nnoremap <space>g :<c-u>lua linearf.run('grep')<CR>
-
   " lua block in vim script
   lua<<EOF
   local linearf = require('linearf')
@@ -80,7 +76,8 @@ EXAMPLE	*linearf-example*
   }
   linearf.recipe.matchers = {
       {name = "identity", path = "flavors_plain::Identity"},
-      {name = "substring", path = "flavors_plain::Substring"}
+      {name = "substring", path = "flavors_plain::Substring"},
+      {name = "clap", path = "flavors_clap::Clap"}
   }
   linearf.recipe.converters = {
       {name = "format_line", path = "flavors_plain::FormatLine"}
@@ -155,6 +152,11 @@ EXAMPLE	*linearf-example*
   }
   linearf.context_managers['grep'] = flavors.context_managers['grep_grep']
   --linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
+
+  -- optional
+  linearf.utils.command("nnoremap <silent><space>/ :<c-u>lua linearf.run('line')<CR>")
+  linearf.utils.command("nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
+  linearf.utils.command("nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
   EOF
 <
 ==============================================================================
@@ -212,8 +214,6 @@ the root module. it can call as
 		          first_view = 255,
 		          chunk_size = 32767,
 		          dispose_flow = false,
-		          querier_inoremap = {},
-		          querier_nnoremap = {},
 		          list_nnoremap = {},
 		          querier_nnoremap = {},
 		          querier_inoremap = {}

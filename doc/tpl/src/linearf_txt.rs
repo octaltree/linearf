@@ -18,13 +18,22 @@ fn load_block<P: AsRef<Path>>(
     last_line: &str,
     indent: usize
 ) -> LoadBlock {
+    let path = path.as_ref();
+    macro_rules! panic_if_not_found {
+        ($m:expr) => {
+            match $m {
+                None => panic!("{:?}", path),
+                Some(x) => x
+            }
+        };
+    }
     let body = std::fs::read_to_string(path).unwrap();
     let mut it = body.lines().enumerate();
-    let first = it.find(|(_, l)| *l == first_line).map(|(i, _)| i).unwrap();
+    let first = panic_if_not_found!(it.find(|(_, l)| *l == first_line).map(|(i, _)| i));
     let last = if first_line == last_line {
         first
     } else {
-        it.find(|(_, l)| *l == last_line).map(|(i, _)| i).unwrap()
+        panic_if_not_found!(it.find(|(_, l)| *l == last_line).map(|(i, _)| i))
     };
     LoadBlock {
         body,
