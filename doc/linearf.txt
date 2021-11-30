@@ -6,7 +6,7 @@ CONTENTS	*linearf-contents*
 
 Installation	|linearf-install|
 Usage	|linearf-usage|
-Example	linearf-example
+Example	|linearf-example|
 API Reference	|linearf-reference|
 Motivation	|linearf-motivation|
 
