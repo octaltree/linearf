@@ -35,7 +35,8 @@ linearf.recipe.sources = {
 }
 linearf.recipe.matchers = {
     {name = "identity", path = "flavors_plain::Identity"},
-    {name = "substring", path = "flavors_plain::Substring"}
+    {name = "substring", path = "flavors_plain::Substring"},
+    {name = "clap", path = "flavors_clap::Clap"}
 }
 linearf.recipe.converters = {
     {name = "format_line", path = "flavors_plain::FormatLine"}
