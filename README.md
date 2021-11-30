@@ -131,6 +131,6 @@ For more information, see `:help linearf`
 - [x] runtime reloading and auto building
 - [x] implement view
 - [x] implement action
-- [ ] implement linearf-my-flavors
+- [x] implement linearf-my-flavors
 - [ ] use vim as a fuzzy finder from CLI
 - [ ] implement preview
