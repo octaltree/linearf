@@ -228,7 +228,7 @@ linearf.utils.command(
     "nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
 EOF
 ```
-</detail>
+</details>
 
 Then run with the pre-defined senario and its difference.
 ```vim
