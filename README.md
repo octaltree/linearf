@@ -119,7 +119,6 @@ linearf.utils.command(
     "nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
 linearf.utils.command(
     "nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
-EOF
 ```
 
 <details>
