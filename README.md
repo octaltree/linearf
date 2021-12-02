@@ -46,15 +46,15 @@ linearf.bridge.try_build_if_not_exist = true
 linearf.bridge.try_build_on_error = true
 
 -- Define your scenario. flavors provides you with several presets
-local function set(target, context_manager, senario)
+local function set(target, context_manager, scenario)
     linearf.context_managers[target] = context_manager
-    linearf.senarios[target] = senario
+    linearf.scenarios[target] = scenario
 end
 set('line', flavors.context_managers['line'], flavors.merge {
-    flavors.senarios['line'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.no_querier_normal,
+    flavors.scenarios['line'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.no_querier_normal,
     {
         linearf = {
             list_nnoremap = {
@@ -71,10 +71,10 @@ set('line', flavors.context_managers['line'], flavors.merge {
 local use_rg = false
 set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
     flavors.merge {
-    flavors.senarios[use_rg and 'file_rg' or 'file_find'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.no_querier_normal,
+    flavors.scenarios[use_rg and 'file_rg' or 'file_find'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.no_querier_normal,
     {
         linearf = {
             list_nnoremap = {
@@ -92,10 +92,10 @@ set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
 })
 set('grep', flavors.context_managers[use_rg and 'grep_rg' or 'grep_grep'],
     flavors.merge {
-    flavors.senarios[use_rg and 'grep_rg' or 'grep_grep'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.enter_list,
+    flavors.scenarios[use_rg and 'grep_rg' or 'grep_grep'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.enter_list,
     {
         linearf = {
             list_nnoremap = {
@@ -153,15 +153,15 @@ linearf.bridge.try_build_if_not_exist = true
 linearf.bridge.try_build_on_error = true
 
 -- Define your scenario. flavors provides you with several presets
-local function set(target, context_manager, senario)
+local function set(target, context_manager, scenario)
     linearf.context_managers[target] = context_manager
-    linearf.senarios[target] = senario
+    linearf.scenarios[target] = scenario
 end
 set('line', flavors.context_managers['line'], flavors.merge {
-    flavors.senarios['line'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.no_querier_normal,
+    flavors.scenarios['line'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.no_querier_normal,
     {
         linearf = {
             list_nnoremap = {
@@ -178,10 +178,10 @@ set('line', flavors.context_managers['line'], flavors.merge {
 local use_rg = false
 set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
     flavors.merge {
-    flavors.senarios[use_rg and 'file_rg' or 'file_find'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.no_querier_normal,
+    flavors.scenarios[use_rg and 'file_rg' or 'file_find'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.no_querier_normal,
     {
         linearf = {
             list_nnoremap = {
@@ -199,10 +199,10 @@ set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
 })
 set('grep', flavors.context_managers[use_rg and 'grep_rg' or 'grep_grep'],
     flavors.merge {
-    flavors.senarios[use_rg and 'grep_rg' or 'grep_grep'],
-    flavors.senarios.quit,
-    flavors.senarios.no_list_insert,
-    flavors.senarios.enter_list,
+    flavors.scenarios[use_rg and 'grep_rg' or 'grep_grep'],
+    flavors.scenarios.quit,
+    flavors.scenarios.no_list_insert,
+    flavors.scenarios.enter_list,
     {
         linearf = {
             list_nnoremap = {
@@ -230,7 +230,7 @@ EOF
 ```
 </details>
 
-Then run with the pre-defined senario and its difference.
+Then run with the pre-defined scenario and its difference.
 ```vim
 lua lnf('line')
 lua lnf('line', {})

@@ -17,7 +17,7 @@ pub trait SourceRegistry {
     fn stream(
         &self,
         _name: &str,
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        _scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
         Box::pin(empty())
     }
@@ -26,7 +26,7 @@ pub trait SourceRegistry {
         &self,
         _name: &str,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        _scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> Reusable {
         Reusable::Same
     }
@@ -49,14 +49,14 @@ impl<P> Clone for Source<P> {
 pub trait SimpleGenerator: IsSource {
     fn stream(
         &self,
-        senario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
+        scenario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
     ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>>;
 
     /// It will be called for every flow and may be reused across sessions.
     fn reusable(
         &self,
         prev: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>),
-        senario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
+        scenario: (&Arc<Vars>, &Arc<<Self as IsSource>::Params>)
     ) -> Reusable;
 }
 

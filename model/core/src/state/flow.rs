@@ -3,7 +3,7 @@ mod fuse;
 
 pub use crate::{converter::MapConvertError as StartError, matcher::WithScore};
 use crate::{
-    state::{Senario, Shared},
+    state::{Scenario, Shared},
     AsyncRt, ConverterRegistry, MatcherRegistry, SourceRegistry, Vars
 };
 use cache_chunks::CacheChunks;
@@ -13,7 +13,7 @@ use tokio::{sync::RwLockReadGuard, task::JoinHandle};
 
 pub struct Flow {
     at: Instant,
-    senario: UsedSenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
+    scenario: UsedScenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>,
     source: Option<Disposable<CacheChunks<WithScore>>>,
     matcher: Option<Disposable<Shared<Sorted>>>
 }
@@ -51,8 +51,8 @@ impl Drop for Flow {
 
 impl Flow {
     #[inline]
-    pub fn senario(&self) -> UsedSenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
-        self.senario.as_ref()
+    pub fn scenario(&self) -> UsedScenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>> {
+        self.scenario.as_ref()
     }
 
     #[inline]
@@ -67,34 +67,34 @@ impl Flow {
         matcher_registry: &M,
         converter_registry: &C,
         reuse: Result<Reuse<&mut Flow>, Instant>,
-        senario: Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
+        scenario: Scenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>
     ) -> Result<Self, StartError>
     where
         S: SourceRegistry,
         M: MatcherRegistry,
         C: ConverterRegistry
     {
-        let (at, senario, source) = match reuse {
+        let (at, scenario, source) = match reuse {
             Ok(Reuse::Matcher(flow)) if flow.matcher.is_some() => {
                 let matcher = flow.matcher.take();
                 let source = flow.source.take();
                 return Ok(Flow {
                     at: flow.at,
-                    senario: flow.senario.clone(),
+                    scenario: flow.scenario.clone(),
                     source,
                     matcher
                 });
             }
             Ok(Reuse::Matcher(flow)) if flow.source.is_some() => {
-                (flow.at, flow.senario.clone(), flow.source.take().unwrap())
+                (flow.at, flow.scenario.clone(), flow.source.take().unwrap())
             }
             Ok(Reuse::Matcher(_)) => unreachable!(),
             Ok(Reuse::Source(flow)) if flow.source.is_some() => {
                 let source = flow.source.clone().unwrap();
-                let senario = UsedSenario {
-                    matcher: senario.matcher,
-                    sorted_vars: senario.linearf,
-                    ..flow.senario.clone()
+                let scenario = UsedScenario {
+                    matcher: scenario.matcher,
+                    sorted_vars: scenario.linearf,
+                    ..flow.scenario.clone()
                 };
                 let a = source.data.renew();
                 let b = a.flat_map(|chunk| {
@@ -103,12 +103,12 @@ impl Flow {
                     })
                 });
                 let scores = matcher_registry.score(
-                    &senario.sorted_vars.matcher,
-                    (&senario.sorted_vars, &senario.matcher),
+                    &scenario.sorted_vars.matcher,
+                    (&scenario.sorted_vars, &scenario.matcher),
                     b
                 );
-                let first_size = std::cmp::max(senario.sorted_vars.first_view, 1);
-                let chunk_size = std::cmp::max(senario.sorted_vars.chunk_size, 1);
+                let first_size = std::cmp::max(scenario.sorted_vars.first_view, 1);
+                let chunk_size = std::cmp::max(scenario.sorted_vars.chunk_size, 1);
                 let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
                 let source_handle = rt.spawn(load);
                 let new_source = Disposable {
@@ -119,19 +119,19 @@ impl Flow {
                         h
                     }
                 };
-                (flow.at, senario, new_source)
+                (flow.at, scenario, new_source)
             }
             Ok(Reuse::Source(_)) => unreachable!(),
             Err(started) => {
-                let v = &senario.linearf;
-                let a = source_registry.stream(&v.source, (v, &senario.source));
+                let v = &scenario.linearf;
+                let a = source_registry.stream(&v.source, (v, &scenario.source));
                 let b = if v.converters.is_empty() {
                     a
                 } else {
                     converter_registry.map_convert(&v.converters, a)?
                 };
                 let c = b.map(Arc::new);
-                let scores = matcher_registry.score(&v.matcher, (v, &senario.matcher), c);
+                let scores = matcher_registry.score(&v.matcher, (v, &scenario.matcher), c);
                 let first_size = std::cmp::max(v.first_view, 1);
                 let chunk_size = std::cmp::max(v.chunk_size, 1);
                 let (load, cache) = cache_chunks::new_cache_chunks(scores, first_size, chunk_size);
@@ -142,11 +142,11 @@ impl Flow {
                 };
                 (
                     started,
-                    UsedSenario {
-                        source: senario.source,
+                    UsedScenario {
+                        source: scenario.source,
                         stream_vars: v.clone(),
-                        matcher: senario.matcher,
-                        sorted_vars: senario.linearf
+                        matcher: scenario.matcher,
+                        sorted_vars: scenario.linearf
                     },
                     new_source
                 )
@@ -161,7 +161,7 @@ impl Flow {
         };
         Ok(Flow {
             at,
-            senario,
+            scenario,
             source: Some(source),
             matcher: Some(Disposable {
                 data: sorted,
@@ -208,16 +208,16 @@ impl<T> Reuse<Option<T>> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct UsedSenario<V, P> {
+pub struct UsedScenario<V, P> {
     pub source: P,
     pub stream_vars: V,
     pub matcher: P,
     pub sorted_vars: V
 }
 
-impl<V, P> UsedSenario<V, P> {
-    fn as_ref(&self) -> UsedSenario<&V, &P> {
-        UsedSenario {
+impl<V, P> UsedScenario<V, P> {
+    fn as_ref(&self) -> UsedScenario<&V, &P> {
+        UsedScenario {
             source: &self.source,
             stream_vars: &self.stream_vars,
             matcher: &self.matcher,

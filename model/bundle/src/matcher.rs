@@ -71,7 +71,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 &self,
                 name: &str,
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+                scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
             ) -> Reusable
             {
                 match name {
@@ -83,7 +83,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             fn score(
                 &self,
                 name: &str,
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+                scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
                 items: impl Stream<Item = Arc<Item>> + Send + Sync + 'static
             ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
                 match name {
@@ -130,13 +130,13 @@ fn reusable(a: A) -> TokenStream {
     } = a;
     let p = quote::quote! {
         let (prev_vars, prev_matcher) = prev;
-        let (senario_vars, senario_matcher) = senario;
+        let (scenario_vars, scenario_matcher) = scenario;
         if prev_matcher.is::<#params>()
-            && senario_matcher.is::<#params>()
+            && scenario_matcher.is::<#params>()
         {
             let prev_matcher: &Arc<#params> = unsafe { std::mem::transmute(prev_matcher) };
-            let senario_matcher: &Arc<#params> = unsafe { std::mem::transmute(senario_matcher) };
-            s.reusable((prev_vars, prev_matcher), (senario_vars, senario_matcher))
+            let scenario_matcher: &Arc<#params> = unsafe { std::mem::transmute(scenario_matcher) };
+            s.reusable((prev_vars, prev_matcher), (scenario_vars, scenario_matcher))
         } else {
             log::error!("mismatch matcher reusable params");
             Reusable::None
@@ -159,15 +159,15 @@ fn score(a: A) -> TokenStream {
     quote::quote! {
         #name => match &self.#field {
             linearf::matcher::Matcher::Simple(s) => {
-                let (senario_vars, senario_matcher) = senario;
-                if senario_matcher.is::<#params>() {
-                    let senario_matcher: &Arc<#params> =
-                        unsafe { std::mem::transmute(senario_matcher) };
+                let (scenario_vars, scenario_matcher) = scenario;
+                if scenario_matcher.is::<#params>() {
+                    let scenario_matcher: &Arc<#params> =
+                        unsafe { std::mem::transmute(scenario_matcher) };
                     let s = s.clone();
-                    let senario_vars = senario_vars.clone();
-                    let senario_matcher = senario_matcher.clone();
+                    let scenario_vars = scenario_vars.clone();
+                    let scenario_matcher = scenario_matcher.clone();
                     Box::pin(items.map(move |x| {
-                        let score = s.score((&senario_vars, &senario_matcher), &x);
+                        let score = s.score((&scenario_vars, &scenario_matcher), &x);
                         (x, Arc::new(score))
                     }))
                 } else {

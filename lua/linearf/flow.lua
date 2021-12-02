@@ -1,12 +1,12 @@
 local Flow = {}
 
-function Flow.new(bridge, sid, fid, senario)
+function Flow.new(bridge, sid, fid, scenario)
     local this = {}
     this.bridge = bridge
     this.session_id = sid
-    senario.source = nil
-    senario.matcher = nil
-    this.senario = senario
+    scenario.source = nil
+    scenario.matcher = nil
+    this.scenario = scenario
     this.flow_id = fid
     return setmetatable(this, {__index = Flow})
 end

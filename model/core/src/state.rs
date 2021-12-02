@@ -48,18 +48,18 @@ impl State {
             }
             Some(id) => {
                 let sess = self.session(id).ok_or(Error::SessionNotFound(id))?;
-                validate_senario(sess, &request.senario)?;
+                validate_scenario(sess, &request.scenario)?;
                 let sess = self.take_session(id).unwrap();
                 (id, sess)
             }
         };
-        let senario = parse_senario(source, matcher, request.senario)?;
+        let scenario = parse_scenario(source, matcher, request.scenario)?;
         let reuse: Result<Reuse<(SessionId, FlowId)>, Instant> = match reusable(
             self,
             (id, &target),
             source,
             matcher,
-            senario.as_ref(),
+            scenario.as_ref(),
             started
         ) {
             Some(r) => {
@@ -75,11 +75,11 @@ impl State {
         });
         log::debug!(
             "reuse {:?}",
-            reuse.as_ref().map(|r| r.as_ref().map(|f| f.senario()))
+            reuse.as_ref().map(|r| r.as_ref().map(|f| f.scenario()))
         );
-        let dispose_flow = senario.linearf.dispose_flow;
+        let dispose_flow = scenario.linearf.dispose_flow;
         let flow =
-            Flow::start(rt, source, matcher, converter, reuse, senario).map_err(|e| match e {
+            Flow::start(rt, source, matcher, converter, reuse, scenario).map_err(|e| match e {
                 StartError::ConverterNotFound(n) => Error::ConverterNotFound(n)
             })?;
         if dispose_flow {
@@ -93,19 +93,19 @@ impl State {
 
 pub struct StartFlow<D> {
     pub id: Option<SessionId>,
-    pub senario: Senario<Vars, D>
+    pub scenario: Scenario<Vars, D>
 }
 
 #[derive(Clone, Copy)]
-pub struct Senario<V, P> {
+pub struct Scenario<V, P> {
     pub linearf: V,
     pub source: P,
     pub matcher: P
 }
 
-impl<V, P> Senario<V, P> {
-    fn as_ref(&self) -> Senario<&V, &P> {
-        Senario {
+impl<V, P> Scenario<V, P> {
+    fn as_ref(&self) -> Scenario<&V, &P> {
+        Scenario {
             linearf: &self.linearf,
             source: &self.source,
             matcher: &self.matcher
@@ -133,11 +133,11 @@ pub enum Error {
     #[error("Flow {0:?} {1:?} is not found")]
     FlowNotFound(SessionId, FlowId),
     #[error("Flow must have the same source in session: {0:?} != {1:?}")]
-    SenarioSource(SmartString, SmartString),
+    ScenarioSource(SmartString, SmartString),
     #[error("Flow must have the same matcher in session: {0:?} != {1:?}")]
-    SenarioMatcher(SmartString, SmartString),
+    ScenarioMatcher(SmartString, SmartString),
     #[error("Flow must have the same converters in session: {0:?} != {1:?}")]
-    SenarioConverters(Vec<SmartString>, Vec<SmartString>),
+    ScenarioConverters(Vec<SmartString>, Vec<SmartString>),
     #[error("{0}")]
     Others(Box<dyn std::error::Error + Send + Sync>),
     #[error("Flow {0:?} {1:?} is disposed")]
@@ -182,50 +182,50 @@ impl State {
 }
 
 /// Panic: if session has no flows
-fn validate_senario<D>(session: &Session, senario: &Senario<Vars, D>) -> Result<(), Error> {
+fn validate_scenario<D>(session: &Session, scenario: &Scenario<Vars, D>) -> Result<(), Error> {
     let flow = session
         .flows()
         .next_back()
         .expect("Session must have one or more flows")
         .1;
-    let prev = &flow.senario();
-    if prev.sorted_vars.source != senario.linearf.source {
-        return Err(Error::SenarioSource(
+    let prev = &flow.scenario();
+    if prev.sorted_vars.source != scenario.linearf.source {
+        return Err(Error::ScenarioSource(
             prev.sorted_vars.source.clone(),
-            senario.linearf.source.clone()
+            scenario.linearf.source.clone()
         ));
     }
-    if prev.sorted_vars.matcher != senario.linearf.matcher {
-        return Err(Error::SenarioMatcher(
+    if prev.sorted_vars.matcher != scenario.linearf.matcher {
+        return Err(Error::ScenarioMatcher(
             prev.sorted_vars.matcher.clone(),
-            senario.linearf.matcher.clone()
+            scenario.linearf.matcher.clone()
         ));
     }
-    if prev.sorted_vars.converters != senario.linearf.converters {
-        return Err(Error::SenarioConverters(
+    if prev.sorted_vars.converters != scenario.linearf.converters {
+        return Err(Error::ScenarioConverters(
             prev.sorted_vars.converters.clone(),
-            senario.linearf.converters.clone()
+            scenario.linearf.converters.clone()
         ));
     }
     Ok(())
 }
 
-fn parse_senario<'a, D, S, M>(
+fn parse_scenario<'a, D, S, M>(
     source: &S,
     matcher: &M,
-    senario: Senario<Vars, D>
-) -> Result<Senario<Arc<Vars>, Arc<dyn Any + Send + Sync>>, Error>
+    scenario: Scenario<Vars, D>
+) -> Result<Scenario<Arc<Vars>, Arc<dyn Any + Send + Sync>>, Error>
 where
     D: serde::de::Deserializer<'a>,
     <D as serde::de::Deserializer<'a>>::Error: Send + Sync + 'static,
     S: SourceRegistry,
     M: MatcherRegistry
 {
-    let Senario {
+    let Scenario {
         linearf: s_linearf,
         source: s_source,
         matcher: s_matcher
-    } = senario;
+    } = scenario;
     let s_linearf = Arc::new(s_linearf);
     let source_params = source
         .parse(&s_linearf.source, s_source)
@@ -235,7 +235,7 @@ where
         .parse(&s_linearf.matcher, s_matcher)
         .ok_or_else(|| Error::MatcherNotFound(s_linearf.matcher.clone()))?
         .map_err(|e| Error::Others(e.into()))?;
-    Ok(Senario {
+    Ok(Scenario {
         linearf: s_linearf,
         source: source_params,
         matcher: matcher_params
@@ -252,7 +252,7 @@ fn reusable<'a, S, M>(
     target: (SessionId, &'a Session),
     source: &S,
     matcher: &M,
-    senario: Senario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
+    scenario: Scenario<&Arc<Vars>, &Arc<dyn Any + Send + Sync>>,
     started: Instant
 ) -> Option<Reuse<(SessionId, FlowId, &'a Flow)>>
 where
@@ -260,31 +260,31 @@ where
     M: MatcherRegistry
 {
     let use_cache = |flow: &Flow| -> bool {
-        (started - flow.at()).as_secs() < senario.linearf.cache_sec.into()
+        (started - flow.at()).as_secs() < scenario.linearf.cache_sec.into()
     };
     let source_reusable = |flow: &Flow| {
         if !flow.has_cache()
-            || flow.senario().stream_vars.source != senario.linearf.source
-            || flow.senario().stream_vars.converters != senario.linearf.converters
+            || flow.scenario().stream_vars.source != scenario.linearf.source
+            || flow.scenario().stream_vars.converters != scenario.linearf.converters
         {
             return Reusable::None;
         }
         source.reusable(
-            &senario.linearf.source,
-            (flow.senario().stream_vars, flow.senario().source),
-            (senario.linearf, senario.source)
+            &scenario.linearf.source,
+            (flow.scenario().stream_vars, flow.scenario().source),
+            (scenario.linearf, scenario.source)
         )
     };
     let matcher_reusable = |flow: &Flow| {
-        if flow.senario().sorted_vars.matcher != senario.linearf.matcher {
+        if flow.scenario().sorted_vars.matcher != scenario.linearf.matcher {
             return Reusable::None;
         }
         match (
             source_reusable(flow),
             matcher.reusable(
-                &senario.linearf.matcher,
-                (flow.senario().sorted_vars, flow.senario().matcher),
-                (senario.linearf, senario.matcher)
+                &scenario.linearf.matcher,
+                (flow.scenario().sorted_vars, flow.scenario().matcher),
+                (scenario.linearf, scenario.matcher)
             )
         ) {
             (Reusable::Same, Reusable::Same) => Reusable::Same,
@@ -320,9 +320,9 @@ where
         };
     }
     return_found!(traversal.find(matcher_same, true));
-    return_found!(traversal.find(matcher_cache, senario.linearf.cache_across_sessions));
+    return_found!(traversal.find(matcher_cache, scenario.linearf.cache_across_sessions));
     return_found!(traversal.find(source_same, true));
-    return_found!(traversal.find(source_cache, senario.linearf.cache_across_sessions));
+    return_found!(traversal.find(source_cache, scenario.linearf.cache_across_sessions));
     return None;
 
     struct Traversal<'a> {

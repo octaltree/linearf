@@ -41,7 +41,7 @@ After initialize, you can use the global variable `linearf` and `lnf`.
 <
 You can set up frequently used scenarios in advance.
 >
-  lua require('linearf').senarios = {
+  lua require('linearf').scenarios = {
       \     simple = {
       \         linearf = {
       \             source = 'simple',
@@ -68,9 +68,9 @@ API REFERENCE	*linearf-reference*
 *linearf*
 
 the root module. it can call as
-({senario_name:string}) -> ()
-({senario_diff:table}) -> ()
-({senario_name:string}, {senario_diff:table}) -> ()
+({scenario_name:string}) -> ()
+({scenario_diff:table}) -> ()
+({scenario_name:string}, {scenario_diff:table}) -> ()
 
 *linearf.recipe*  <%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct Recipe {", "}", 1)
   %> <%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct Crate {", "}", 1)
@@ -79,9 +79,9 @@ the root module. it can call as
   %> <%= load_block(LINEARF_ROOT.join("model/bundle/src/lib.rs"), "pub struct ConverterDescriptor {", "}", 1)
   %>
 
-*linearf.senarios* {{senario_name:string} = {senario_diff}}
-		A table that has name and senario diff. The default senario is <%=
-  load_block(LINEARF_ROOT.join("lua/linearf/senario_builder.lua"), "local DEFAULT = {", "}", 1)
+*linearf.scenarios* {{scenario_name:string} = {scenario_diff}}
+		A table that has name and scenario diff. The default scenario is <%=
+  load_block(LINEARF_ROOT.join("lua/linearf/scenario_builder.lua"), "local DEFAULT = {", "}", 1)
   %>		The schema of linearf is <%= load_block(LINEARF_ROOT.join("model/core/src/lib.rs"), "pub struct Vars {", "}", 1)
   %>		list_nnoremap is {{key:string} = {action:function}}
 		view is, e.g., |linearf_vanilla.DEFAULT|
@@ -90,8 +90,8 @@ the root module. it can call as
 
 *linearf-item*  <%= load_block(LINEARF_ROOT.join("model/core/src/item.rs"), "pub struct Item {", "}", 1) %>
 
-*linearf.context_managers* {{senario_name:string} = () -> {senario_diff:table}}
-		Table with senario names and functions that return scenario diff
+*linearf.context_managers* {{scenario_name:string} = () -> {scenario_diff:table}}
+		Table with scenario names and functions that return scenario diff
 
 *linearf.view*
 		An object with the same interface as vanilla
@@ -103,7 +103,7 @@ the root module. it can call as
 		1. Set global variable `linearf` and `lnf`
 		2. Set |linearf.view|
 
-*linearf.run* ({senario_name:string}, {senario_diff:table}) -> ()
+*linearf.run* ({scenario_name:string}, {scenario_diff:table}) -> ()
 
 *linearf.query* ({session_id:number}, {query:string}) -> ()
 

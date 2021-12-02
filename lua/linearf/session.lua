@@ -1,9 +1,9 @@
 local Session = {}
 
-function Session.new(id, senario_builder)
+function Session.new(id, scenario_builder)
     local this = {}
     this.id = id
-    this.senario_builder = senario_builder
+    this.scenario_builder = scenario_builder
     this.flow = {}
     return setmetatable(this, {__index = Session})
 end

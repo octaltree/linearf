@@ -24,7 +24,7 @@ pub mod source {
     impl<L> SimpleGenerator for Simple<L> {
         fn stream(
             &self,
-            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+            _scenario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
             let s = futures::stream::unfold(0..1000000, |mut it| async {
                 it.next().map(|i| {
@@ -39,7 +39,7 @@ pub mod source {
         fn reusable(
             &self,
             _prev: (&Arc<Vars>, &Arc<Self::Params>),
-            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+            _scenario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Reusable {
             Reusable::Same
         }
@@ -68,7 +68,7 @@ pub mod source {
     impl<L> SimpleGenerator for OsStr<L> {
         fn stream(
             &self,
-            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+            _scenario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Pin<Box<dyn Stream<Item = Item> + Send + Sync>> {
             let d = match std::fs::read_dir("/home") {
                 Ok(d) => d,
@@ -86,7 +86,7 @@ pub mod source {
         fn reusable(
             &self,
             _prev: (&Arc<Vars>, &Arc<Self::Params>),
-            _senario: (&Arc<Vars>, &Arc<Self::Params>)
+            _scenario: (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Reusable {
             Reusable::Same
         }
@@ -128,9 +128,9 @@ pub mod matcher {
         fn reusable(
             &self,
             (prev, _): (&Arc<Vars>, &Arc<Self::Params>),
-            (senario, _): (&Arc<Vars>, &Arc<Self::Params>)
+            (scenario, _): (&Arc<Vars>, &Arc<Self::Params>)
         ) -> Reusable {
-            if prev.query == senario.query {
+            if prev.query == scenario.query {
                 Reusable::Same
             } else {
                 Reusable::None

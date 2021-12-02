@@ -41,7 +41,7 @@ After initialize, you can use the global variable `linearf` and `lnf`.
 <
 You can set up frequently used scenarios in advance.
 >
-  lua require('linearf').senarios = {
+  lua require('linearf').scenarios = {
       \     simple = {
       \         linearf = {
       \             source = 'simple',
@@ -87,15 +87,15 @@ EXAMPLE	*linearf-example*
   linearf.bridge.try_build_on_error = true
 
   -- Define your scenario. flavors provides you with several presets
-  local function set(target, context_manager, senario)
+  local function set(target, context_manager, scenario)
       linearf.context_managers[target] = context_manager
-      linearf.senarios[target] = senario
+      linearf.scenarios[target] = scenario
   end
   set('line', flavors.context_managers['line'], flavors.merge {
-      flavors.senarios['line'],
-      flavors.senarios.quit,
-      flavors.senarios.no_list_insert,
-      flavors.senarios.no_querier_normal,
+      flavors.scenarios['line'],
+      flavors.scenarios.quit,
+      flavors.scenarios.no_list_insert,
+      flavors.scenarios.no_querier_normal,
       {
           linearf = {
               list_nnoremap = {
@@ -112,10 +112,10 @@ EXAMPLE	*linearf-example*
   local use_rg = false
   set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
       flavors.merge {
-      flavors.senarios[use_rg and 'file_rg' or 'file_find'],
-      flavors.senarios.quit,
-      flavors.senarios.no_list_insert,
-      flavors.senarios.no_querier_normal,
+      flavors.scenarios[use_rg and 'file_rg' or 'file_find'],
+      flavors.scenarios.quit,
+      flavors.scenarios.no_list_insert,
+      flavors.scenarios.no_querier_normal,
       {
           linearf = {
               list_nnoremap = {
@@ -133,10 +133,10 @@ EXAMPLE	*linearf-example*
   })
   set('grep', flavors.context_managers[use_rg and 'grep_rg' or 'grep_grep'],
       flavors.merge {
-      flavors.senarios[use_rg and 'grep_rg' or 'grep_grep'],
-      flavors.senarios.quit,
-      flavors.senarios.no_list_insert,
-      flavors.senarios.enter_list,
+      flavors.scenarios[use_rg and 'grep_rg' or 'grep_grep'],
+      flavors.scenarios.quit,
+      flavors.scenarios.no_list_insert,
+      flavors.scenarios.enter_list,
       {
           linearf = {
               list_nnoremap = {
@@ -169,9 +169,9 @@ API REFERENCE	*linearf-reference*
 *linearf*
 
 the root module. it can call as
-({senario_name:string}) -> ()
-({senario_diff:table}) -> ()
-({senario_name:string}, {senario_diff:table}) -> ()
+({scenario_name:string}) -> ()
+({scenario_diff:table}) -> ()
+({scenario_name:string}, {scenario_diff:table}) -> ()
 
 *linearf.recipe*  >
 		  pub struct Recipe {
@@ -206,8 +206,8 @@ the root module. it can call as
 		  }
 <
 
-*linearf.senarios* {{senario_name:string} = {senario_diff}}
-		A table that has name and senario diff. The default senario is >
+*linearf.scenarios* {{scenario_name:string} = {scenario_diff}}
+		A table that has name and scenario diff. The default scenario is >
 		  local DEFAULT = {
 		      linearf = {
 		          query = '',
@@ -256,8 +256,8 @@ the root module. it can call as
 		  }
 <
 
-*linearf.context_managers* {{senario_name:string} = () -> {senario_diff:table}}
-		Table with senario names and functions that return scenario diff
+*linearf.context_managers* {{scenario_name:string} = () -> {scenario_diff:table}}
+		Table with scenario names and functions that return scenario diff
 
 *linearf.view*
 		An object with the same interface as vanilla
@@ -269,7 +269,7 @@ the root module. it can call as
 		1. Set global variable `linearf` and `lnf`
 		2. Set |linearf.view|
 
-*linearf.run* ({senario_name:string}, {senario_diff:table}) -> ()
+*linearf.run* ({scenario_name:string}, {scenario_diff:table}) -> ()
 
 *linearf.query* ({session_id:number}, {query:string}) -> ()
 

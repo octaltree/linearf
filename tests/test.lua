@@ -26,7 +26,7 @@ function M.run()
         end
     }
     linearf.init(view)
-    linearf.senarios = {
+    linearf.scenarios = {
         simple = {linearf = {source = 'simple', matcher = 'substring'}},
         osstr = {linearf = {source = 'osstr', matcher = 'substring'}}
     }

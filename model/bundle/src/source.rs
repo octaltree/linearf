@@ -73,7 +73,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                 &self,
                 name: &str,
                 prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+                scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
             ) -> Reusable
             {
                 match name {
@@ -85,7 +85,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             fn stream(
                 &self,
                 name: &str,
-                senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+                scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
             ) -> Pin<Box<dyn Stream<Item = Item> + Send +Sync>>
             {
                 match name {
@@ -129,13 +129,13 @@ fn reusable(a: A) -> TokenStream {
     } = a;
     let p = quote::quote! {
         let (prev_vars, prev_source) = prev;
-        let (senario_vars, senario_source) = senario;
+        let (scenario_vars, scenario_source) = scenario;
         if prev_source.is::<#params>()
-            && senario_source.is::<#params>()
+            && scenario_source.is::<#params>()
         {
             let prev_source: &Arc<#params> = unsafe { std::mem::transmute(prev_source) };
-            let senario_source: &Arc<#params> = unsafe { std::mem::transmute(senario_source) };
-            g.reusable((prev_vars, prev_source), (senario_vars, senario_source))
+            let scenario_source: &Arc<#params> = unsafe { std::mem::transmute(scenario_source) };
+            g.reusable((prev_vars, prev_source), (scenario_vars, scenario_source))
         } else {
             log::error!("mismatch source reusable params");
             Reusable::None
@@ -156,18 +156,18 @@ fn stream(a: A) -> TokenStream {
         ..
     } = a;
     let pre = quote::quote! {
-        let (senario_vars, senario_source) = senario;
-        if !senario_source.is::<#params>() {
+        let (scenario_vars, scenario_source) = scenario;
+        if !scenario_source.is::<#params>() {
             log::error!("mismatch source stream params");
             return Box::pin(empty());
         }
-        let senario_source: &Arc<#params> = unsafe { std::mem::transmute(senario_source) };
+        let scenario_source: &Arc<#params> = unsafe { std::mem::transmute(scenario_source) };
     };
     quote::quote! {
         #name => match self.#field.clone() {
             linearf::source::Source::Simple(g) => {
                 #pre
-                g.stream((&senario_vars, &senario_source))
+                g.stream((&scenario_vars, &scenario_source))
             }
         },
     }

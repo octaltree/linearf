@@ -20,7 +20,7 @@ pub trait MatcherRegistry {
     fn score(
         &self,
         _name: &str,
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
+        _scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
         items: impl Stream<Item = Arc<Item>> + Send + Sync + 'static
     ) -> Pin<Box<dyn Stream<Item = WithScore> + Send + Sync>> {
         Box::pin(items.map(|i| {
@@ -33,7 +33,7 @@ pub trait MatcherRegistry {
         &self,
         _name: &str,
         _prev: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>),
-        _senario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
+        _scenario: (&Arc<Vars>, &Arc<dyn Any + Send + Sync>)
     ) -> Reusable {
         Reusable::Same
     }
@@ -56,7 +56,7 @@ impl<P> Clone for Matcher<P> {
 pub trait SimpleScorer: IsMatcher {
     fn score(
         &self,
-        senario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>),
+        scenario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>),
         item: &Arc<Item>
     ) -> Score;
 
@@ -64,7 +64,7 @@ pub trait SimpleScorer: IsMatcher {
     fn reusable(
         &self,
         prev: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>),
-        senario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>)
+        scenario: (&Arc<Vars>, &Arc<<Self as IsMatcher>::Params>)
     ) -> Reusable;
 }
 

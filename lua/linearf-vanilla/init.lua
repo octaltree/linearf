@@ -185,16 +185,16 @@ do -- PRIVATE
     end
 
     local function _first_view_size(flow, resume_view)
-        local default = flow.senario.linearf.first_view
+        local default = flow.scenario.linearf.first_view
         return (resume_view or {}).lnum or default
     end
 
     function Vanilla._first_view(self, ctx, flow, resume_view)
-        local vars = flow.senario.linearf
+        local vars = flow.scenario.linearf
         local buff = {list = {}}
         buff.querier = nofile.named(self.QUERIER)
         if ctx.refresh then
-            utils.setbufline(buff.querier, 1, {flow.senario.linearf.query})
+            utils.setbufline(buff.querier, 1, {flow.scenario.linearf.query})
         end
         local size = _first_view_size(flow, resume_view)
         local items, done, count, source_count, last
@@ -272,7 +272,7 @@ do -- PRIVATE
     end
 
     function Vanilla._execute(self, dic_name, fh)
-        local dic = self.current.senario.linearf[dic_name]
+        local dic = self.current.scenario.linearf[dic_name]
         local fn = nil
         for _, f in pairs(dic) do
             if function_hash(f) == fh then fn = f end
@@ -290,14 +290,14 @@ do -- PRIVATE
         utils.command('nnoremap <buffer><CR> <nop>')
 
         -- TODO: args
-        for k, v in pairs(flow.senario.linearf.querier_nnoremap) do
+        for k, v in pairs(flow.scenario.linearf.querier_nnoremap) do
             local h = function_hash(v)
             local r = string.format(
                           ':<c-u>lua linearf.view:_execute("querier_nnoremap", %q)<CR>',
                           h)
             utils.command(string.format('nnor <silent><buffer>%s %s', k, r))
         end
-        for k, v in pairs(flow.senario.linearf.querier_inoremap) do
+        for k, v in pairs(flow.scenario.linearf.querier_inoremap) do
             local h = function_hash(v)
             local r = string.format(
                           '<cmd>lua linearf.view:_execute("querier_inoremap", %q)<CR>',
@@ -319,13 +319,13 @@ do -- PRIVATE
     end
 
     local function setlocal_list_win(flow)
-        local senario = flow.senario
-        local params = senario.view
+        local scenario = flow.scenario
+        local params = scenario.view
         win_common()
         utils.command('setlocal ft=linearf-vanilla-list')
         utils.command_('setlocal %scursorline', params.cursorline and '' or 'no')
 
-        for k, v in pairs(flow.senario.linearf.list_nnoremap) do
+        for k, v in pairs(flow.scenario.linearf.list_nnoremap) do
             local h = function_hash(v)
             local r = string.format(
                           ':<c-u>lua linearf.view:_execute("list_nnoremap", %q)<CR>',
@@ -389,9 +389,9 @@ do -- PRIVATE
     end
 
     function Vanilla._set_cursor(self, ctx, flow, resume_view)
-        local senario = flow.senario
+        local scenario = flow.scenario
         if ctx.awake == 'session' then
-            local status = senario.view.querier_on_start
+            local status = scenario.view.querier_on_start
             if status == 'active' or status == 'insert' then
                 vim.fn.win_gotoid(self.querier_win)
             else
@@ -408,7 +408,7 @@ do -- PRIVATE
     end
 
     function Vanilla._start_incremental(self, flow, buff)
-        local senario = flow.senario
+        local scenario = flow.scenario
         local open = function(b)
             local cur = vim.fn.win_getid()
             if cur ~= self.list_win and cur ~= self.querier_win then
@@ -434,14 +434,14 @@ do -- PRIVATE
         end
         local pre = nil
         local lazy = 10
-        utils.interval(senario.view.refresh_interval, function(timer)
+        utils.interval(scenario.view.refresh_interval, function(timer)
             if self.current ~= flow or vim.g._linearf_leave == 1 then
                 vim.fn.timer_stop(timer)
                 return
             end
             local items, done, count, source_count
             do
-                local r = flow:items({{0, senario.view.view_size}}, FIELDS)
+                local r = flow:items({{0, scenario.view.view_size}}, FIELDS)
                 if not r.ok then return end
                 done = r.value.done
                 count = r.value.count
@@ -449,7 +449,7 @@ do -- PRIVATE
                 items = r.value[1]
             end
             do -- skip flicker
-                if lazy > 0 and count < senario.linearf.first_view and not done then
+                if lazy > 0 and count < scenario.linearf.first_view and not done then
                     lazy = lazy - 1
                     return
                 end
@@ -464,7 +464,7 @@ do -- PRIVATE
                 table.insert(lines, item.view)
             end
             do -- write
-                local b = nofile.new(title(senario.linearf.query, count,
+                local b = nofile.new(title(scenario.linearf.query, count,
                                            source_count, done))
                 utils.setbufline(b, 1, lines)
                 self.shown = items
@@ -486,7 +486,7 @@ do -- PRIVATE
 
     function Vanilla._write_last_view(self, flow, buff, offset, count)
         local l = offset + 1
-        local chunk = flow.senario.view.chunk_size
+        local chunk = flow.scenario.view.chunk_size
         local b = buff.list[#buff.list]
         utils.interval(5, function(timer)
             if self.current ~= flow or vim.g._linearf_leave == 1 then

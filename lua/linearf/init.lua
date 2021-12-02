@@ -11,7 +11,7 @@ local M = {
         matchers = {},
         converters = {}
     }),
-    senarios = Dim.new(),
+    scenarios = Dim.new(),
     context_managers = Dim.new(),
     _debug = false,
     -- mutables
@@ -20,7 +20,7 @@ local M = {
 }
 local Session = require('linearf.session')
 local Flow = require('linearf.flow')
-local SenarioBuilder = require('linearf.senario_builder')
+local ScenarioBuilder = require('linearf.scenario_builder')
 -- init stateful
 -- bridge stateful
 -- path cache
@@ -28,7 +28,7 @@ local SenarioBuilder = require('linearf.senario_builder')
 -- result pure type
 -- session type
 -- flow type
--- senario_builder type
+-- scenario_builder type
 -- dim type
 
 function M.build()
@@ -49,28 +49,28 @@ function M.init(view)
     M.view = view
 end
 
-local function new_senario_builder(senario_name, diff, winid)
-    local base = M.senarios[senario_name]
+local function new_scenario_builder(scenario_name, diff, winid)
+    local base = M.scenarios[scenario_name]
     if not base then base = {} end
-    local c = M.context_managers[senario_name]
+    local c = M.context_managers[scenario_name]
     if type(c) ~= 'function' then
         c = function()
             return nil
         end
     end
-    return SenarioBuilder.new(M.view.DEFAULT, base, c, diff, winid)
+    return ScenarioBuilder.new(M.view.DEFAULT, base, c, diff, winid)
 end
 
-function M.run(senario_name, diff)
+function M.run(scenario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local target = M.view:orig_winid() or vim.fn.win_getid()
-    local senario_builder = new_senario_builder(senario_name, diff, target)
-    local senario = senario_builder:for_session()
-    local id = M.bridge.run(senario):unwrap()
+    local scenario_builder = new_scenario_builder(scenario_name, diff, target)
+    local scenario = scenario_builder:for_session()
+    local id = M.bridge.run(scenario):unwrap()
     local sid = id.session
     local fid = id.flow
-    local flow = Flow.new(M.bridge, sid, fid, senario)
-    local sess = Session.new(sid, senario_builder):insert(fid, flow)
+    local flow = Flow.new(M.bridge, sid, fid, scenario)
+    local sess = Session.new(sid, scenario_builder):insert(fid, flow)
     M._sessions:set(sid, sess)
     M.view:flow({awake = 'session'}, flow)
 end
@@ -84,12 +84,12 @@ end
 function M._query(session_id, q)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
     local sess = expect_session(session_id)
-    local senario = sess.senario_builder:for_flow()
-    senario.linearf.query = q
-    local id = M.bridge.tick(session_id, senario):unwrap()
+    local scenario = sess.scenario_builder:for_flow()
+    scenario.linearf.query = q
+    local id = M.bridge.tick(session_id, scenario):unwrap()
     local sid = id.session
     local fid = id.flow
-    local flow = Flow.new(M.bridge, sid, fid, senario)
+    local flow = Flow.new(M.bridge, sid, fid, scenario)
     sess:insert(fid, flow)
     M.view:flow({awake = 'flow'}, flow)
 end

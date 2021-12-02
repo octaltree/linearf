@@ -79,21 +79,21 @@ fn initialize_log(file: &Path) -> Result<(), Box<dyn std::error::Error + Send + 
     Ok(())
 }
 
-fn run<'a>(lua: &'a Lua, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
-    start_flow(lua, None, senario)
+fn run<'a>(lua: &'a Lua, scenario: LuaTable) -> LuaResult<LuaTable<'a>> {
+    start_flow(lua, None, scenario)
 }
 
-fn tick<'a>(lua: &'a Lua, (id, senario): (i32, LuaTable)) -> LuaResult<LuaTable<'a>> {
-    start_flow(lua, Some(id), senario)
+fn tick<'a>(lua: &'a Lua, (id, scenario): (i32, LuaTable)) -> LuaResult<LuaTable<'a>> {
+    start_flow(lua, Some(id), scenario)
 }
 
-fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult<LuaTable<'a>> {
-    let senario = senario_deserializer(senario)?;
+fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, scenario: LuaTable) -> LuaResult<LuaTable<'a>> {
+    let scenario = scenario_deserializer(scenario)?;
     let req = state::StartFlow {
         id: id.map(state::SessionId),
-        senario
+        scenario
     };
-    log::debug!("{:?}", &req.senario.linearf.query);
+    log::debug!("{:?}", &req.scenario.linearf.query);
     let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
     let (sid, fid) = lnf.runtime().block_on(async {
         let state = &mut lnf.state().write().await;
@@ -116,14 +116,14 @@ fn start_flow<'a>(lua: &'a Lua, id: Option<i32>, senario: LuaTable) -> LuaResult
     }
 }
 
-fn senario_deserializer(senario: LuaTable) -> LuaResult<state::Senario<Vars, LuaDeserializer>> {
+fn scenario_deserializer(scenario: LuaTable) -> LuaResult<state::Scenario<Vars, LuaDeserializer>> {
     let vars = Vars::deserialize(LuaDeserializer::new_with_options(
-        LuaValue::Table(senario.raw_get::<_, LuaTable>("linearf")?),
+        LuaValue::Table(scenario.raw_get::<_, LuaTable>("linearf")?),
         LuaDeserializeOptions::new().deny_unsupported_types(false)
     ))?;
-    let source = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("source")?);
-    let matcher = LuaDeserializer::new(senario.raw_get::<_, LuaValue>("matcher")?);
-    Ok(state::Senario {
+    let source = LuaDeserializer::new(scenario.raw_get::<_, LuaValue>("source")?);
+    let matcher = LuaDeserializer::new(scenario.raw_get::<_, LuaValue>("matcher")?);
+    Ok(state::Scenario {
         linearf: vars,
         source,
         matcher
