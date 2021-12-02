@@ -33,20 +33,24 @@ linearf.recipe.sources = {
     {name = "identity", path = "flavors_plain::Identity"},
     {name = "command", path = "flavors_tokio::Command"}
 }
+linearf.recipe.converters = {
+    {name = "format_line", path = "flavors_plain::FormatLine"}
+}
 linearf.recipe.matchers = {
     {name = "identity", path = "flavors_plain::Identity"},
     {name = "substring", path = "flavors_plain::Substring"},
     {name = "clap", path = "flavors_clap::Clap"}
-}
-linearf.recipe.converters = {
-    {name = "format_line", path = "flavors_plain::FormatLine"}
 }
 -- Auto-build if you want
 linearf.bridge.try_build_if_not_exist = true
 linearf.bridge.try_build_on_error = true
 
 -- Define your scenario. flavors provides you with several presets
-linearf.senarios['line'] = flavors.merge {
+local function set(target, context_manager, senario)
+    linearf.context_managers[target] = context_manager
+    linearf.senarios[target] = senario
+end
+set('line', flavors.context_managers['line'], flavors.merge {
     flavors.senarios['line'],
     flavors.senarios.quit,
     flavors.senarios.no_list_insert,
@@ -63,11 +67,11 @@ linearf.senarios['line'] = flavors.merge {
         },
         view = {querier_on_start = 'insert'}
     }
-}
-linearf.context_managers['line'] = flavors.context_managers['line']
-linearf.senarios['file'] = flavors.merge {
-    flavors.senarios['file_find'],
-    --flavors.senarios['file_rg'],
+})
+local use_rg = false
+set('file', flavors.context_managers[use_rg and 'file_rg' or 'file_find'],
+    flavors.merge {
+    flavors.senarios[use_rg and 'file_rg' or 'file_find'],
     flavors.senarios.quit,
     flavors.senarios.no_list_insert,
     flavors.senarios.no_querier_normal,
@@ -85,12 +89,10 @@ linearf.senarios['file'] = flavors.merge {
             }
         }
     }
-}
-linearf.context_managers['file'] = flavors.context_managers['file_find']
---linearf.context_managers['file'] = flavors.context_managers['file_rg']
-linearf.senarios['grep'] = flavors.merge {
-    flavors.senarios['grep_grep'],
-    --flavors.senarios['grep_rg'],
+})
+set('grep', flavors.context_managers[use_rg and 'grep_rg' or 'grep_grep'],
+    flavors.merge {
+    flavors.senarios[use_rg and 'grep_rg' or 'grep_grep'],
     flavors.senarios.quit,
     flavors.senarios.no_list_insert,
     flavors.senarios.enter_list,
@@ -108,14 +110,15 @@ linearf.senarios['grep'] = flavors.merge {
             }
         }
     }
-}
-linearf.context_managers['grep'] = flavors.context_managers['grep_grep']
---linearf.context_managers['grep'] = flavors.context_managers['grep_rg']
+})
 
 -- optional
-linearf.utils.command("nnoremap <silent><space>/ :<c-u>lua linearf.run('line')<CR>")
-linearf.utils.command("nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
-linearf.utils.command("nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
+linearf.utils.command(
+    "nnoremap <silent><space>/ :<c-u>lua linearf.run('line')<CR>")
+linearf.utils.command(
+    "nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
+linearf.utils.command(
+    "nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
 EOF
 ```
 
