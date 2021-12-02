@@ -254,7 +254,6 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
     })
 }
 
-// TODO: compare left O(n) times
 fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
     if b.is_empty() {
         return;
