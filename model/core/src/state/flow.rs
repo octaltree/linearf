@@ -255,28 +255,55 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
 }
 
 fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
-    if b.is_empty() {
+    if a.is_empty() || b.is_empty() {
+        a.append(b);
         return;
     }
     let orig_len = a.len();
-    a.reserve(b.len());
+    let b_len = b.len();
+    a.reserve(b_len);
+    let which_is_right: Result<usize, usize> = if cmp(&a[orig_len - 1], &b[b_len - 1]).is_ge() {
+        let idx = a.partition_point(|x| cmp(x, &b[b_len - 1]).is_lt());
+        Ok(idx)
+    } else {
+        let idx = b.partition_point(|x| cmp(x, &a[orig_len - 1]).is_lt());
+        Err(idx)
+    };
     unsafe {
         let a: &mut Vec<mem::MaybeUninit<T>> = mem::transmute(a);
         let b: &mut Vec<mem::MaybeUninit<T>> = mem::transmute(b);
-        a.set_len(a.len() + b.len());
-        let (mut n, mut m) = (
-            (0..orig_len).rev().peekable(),
-            (0..b.len()).rev().peekable()
-        );
-        for dst in (0..a.len()).rev() {
+        let new_len = orig_len + b_len;
+        a.set_len(new_len);
+        let (mut n, mut m, offset) = match which_is_right {
+            Ok(idx) => {
+                let n = (0..idx).rev().peekable();
+                let m = (0..b_len).rev().peekable();
+                let num = orig_len - idx;
+                for i in 0..num {
+                    a[new_len - 1 - i] =
+                        mem::replace(&mut a[orig_len - 1 - i], mem::MaybeUninit::uninit());
+                }
+                (n, m, num)
+            }
+            Err(idx) => {
+                let n = (0..orig_len).rev().peekable();
+                let m = (0..idx).rev().peekable();
+                let num = b_len - idx;
+                for i in 0..num {
+                    a[new_len - 1 - i] = b.pop().unwrap();
+                }
+                (n, m, num)
+            }
+        };
+        for dst in (0..a.len() - offset).rev() {
             match (n.peek(), m.peek()) {
                 (Some(&i), Some(&j))
-                    if cmp(mem::transmute(&a[i]), mem::transmute(&b[j])) == Ordering::Greater =>
+                    if cmp(mem::transmute(&a[i]), mem::transmute(&b[j])).is_gt() =>
                 {
                     n.next();
                     a[dst] = mem::replace(&mut a[i], mem::MaybeUninit::uninit());
                 }
-                (Some(_), Some(&_j)) | (None, Some(&_j)) => {
+                (Some(_), Some(&j)) | (None, Some(&j)) => {
                     m.next();
                     a[dst] = b.pop().unwrap();
                 }
@@ -284,7 +311,6 @@ fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
                 (None, None) => break
             }
         }
-        assert_eq!(b.len(), 0);
         let _a: &mut Vec<T> = mem::transmute(a);
         let _b: &mut Vec<T> = mem::transmute(b);
     }
@@ -302,5 +328,28 @@ impl Sorted {
             .iter()
             .filter(|(i, _)| ids.contains(&i.id))
             .cloned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn merge() {
+        macro_rules! test {
+            ($a:expr, $b:expr, $y:expr) => {
+                let mut a = $a;
+                let mut b = $b;
+                super::merge(&mut a, &mut b, Ord::cmp);
+                assert_eq!(a, $y);
+                assert_eq!(b.len(), 0);
+            };
+        }
+        test!(vec![], vec![0, 6], vec![0, 6]);
+        test!(vec![1, 3, 5], vec![0, 2, 4], vec![0, 1, 2, 3, 4, 5]);
+        test!(vec![1, 3, 5], vec![2, 4, 6], vec![1, 2, 3, 4, 5, 6]);
+        test!(vec![1, 3, 5], vec![2], vec![1, 2, 3, 5]);
+        test!(vec![1, 3, 5], vec![0, 6], vec![0, 1, 3, 5, 6]);
+        test!(vec![1, 3, 5], vec![0, 2, 5], vec![0, 1, 2, 3, 5, 5]);
+        test!(vec![1, 3, 5], vec![0, 4, 5], vec![0, 1, 3, 4, 5, 5]);
     }
 }
