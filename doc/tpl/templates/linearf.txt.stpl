@@ -60,7 +60,7 @@ You can set up frequently used scenarios in advance.
 <
 ==============================================================================
 EXAMPLE	*linearf-example*
-<%= load_block(LINEARF_ROOT.join("README.md"), "\" lua block in vim script", "EOF", 0) %>
+<%= load_block(LINEARF_ROOT.join("README.md"), "--lua<<EOF", "--EOF", 0) %>
 ==============================================================================
 API REFERENCE	*linearf-reference*
 

@@ -6,7 +6,7 @@ CONTENTS	*linearf-contents*
 
 Installation	|linearf-install|
 Usage	|linearf-usage|
-Example	linearf-example
+Example	|linearf-example|
 API Reference	|linearf-reference|
 Motivation	|linearf-motivation|
 
@@ -61,8 +61,9 @@ You can set up frequently used scenarios in advance.
 ==============================================================================
 EXAMPLE	*linearf-example*
 >
-  " lua block in vim script
-  lua<<EOF
+  --lua<<EOF
+  -- If you paste in vimrc, surround with EOF
+
   local linearf = require('linearf')
   local flavors = require('linearf-my-flavors')
 
@@ -160,7 +161,10 @@ EXAMPLE	*linearf-example*
       "nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
   linearf.utils.command(
       "nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
-  EOF
+
+
+  -- for vimrc
+  --EOF
 <
 ==============================================================================
 API REFERENCE	*linearf-reference*
