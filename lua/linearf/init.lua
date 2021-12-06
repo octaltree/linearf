@@ -18,9 +18,6 @@ local M = {
     view = nil,
     _sessions = Dim.new()
 }
-local Session = require('linearf.session')
-local Flow = require('linearf.flow')
-local ScenarioBuilder = require('linearf.scenario_builder')
 -- init stateful
 -- bridge stateful
 -- path cache
@@ -50,6 +47,7 @@ function M.init(view)
 end
 
 local function new_scenario_builder(scenario_name, diff, winid)
+    local ScenarioBuilder = require('linearf.scenario_builder')
     local base = M.scenarios[scenario_name]
     if not base then base = {} end
     local c = M.context_managers[scenario_name]
@@ -67,6 +65,8 @@ function M.run(scenario_name, diff)
     local scenario_builder = new_scenario_builder(scenario_name, diff, target)
     local scenario = scenario_builder:for_session()
     local id = M.bridge.run(scenario):unwrap()
+    local Session = require('linearf.session')
+    local Flow = require('linearf.flow')
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, scenario)
@@ -87,6 +87,7 @@ function M._query(session_id, q)
     local scenario = sess.scenario_builder:for_flow()
     scenario.linearf.query = q
     local id = M.bridge.tick(session_id, scenario):unwrap()
+    local Flow = require('linearf.flow')
     local sid = id.session
     local fid = id.flow
     local flow = Flow.new(M.bridge, sid, fid, scenario)
