@@ -107,6 +107,10 @@ the root module. it can call as
 
 *linearf.query* ({session_id:number}, {query:string}) -> ()
 
+*linearf.resume* ({session_id:number}) -> ()
+
+*linearf.resume_last () -> ()
+
 ------------------------------------------------------------------------------
 *linearf.bridge*
 
