@@ -109,6 +109,13 @@ function M.resume(session_id)
     M.view:flow({awake = 'resume'}, flow)
 end
 
+function M.resume_last()
+    local sids = M.bridge.session_ids(true):unwrap()
+    if #sids == 0 then error('Failed to resume because sessions is empty') end
+    local sid = sids[1]
+    return M.resume(sid)
+end
+
 function M.remove_session(session_id)
     M.bridge.remove_session(session_id):unwrap()
     M._sessions[session_id] = nil

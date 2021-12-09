@@ -122,6 +122,8 @@ linearf.utils.command(
     "nnoremap <silent><space>f :<c-u>lua linearf.run('file')<CR>")
 linearf.utils.command(
     "nnoremap <silent><space>g :<c-u>lua linearf.run('grep')<CR>")
+linearf.utils.command(
+    "nnoremap <silent><space>l :<c-u>lua linearf.resume_last()<CR>")
 
 
 -- for vimrc

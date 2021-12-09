@@ -303,7 +303,7 @@ fn merge<T>(a: &mut Vec<T>, b: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) {
                     n.next();
                     a[dst] = mem::replace(&mut a[i], mem::MaybeUninit::uninit());
                 }
-                (Some(_), Some(&j)) | (None, Some(&j)) => {
+                (Some(_), Some(&_j)) | (None, Some(&_j)) => {
                     m.next();
                     a[dst] = b.pop().unwrap();
                 }

@@ -37,6 +37,7 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set("flow_items", lua.create_function(sorted::flow_items)?)?;
     exports.set("flow_id_items", lua.create_function(sorted::flow_id_items)?)?;
     exports.set("remove_session", lua.create_function(remove_session)?)?;
+    exports.set("session_ids", lua.create_function(session_ids)?)?;
     exports.set("inspect_error", lua.create_function(inspect_error)?)?;
     exports.set(
         "remove_all_sessions_later",
@@ -148,6 +149,19 @@ fn remove_session(lua: &Lua, id: i32) -> LuaResult<()> {
         state.remove_session(id);
     });
     Ok(())
+}
+
+fn session_ids(lua: &Lua, newer: bool) -> LuaResult<LuaTable> {
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    lnf.runtime().block_on(async {
+        let state = lnf.state().read().await;
+        let it = state.sessions();
+        if newer {
+            lua.create_sequence_from(it.rev().map(|(i, _)| i.0))
+        } else {
+            lua.create_sequence_from(it.map(|(i, _)| i.0))
+        }
+    })
 }
 
 fn inspect_error<'a>(lua: &'a Lua, (name, e): (LuaString, LuaError)) -> LuaResult<LuaTable<'a>> {

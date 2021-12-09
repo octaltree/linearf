@@ -144,7 +144,7 @@ pub enum Error {
     FlowDisposed(SessionId, FlowId)
 }
 
-struct Session {
+pub struct Session {
     flows: Vec<Flow>
 }
 
@@ -402,4 +402,8 @@ impl State {
     pub fn remove_session(&mut self, session: SessionId) { self.take_session(session); }
 
     pub fn remove_all_sesions(&mut self) { self.sessions = VecDeque::new(); }
+
+    pub fn sessions(&self) -> impl DoubleEndedIterator<Item = &(SessionId, Session)> {
+        self.sessions.iter()
+    }
 }
