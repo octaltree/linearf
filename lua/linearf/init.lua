@@ -61,7 +61,7 @@ end
 
 function M.run(scenario_name, diff)
     if M._debug then M.utils.command("let g:_linearf_time = reltime()") end
-    local target = M.view:orig_winid() or vim.fn.win_getid()
+    local target = vim.fn.win_getid()
     local scenario_builder = new_scenario_builder(scenario_name, diff, target)
     local scenario = scenario_builder:for_session()
     local id = M.bridge.run(scenario):unwrap()
