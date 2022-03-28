@@ -32,14 +32,8 @@ impl Item {
     pub fn value_lossy(&self) -> Cow<'_, str> {
         match &self.value {
             MaybeUtf8::Utf8(s) => Cow::Borrowed(s),
-            MaybeUtf8::Os(s) => match s.to_string_lossy() {
-                Cow::Owned(s) => Cow::Owned(s),
-                Cow::Borrowed(s) => Cow::Borrowed(s)
-            },
-            MaybeUtf8::Bytes(b) => match String::from_utf8_lossy(b) {
-                Cow::Owned(s) => Cow::Owned(s),
-                Cow::Borrowed(s) => Cow::Borrowed(s)
-            }
+            MaybeUtf8::Os(s) => s.to_string_lossy(),
+            MaybeUtf8::Bytes(b) => String::from_utf8_lossy(b)
         }
     }
 

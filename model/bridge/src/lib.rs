@@ -1,5 +1,3 @@
-#![feature(arc_new_cyclic)]
-
 mod lnf;
 mod sorted;
 mod wrapper;

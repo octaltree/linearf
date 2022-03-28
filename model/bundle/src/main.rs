@@ -22,6 +22,7 @@ fn main() -> StdResult<()> {
     let recipe = input(env_recipe)?;
     let here = Path::new(env_dir);
     let core = here.parent().unwrap().join("core");
+    let bridge = here.parent().unwrap().join("bridge");
     let (registry_toml, registry_lib) = registry(here);
     let crates = read_crates(&recipe.crates)?;
     let stash = Stash::stash(
@@ -30,7 +31,7 @@ fn main() -> StdResult<()> {
         crates.iter().map(|(_, f)| f.clone()).collect()
     )?;
     preprocess(&recipe, registry_lib, registry_toml, crates, &core)?;
-    let run = build(&features);
+    let run = build(&features, &bridge);
     stash.restore()?;
     std::process::exit(run?.code().ok_or("Process terminated by signal")?);
 }
@@ -95,7 +96,7 @@ fn preprocess(
     Ok(())
 }
 
-fn build(features: &str) -> std::io::Result<ExitStatus> {
+fn build(features: &str, bridge: &Path) -> std::io::Result<ExitStatus> {
     Command::new("cargo")
         .args(["fmt", "-p", "registry"])
         .stdout(Stdio::inherit())
@@ -103,7 +104,8 @@ fn build(features: &str) -> std::io::Result<ExitStatus> {
         .status()
         .ok();
     Command::new("cargo")
-        .args(["build", "--features", features, "--release", "--lib=bridge"])
+        .args(["build", "--features", features, "--release"])
+        .current_dir(bridge)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
