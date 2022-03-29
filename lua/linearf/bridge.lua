@@ -112,7 +112,6 @@ function M.build(recipe)
         utils.command('let $LINEARF_RECIPE = ' .. vim.fn.string(json))
         utils.command('let $LINEARF_BRIDGE_SUFFIX = ' ..
                           vim.fn.string(timestamp))
-        utils.command('let $RUSTFLAGS = "-Awarnings"')
     end
     do -- compile
         local features = 'mlua/' .. utils.lua_ver()
