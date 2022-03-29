@@ -17,6 +17,11 @@ function M.is_windows()
     return C._is_windows
 end
 
+function M.is_mac()
+    if C._is_mac == nil then C._is_mac = M.has('mac') end
+    return C._is_mac
+end
+
 -- vim.g
 
 function M.eval(s)

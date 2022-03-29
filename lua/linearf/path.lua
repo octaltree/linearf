@@ -62,6 +62,8 @@ end
 function M.bridge_name(suffix)
     if utils.is_windows() then
         return M.bridge_name_body(suffix) .. '.dll'
+    elseif utils.is_mac() then
+        return 'lib' .. M.bridge_name_body(suffix) .. '.dylib'
     else
         return 'lib' .. M.bridge_name_body(suffix) .. '.so'
     end
@@ -75,8 +77,9 @@ function M.cpath()
     local name
     if utils.is_windows() then
         name = '?.dll'
+    elseif utils.is_mac() then
+        name = 'lib?.dylib'
     else
-        -- mac?
         name = 'lib?.so'
     end
     local lua = M.join {M.root(), 'model', 'target', utils.lua_ver(), name}
