@@ -46,6 +46,7 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
         lua.create_function(remove_all_sessions)?
     )?;
     exports.set("clean_dir", lua.create_function(clean_dir)?)?;
+    exports.set("dispatch_action", lua.create_function(dispatch_action)?)?;
     Ok(exports)
 }
 
@@ -216,3 +217,5 @@ fn clean_dir(_lua: &Lua, (): ()) -> LuaResult<()> {
     fs::remove_dir_all(dir()).map_err(LuaError::external)?;
     Ok(())
 }
+
+fn dispatch_action(lua: &Lua, (): ()) -> LuaResult<LuaTable> { lua.create_table() }

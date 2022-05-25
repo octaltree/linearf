@@ -1,6 +1,7 @@
 #![feature(drain_filter, test)]
 extern crate test;
 
+pub mod action;
 pub(crate) mod common_interface;
 pub mod converter;
 pub mod item;
