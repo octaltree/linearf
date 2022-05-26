@@ -15,7 +15,9 @@ pub trait ActionRegistry {
         None
     }
 
-    fn run(&self, _name: &str, _params: Arc<dyn Any + Send + Sync>) -> Arc<dyn Any + Send + Sync>;
+    fn run(&self, _name: &str, _params: Arc<dyn Any + Send + Sync>) -> Arc<dyn Any + Send + Sync> {
+        Arc::new(())
+    }
 }
 
 pub enum Action<P, R> {

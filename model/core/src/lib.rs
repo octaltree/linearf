@@ -9,6 +9,7 @@ pub mod matcher;
 pub mod source;
 pub mod state;
 
+pub use action::ActionRegistry;
 pub use converter::ConverterRegistry;
 pub use matcher::MatcherRegistry;
 pub use smartstring::alias::String as SmartString;
@@ -21,6 +22,7 @@ pub trait Linearf {
     type Source: SourceRegistry;
     type Matcher: MatcherRegistry;
     type Converter: ConverterRegistry;
+    type Action: ActionRegistry;
 
     fn state(&self) -> &Shared<State>;
 
@@ -40,6 +42,7 @@ pub struct Vars {
     pub source: SmartString,
     pub matcher: SmartString,
     pub converters: Vec<SmartString>,
+    pub actions: Vec<SmartString>,
     pub query: String,
     /// How many seconds before you can reuse it
     pub cache_sec: u32,
