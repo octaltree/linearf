@@ -44,8 +44,9 @@ pub trait IsAction {
 pub trait ActionParams: DeserializeOwned + Serialize {}
 pub trait ActionResult: DeserializeOwned + Serialize {}
 
+impl<T> ActionResult for T where T: DeserializeOwned + Serialize {}
+
 impl ActionParams for BlankParams {}
-impl ActionResult for BlankResult {}
 
 pub trait NewAction<L>: IsAction
 where
