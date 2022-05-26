@@ -42,7 +42,6 @@ pub struct Vars {
     pub source: SmartString,
     pub matcher: SmartString,
     pub converters: Vec<SmartString>,
-    pub actions: Vec<SmartString>,
     pub query: String,
     /// How many seconds before you can reuse it
     pub cache_sec: u32,
