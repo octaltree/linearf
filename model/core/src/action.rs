@@ -18,6 +18,18 @@ pub trait ActionRegistry {
     fn run(&self, _name: &str, _params: Arc<dyn Any + Send + Sync>) -> Arc<dyn Any + Send + Sync> {
         Arc::new(())
     }
+
+    fn serialize<S>(
+        &self,
+        _name: &str,
+        _result: Arc<dyn Any + Send + Sync>,
+        _serializer: S
+    ) -> Option<Result<S::Ok, S::Error>>
+    where
+        S: serde::ser::Serializer
+    {
+        None
+    }
 }
 
 pub enum Action<P, R> {

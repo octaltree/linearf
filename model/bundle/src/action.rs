@@ -29,7 +29,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             $(let $i = a.clone().map($i);)*
         };
     }
-    let_actions! {fields, new_fields, parses, run}
+    let_actions! {fields, new_fields, parses, run, serialize}
     quote::quote! {
         use linearf::action::*;
         use std::marker::PhantomData;
@@ -81,6 +81,21 @@ pub fn format(recipe: &Recipe) -> TokenStream {
                     _ => Arc::new(())
                 }
             }
+
+            fn serialize<S>(
+                &self,
+                name: &str,
+                result: Arc<dyn Any + Send + Sync>,
+                serializer: S
+            ) -> Option<Result<S::Ok, S::Error>>
+            where
+                S: serde::ser::Serializer
+            {
+                match name {
+                    #(#serialize)*
+                    _ => None
+                }
+            }
         }
     }
 }
@@ -128,6 +143,29 @@ fn run(a: A) -> TokenStream {
         } else {
             log::error!("mismatch action run params");
             Arc::new(())
+        }
+    };
+    quote::quote! {
+        #name => match &self.#field {
+            linearf::source::Source::Simple(t) => { #p }
+        },
+    }
+}
+
+fn serialize(a: A) -> TokenStream {
+    let A {
+        name,
+        field,
+        result,
+        ..
+    } = a;
+    let p = quote::quote! {
+        if params.is::<#result>() {
+            let result: &Arc<#result> = unsafe { std::mem::transmute(result) };
+            Some(result.serialize(serializer))
+        } else {
+            log::error!("mismatch action result");
+            None
         }
     };
     quote::quote! {

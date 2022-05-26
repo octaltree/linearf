@@ -33,6 +33,8 @@ pub trait Linearf {
     fn matcher(&self) -> &Self::Matcher;
 
     fn converter(&self) -> &Self::Converter;
+
+    fn action(&self) -> &Self::Action;
 }
 
 pub type AsyncRt = tokio::runtime::Handle;

@@ -39,6 +39,7 @@ impl Linearf for Lnf {
     fn source(&self) -> &Self::Source { &self.source }
     fn matcher(&self) -> &Self::Matcher { &self.matcher }
     fn converter(&self) -> &Self::Converter { &self.converter }
+    fn action(&self) -> &Self::Action { &self.action }
 
     fn runtime(&self) -> &linearf::AsyncRt { &self.rt }
 }
