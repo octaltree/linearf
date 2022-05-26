@@ -29,7 +29,6 @@ pub fn format(recipe: &Recipe) -> TokenStream {
     let_converters! {fields, new_fields, map_convert}
     quote::quote! {
         use linearf::converter::*;
-        use std::collections::HashMap;
         use std::marker::PhantomData;
 
         pub struct Converter<L> {

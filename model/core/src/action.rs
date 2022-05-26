@@ -15,14 +15,14 @@ pub trait ActionRegistry {
         None
     }
 
-    fn run(&self, _name: &str, _params: Arc<dyn Any + Send + Sync>) -> Arc<dyn Any + Send + Sync> {
+    fn run(&self, _name: &str, _params: &Arc<dyn Any + Send + Sync>) -> Arc<dyn Any + Send + Sync> {
         Arc::new(())
     }
 
     fn serialize<S>(
         &self,
         _name: &str,
-        _result: Arc<dyn Any + Send + Sync>,
+        _result: &Arc<dyn Any + Send + Sync>,
         _serializer: S
     ) -> Option<Result<S::Ok, S::Error>>
     where
@@ -45,7 +45,7 @@ impl<P, R> Clone for Action<P, R> {
 }
 
 pub trait SimpleTask: IsAction {
-    fn run(&self, params: <Self as IsAction>::Params) -> <Self as IsAction>::Result;
+    fn run(&self, params: &Arc<<Self as IsAction>::Params>) -> <Self as IsAction>::Result;
 }
 
 pub trait IsAction {

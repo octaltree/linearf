@@ -232,9 +232,9 @@ fn dispatch_action<'a>(
     let p: Arc<_> = registry.parse(&name, d).ok_or_else(|| {
         LuaError::external(ActionError::ActionNotFound(SmartString::from(&*name)))
     })??;
-    let r: Arc<_> = registry.run(&name, p);
+    let r: Arc<_> = registry.run(&name, &p);
     registry
-        .serialize(&name, r, Serializer::new(lua))
+        .serialize(&name, &r, Serializer::new(lua))
         .ok_or_else(|| LuaError::external(ActionError::ActionNotFound(SmartString::from(&*name))))?
 }
 

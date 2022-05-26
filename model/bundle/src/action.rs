@@ -73,7 +73,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             fn run(
                 &self,
                 name: &str,
-                params: Arc<dyn Any + Send + Sync>
+                params: &Arc<dyn Any + Send + Sync>
             ) -> Arc<dyn Any + Send + Sync>
             {
                 match name {
@@ -85,7 +85,7 @@ pub fn format(recipe: &Recipe) -> TokenStream {
             fn serialize<S>(
                 &self,
                 name: &str,
-                result: Arc<dyn Any + Send + Sync>,
+                result: &Arc<dyn Any + Send + Sync>,
                 serializer: S
             ) -> Option<Result<S::Ok, S::Error>>
             where
@@ -138,8 +138,7 @@ fn run(a: A) -> TokenStream {
     let p = quote::quote! {
         if params.is::<#params>() {
             let params: &Arc<#params> = unsafe { std::mem::transmute(params) };
-            let result = Arc::new(t.run(params));
-            unsafe { std::mem::transmute(result) }
+            Arc::new(t.run(params))
         } else {
             log::error!("mismatch action run params");
             Arc::new(())
@@ -147,7 +146,7 @@ fn run(a: A) -> TokenStream {
     };
     quote::quote! {
         #name => match &self.#field {
-            linearf::source::Source::Simple(t) => { #p }
+            linearf::action::Action::Simple(t) => { #p }
         },
     }
 }
@@ -160,7 +159,7 @@ fn serialize(a: A) -> TokenStream {
         ..
     } = a;
     let p = quote::quote! {
-        if params.is::<#result>() {
+        if result.is::<#result>() {
             let result: &Arc<#result> = unsafe { std::mem::transmute(result) };
             Some(result.serialize(serializer))
         } else {
@@ -170,7 +169,7 @@ fn serialize(a: A) -> TokenStream {
     };
     quote::quote! {
         #name => match &self.#field {
-            linearf::source::Source::Simple(t) => { #p }
+            linearf::action::Action::Simple(_t) => { #p }
         },
     }
 }
