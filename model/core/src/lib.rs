@@ -1,6 +1,7 @@
 #![feature(drain_filter, test)]
 extern crate test;
 
+pub mod action;
 pub(crate) mod common_interface;
 pub mod converter;
 pub mod item;
@@ -8,6 +9,7 @@ pub mod matcher;
 pub mod source;
 pub mod state;
 
+pub use action::ActionRegistry;
 pub use converter::ConverterRegistry;
 pub use matcher::MatcherRegistry;
 pub use smartstring::alias::String as SmartString;
@@ -20,6 +22,7 @@ pub trait Linearf {
     type Source: SourceRegistry;
     type Matcher: MatcherRegistry;
     type Converter: ConverterRegistry;
+    type Action: ActionRegistry;
 
     fn state(&self) -> &Shared<State>;
 
@@ -30,6 +33,8 @@ pub trait Linearf {
     fn matcher(&self) -> &Self::Matcher;
 
     fn converter(&self) -> &Self::Converter;
+
+    fn action(&self) -> &Self::Action;
 }
 
 pub type AsyncRt = tokio::runtime::Handle;

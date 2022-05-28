@@ -4,7 +4,10 @@ mod wrapper;
 
 use crate::{lnf::Lnf, wrapper::Wrapper};
 use linearf::*;
-use mlua::{prelude::*, serde::Deserializer as LuaDeserializer};
+use mlua::{
+    prelude::*,
+    serde::{Deserializer as LuaDeserializer, Serializer}
+};
 use serde::Deserialize;
 use std::{
     fs,
@@ -46,6 +49,7 @@ fn linearf_bridge(lua: &Lua) -> LuaResult<LuaTable> {
         lua.create_function(remove_all_sessions)?
     )?;
     exports.set("clean_dir", lua.create_function(clean_dir)?)?;
+    exports.set("dispatch_action", lua.create_function(dispatch_action)?)?;
     Ok(exports)
 }
 
@@ -215,4 +219,27 @@ fn remove_all_sessions(lua: &Lua, (): ()) -> LuaResult<()> {
 fn clean_dir(_lua: &Lua, (): ()) -> LuaResult<()> {
     fs::remove_dir_all(dir()).map_err(LuaError::external)?;
     Ok(())
+}
+
+fn dispatch_action<'a>(
+    lua: &'a Lua,
+    (name, params): (LuaString, LuaValue)
+) -> LuaResult<LuaValue<'a>> {
+    let name = name.to_string_lossy();
+    let d = LuaDeserializer::new(params);
+    let lnf: Wrapper<Arc<Lnf>> = lua.named_registry_value(LINEARF)?;
+    let registry = lnf.action();
+    let p: Arc<_> = registry.parse(&name, d).ok_or_else(|| {
+        LuaError::external(ActionError::ActionNotFound(SmartString::from(&*name)))
+    })??;
+    let r: Arc<_> = registry.run(&name, &p);
+    registry
+        .serialize(&name, &r, Serializer::new(lua))
+        .ok_or_else(|| LuaError::external(ActionError::ActionNotFound(SmartString::from(&*name))))?
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ActionError {
+    #[error("Action {0:?} is not found")]
+    ActionNotFound(SmartString)
 }

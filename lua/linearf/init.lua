@@ -9,7 +9,8 @@ local M = {
         crates = {},
         sources = {},
         matchers = {},
-        converters = {}
+        converters = {},
+        actions = {}
     }),
     scenarios = Dim.new(),
     context_managers = Dim.new(),

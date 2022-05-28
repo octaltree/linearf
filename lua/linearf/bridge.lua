@@ -84,6 +84,7 @@ local function format_recipe(recipe)
     local sources = {}
     local matchers = {}
     local converters = {}
+    local actions = {}
     for _, x in ipairs(recipe.crates or {}) do
         table.insert(crates, utils.dict(x))
     end
@@ -96,11 +97,15 @@ local function format_recipe(recipe)
     for _, x in ipairs(recipe.converters or {}) do
         table.insert(converters, utils.dict(x))
     end
+    for _, x in ipairs(recipe.actions or {}) do
+        table.insert(actions, utils.dict(x))
+    end
     return vim.fn.json_encode(utils.dict({
         crates = utils.list(crates),
         sources = utils.list(sources),
         matchers = utils.list(matchers),
-        converters = utils.list(converters)
+        converters = utils.list(converters),
+        actions = utils.list(actions)
     }))
 end
 

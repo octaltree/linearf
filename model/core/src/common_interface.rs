@@ -22,7 +22,10 @@ pub enum Reusable {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum BlankParams {
+pub enum Blank {
     Unit(()),
     Obj {}
 }
+
+pub type BlankParams = Blank;
+pub type BlankResult = Blank;

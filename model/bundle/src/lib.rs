@@ -1,3 +1,4 @@
+mod action;
 mod converter;
 mod matcher;
 mod source;
@@ -16,7 +17,9 @@ pub struct Recipe {
     #[serde(default)]
     pub matchers: Vec<MatcherDescriptor>,
     #[serde(default)]
-    pub converters: Vec<ConverterDescriptor>
+    pub converters: Vec<ConverterDescriptor>,
+    #[serde(default)]
+    pub actions: Vec<ActionDescriptor>
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,14 +46,22 @@ pub struct ConverterDescriptor {
     pub path: String
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ActionDescriptor {
+    pub name: String,
+    pub path: String
+}
+
 pub fn format_lib(recipe: &Recipe) -> String {
     let source = crate::source::format(recipe);
     let matcher = crate::matcher::format(recipe);
     let converter = crate::converter::format(recipe);
+    let action = crate::action::format(recipe);
     quote::quote! (
         pub use source::Source;
         pub use matcher::Matcher;
         pub use converter::Converter;
+        pub use action::Action;
         mod source {
             #source
         }
@@ -59,6 +70,9 @@ pub fn format_lib(recipe: &Recipe) -> String {
         }
         mod converter {
             #converter
+        }
+        mod action {
+            #action
         }
     )
     .to_string()
