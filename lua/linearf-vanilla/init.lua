@@ -78,33 +78,33 @@ end
 
 do -- DUCK TYPING
     -- vanilla has only one set of windows at most across all tabs, so view_id is not needed
-    function Vanilla.hide(self, _view_id)
+    function Vanilla.hide(self, _ctx)
         self:_close_all()
         return true
     end
 
-    function Vanilla.goto_orig(self, _view_id)
+    function Vanilla.goto_orig(self, _ctx)
         vim.fn.win_gotoid(self.orig_win)
         return true
     end
 
-    function Vanilla.goto_list(self, _view_id)
+    function Vanilla.goto_list(self, _ctx)
         vim.fn.win_gotoid(self.list_win)
         return true
     end
 
-    function Vanilla.goto_querier(self, _view_id)
+    function Vanilla.goto_querier(self, _ctx)
         vim.fn.win_gotoid(self.querier_win)
         return true
     end
 
-    function Vanilla.goto_querier_insert_a(self, _view_id)
+    function Vanilla.goto_querier_insert_a(self, _ctx)
         if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
         vim.fn.feedkeys('a', 'n')
         return true
     end
 
-    function Vanilla.goto_querier_insert(self, _view_id)
+    function Vanilla.goto_querier_insert(self, _ctx)
         if vim.fn.win_gotoid(self.querier_win) ~= 1 then return end
         vim.fn.feedkeys('A', 'n')
         return true
@@ -114,7 +114,10 @@ do -- DUCK TYPING
         local items = self:_items()
         local tmp = vim.fn.win_getid()
         vim.fn.win_gotoid(self.orig_win)
-        local is_view_action = action(items, view_id)
+        -- The view derives the flow from the view_id and
+        -- the action does not need to know the view_id
+        local ctx = {view_id = view_id, flow = self.current}
+        local is_view_action = action(items, ctx)
         if not is_view_action then vim.fn.win_gotoid(tmp) end
     end
 end
