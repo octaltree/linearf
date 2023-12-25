@@ -235,7 +235,7 @@ fn run_sort(rt: AsyncRt, sorted: Shared<Sorted>, chunks: CacheChunks<WithScore>)
             // +50ms desc
             let orig_size = chunk.len();
             let mut chunk = chunk
-                .drain_filter(|(_, s)| !s.should_be_excluded())
+                .extract_if(|(_, s)| !s.should_be_excluded())
                 .collect::<Vec<_>>();
             // log::debug!("{}", chunk.len());
             // +1ms

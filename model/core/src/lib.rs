@@ -1,4 +1,4 @@
-#![feature(drain_filter, test)]
+#![feature(extract_if, test)]
 extern crate test;
 
 pub mod action;
